@@ -8,9 +8,11 @@ __pycache__/
 env/
 venv/
 
-# Database files
+# Database and temporary uploads
 workbench.db
 *.sqlite3
+public/uploads/
+audio/uploads/
 
 # Operating System
 .DS_Store
