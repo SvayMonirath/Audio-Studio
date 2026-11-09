@@ -1,0 +1,24 @@
+﻿id,category,tts_input,heard_transcript_blind,pronunciation_score_1_5,intelligibility_score_1_5,naturalness_score_1_5,voice_quality_score_1_5,pronunciation_errors,voice_quality_notes,naturalness_notes,error_code_primary,error_code_secondary,error_taxonomy_label
+KH01,phone_greeting,អាឡូ សួស្តីបង!,អាឡូ សួស្តីបង!,3,3,2,2,none,heavy bass proximity effect muffled microphone,slow dragging cadence,ELONG,PROS,Syllable elongation / dragging tempo
+KH02,opening_and_help,សួស្តីបង មានអីឲ្យខ្ញុំជួយបានខ្លះ?,សួស្តីបង មានអីឲ្យខ្ញុំជួយបានខ្លះ?,3,3,3,2,dropped independent vowel,muffled acoustics,slow pace,V_DEL_INS,ELONG,Independent vowel deletion (MAS zero-duration failure)
+KH03,hold_and_check,បានបង ចាំខ្ញុំឆែកមើលឲ្យសិនណា។,បានបង ចាំខ្ញុំឆែកមើលឲ្យសិនណា។,3,3,2,2,dropped benefactive connector,boomy audio,dragging,V_DEL_INS,ELONG,Independent vowel deletion (MAS zero-duration failure)
+KH04,ordering,បងចង់កុម្ម៉ង់អីខ្លះ?,បងចង់កុម្ម៉ង់អីខ្លះ?,3,3,3,2,none,boomy proximity effect,authentic female tone but dragging,ELONG,PROS,Dragging tempo
+KH05,menu,ថ្ងៃនេះមានមុខម្ហូបពិសេសអីខ្លះ?,ថ្ងៃនេះមានមុខម្ហូបពិសេសអីខ្លះ?,3,3,3,2,none,muffled,moderate,ELONG,NONE,Sub-tempo delivery
+KH06,food_preference,បងចូលចិត្តហឹរតិច ឬហឹរខ្លាំង?,បងចូលចិត្តហឹរតិច ឬហឹរខ្លាំង?,3,3,3,2,none,muffled mic,dragging pace,ELONG,NONE,Syllable elongation
+KH07,menu_listing,យើងមានបាយសាច់មាន់ បាយសាច់គោ ហើយក៏មានមីឆាដែរ។,យើងមានបាយសាច់មាន់ បាយសាច់គោ ហើយក៏មានមីឆាដែរ។,3,3,2,2,none,muffled boomy bass,overly prolonged syllables,ELONG,PROS,Severe syllable elongation
+KH08,drinks_and_code_switching,មានកាហ្វេទឹកកក តែទឹកដោះគោ ហើយក៏មាន Iced Latte ដែរ។,មានកាហ្វេទឹកកក តែទឹកដោះគោ ហើយក៏មាន ដែរ។,2,2,1,2,failed English code-switching (muted),boomy bass,unnatural silence on English loanword,CODE,SILENCE,Code-switching failure / dead silence
+KH09,add_to_order,បងចង់បន្ថែមអីទៀតអត់?,បងចង់បន្ថែមអីទៀតអត់?,3,3,3,2,none,muffled,dragging,ELONG,NONE,Dragging tempo
+KH10,order_readback,អូខេបង អញ្ចឹងខ្ញុំកត់បាយសាច់មាន់មួយចាន និងទឹកសុទ្ធមួយដបណា។,អូខេបង អញ្ចឹងខ្ញុំកត់បាយសាច់មាន់មួយចាន និងទឹកសុទ្ធមួយដបណា។,3,3,2,2,none,muffled acoustic capture,very slow recitation,ELONG,PROS,Dragging pace / slow recitation
+KH11,riel_price,បាយសាច់មាន់មួយចាន តម្លៃមួយម៉ឺនប្រាំពាន់រៀលបង។,បាយសាច់មាន់មួយចាន តម្លៃមួយម៉ឺនប្រាំពាន់រៀលបង។,3,3,2,2,spelling literal pronunciation,boomy mic,dragging,PROM,ELONG,Spelling literalism and dragging tempo
+KH12,drink_price,កាហ្វេទឹកកកមួយកែវ ប្រាំពាន់រៀលបង។,កាហ្វេទឹកកកមួយកែវ ប្រាំពាន់រៀលបង។,3,3,3,2,none,muffled,slow,ELONG,NONE,Sub-tempo delivery
+KH13,bill_total_usd,សរុបអស់ដប់ពីរដុល្លារកន្លះបង។,សរុបអស់ដប់ពីរដុល្លារកន្លះបង។,3,3,3,2,none,muffled,acceptable,ELONG,NONE,Sub-tempo delivery
+KH14,discount,ឥឡូវនេះហាងយើងមានបញ្ចុះតម្លៃដប់ភាគរយណាបង។,ឥឡូវនេះហាងយើងមានបញ្ចុះតម្លៃដប់ភាគរយណាបង។,3,3,2,2,none,muffled boomy,dragging,ELONG,NONE,Dragging tempo
+KH15,unavailable_item,សុំទោសបង មុខម្ហូបនេះអស់ហើយ។,សុំទោសបង មុខម្ហូបនេះអស់ហើយ។,3,3,3,2,none,muffled,acceptable,ELONG,NONE,Sub-tempo delivery
+KH16,available_quantity,នៅមានបង ចង់កុម្ម៉ង់ប៉ុន្មានចាន?,នៅមានបង ចង់កុម្ម៉ង់ប៉ុន្មានចាន?,3,3,3,2,none,muffled,dragging,ELONG,NONE,Dragging tempo
+KH17,alternative_recommendation,បើមុខនេះអស់ ខ្ញុំអាចណែនាំមុខផ្សេងឲ្យបានណា។,បើមុខនេះអស់ ខ្ញុំអាចណែនាំមុខផ្សេងឲ្យបានណា។,3,3,2,2,dropped benefactive connector,muffled,dragging,V_DEL_INS,ELONG,Independent vowel deletion (MAS zero-duration failure)
+KH18,booking_intent,បងចង់កក់តុមែនទេ?,បងចង់កក់តុមែនទេ?,3,3,3,2,none,muffled,acceptable,ELONG,NONE,Sub-tempo delivery
+KH19,booking_date,បងចង់កក់ថ្ងៃណា?,បងចង់កក់ថ្ងៃណា?,3,3,3,2,none,muffled,acceptable,ELONG,NONE,Sub-tempo delivery
+KH20,spoken_date,ថ្ងៃទីម្ភៃប្រាំ ខែធ្នូ នៅមានតុទំនេរបង។,ថ្ងៃទីម្ភៃប្រាំ ខែធ្នូ នៅមានតុទំនេរបង។,3,3,2,2,none,muffled boomy,very slow,ELONG,NONE,Severe syllable elongation on dates
+KH21,booking_party_size,បងកក់តុសម្រាប់ប៉ុន្មាននាក់ដែរ?,បងកក់តុសម្រាប់ប៉ុន្មាននាក់ដែរ?,3,3,3,2,none,muffled,acceptable,ELONG,NONE,Sub-tempo delivery
+KH22,available_time,ម៉ោងប្រាំមួយកន្លះល្ងាច នៅមានតុទំនេរបង។,ម៉ោងប្រាំមួយកន្លះល្ងាច នៅមានតុទំនេរបង។,3,3,2,2,none,muffled,dragging,ELONG,NONE,Dragging tempo
+KH23,alternative_time,ម៉ោងប្រាំមួយអត់មានតុទេ តែម៉ោងប្រាំពីរនៅមានបង។,ម៉ោងប្រាំមួយអត់មានតុទេ តែម៉ោងប្រាំពីរនៅមានបង។,3,3,2,2,none,muffled boomy,dragging,ELONG,NONE,Dragging tempo

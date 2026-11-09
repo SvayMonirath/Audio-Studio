@@ -1,0 +1,906 @@
+{
+  "facebook/mms-tts-khm": {
+    "candidate_code": "C-001",
+    "name": "Meta MMS-TTS",
+    "repo": "facebook/mms-tts-khm",
+    "license": "CC-BY-NC 4.0",
+    "model_size": "~35M",
+    "latency_ms": 153.4,
+    "rtf": 0.0498,
+    "vram_mb": 250.4,
+    "sample_rate_hz": 16000,
+    "mean_duration_s": 3.32,
+    "mean_speed_cps": 10.0,
+    "min_speed_cps": 7.7,
+    "max_speed_cps": 12.7,
+    "mean_peak_db": -1.6,
+    "mean_rms_db": -17.9,
+    "records": {
+      "KH01": {
+        "id": "KH01",
+        "text": "អាឡូ សួស្តីបង!",
+        "chars": 14,
+        "duration_s": 1.82,
+        "speed_cps": 7.7,
+        "peak_db": -1.3,
+        "rms_db": -17.4
+      },
+      "KH02": {
+        "id": "KH02",
+        "text": "សួស្តីបង មានអីឲ្យខ្ញុំជួយបានខ្លះ?",
+        "chars": 33,
+        "duration_s": 2.93,
+        "speed_cps": 11.3,
+        "peak_db": -1.6,
+        "rms_db": -17.7
+      },
+      "KH03": {
+        "id": "KH03",
+        "text": "បានបង ចាំខ្ញុំឆែកមើលឲ្យសិនណា។",
+        "chars": 29,
+        "duration_s": 2.66,
+        "speed_cps": 10.9,
+        "peak_db": -1.4,
+        "rms_db": -17.1
+      },
+      "KH04": {
+        "id": "KH04",
+        "text": "បងចង់កុម្ម៉ង់អីខ្លះ?",
+        "chars": 20,
+        "duration_s": 2.0,
+        "speed_cps": 10.0,
+        "peak_db": -2.4,
+        "rms_db": -18.2
+      },
+      "KH05": {
+        "id": "KH05",
+        "text": "ថ្ងៃនេះមានមុខម្ហូបពិសេសអីខ្លះ?",
+        "chars": 30,
+        "duration_s": 3.42,
+        "speed_cps": 8.8,
+        "peak_db": -2.3,
+        "rms_db": -19.9
+      },
+      "KH06": {
+        "id": "KH06",
+        "text": "បងចូលចិត្តហឹរតិច ឬហឹរខ្លាំង?",
+        "chars": 28,
+        "duration_s": 2.88,
+        "speed_cps": 9.7,
+        "peak_db": -1.1,
+        "rms_db": -17.3
+      },
+      "KH07": {
+        "id": "KH07",
+        "text": "យើងមានបាយសាច់មាន់ បាយសាច់គោ ហើយក៏មានមីឆាដែរ។",
+        "chars": 44,
+        "duration_s": 4.58,
+        "speed_cps": 9.6,
+        "peak_db": -1.0,
+        "rms_db": -17.1
+      },
+      "KH08": {
+        "id": "KH08",
+        "text": "មានកាហ្វេទឹកកក តែទឹកដោះគោ ហើយក៏មាន Iced Latte ដែរ។",
+        "chars": 50,
+        "duration_s": 5.57,
+        "speed_cps": 9.0,
+        "peak_db": -0.5,
+        "rms_db": -18.6
+      },
+      "KH09": {
+        "id": "KH09",
+        "text": "បងចង់បន្ថែមអីទៀតអត់?",
+        "chars": 20,
+        "duration_s": 2.02,
+        "speed_cps": 9.9,
+        "peak_db": -1.4,
+        "rms_db": -17.7
+      },
+      "KH10": {
+        "id": "KH10",
+        "text": "អូខេបង អញ្ចឹងខ្ញុំកត់បាយសាច់មាន់មួយចាន និងទឹកសុទ្ធមួយដបណា។",
+        "chars": 58,
+        "duration_s": 5.74,
+        "speed_cps": 10.1,
+        "peak_db": -1.1,
+        "rms_db": -17.4
+      },
+      "KH11": {
+        "id": "KH11",
+        "text": "បាយសាច់មាន់មួយចាន តម្លៃមួយម៉ឺនប្រាំពាន់រៀលបង។",
+        "chars": 45,
+        "duration_s": 4.4,
+        "speed_cps": 10.2,
+        "peak_db": -0.7,
+        "rms_db": -16.4
+      },
+      "KH12": {
+        "id": "KH12",
+        "text": "កាហ្វេទឹកកកមួយកែវ ប្រាំពាន់រៀលបង។",
+        "chars": 33,
+        "duration_s": 3.5,
+        "speed_cps": 9.4,
+        "peak_db": -1.2,
+        "rms_db": -16.6
+      },
+      "KH13": {
+        "id": "KH13",
+        "text": "សរុបអស់ដប់ពីរដុល្លារកន្លះបង។",
+        "chars": 28,
+        "duration_s": 3.02,
+        "speed_cps": 9.3,
+        "peak_db": -0.5,
+        "rms_db": -18.4
+      },
+      "KH14": {
+        "id": "KH14",
+        "text": "ឥឡូវនេះហាងយើងមានបញ្ចុះតម្លៃដប់ភាគរយណាបង។",
+        "chars": 40,
+        "duration_s": 4.05,
+        "speed_cps": 9.9,
+        "peak_db": -2.6,
+        "rms_db": -18.3
+      },
+      "KH15": {
+        "id": "KH15",
+        "text": "សុំទោសបង មុខម្ហូបនេះអស់ហើយ។",
+        "chars": 27,
+        "duration_s": 2.8,
+        "speed_cps": 9.6,
+        "peak_db": -2.3,
+        "rms_db": -18.3
+      },
+      "KH16": {
+        "id": "KH16",
+        "text": "នៅមានបង ចង់កុម្ម៉ង់ប៉ុន្មានចាន?",
+        "chars": 31,
+        "duration_s": 2.59,
+        "speed_cps": 12.0,
+        "peak_db": -1.9,
+        "rms_db": -17.4
+      },
+      "KH17": {
+        "id": "KH17",
+        "text": "បើមុខនេះអស់ ខ្ញុំអាចណែនាំមុខផ្សេងឲ្យបានណា។",
+        "chars": 42,
+        "duration_s": 4.32,
+        "speed_cps": 9.7,
+        "peak_db": -1.4,
+        "rms_db": -18.2
+      },
+      "KH18": {
+        "id": "KH18",
+        "text": "បងចង់កក់តុមែនទេ?",
+        "chars": 16,
+        "duration_s": 1.52,
+        "speed_cps": 10.5,
+        "peak_db": -3.1,
+        "rms_db": -18.8
+      },
+      "KH19": {
+        "id": "KH19",
+        "text": "បងចង់កក់ថ្ងៃណា?",
+        "chars": 15,
+        "duration_s": 1.49,
+        "speed_cps": 10.1,
+        "peak_db": -4.6,
+        "rms_db": -22.1
+      },
+      "KH20": {
+        "id": "KH20",
+        "text": "ថ្ងៃទីម្ភៃប្រាំ ខែធ្នូ នៅមានតុទំនេរបង។",
+        "chars": 38,
+        "duration_s": 4.38,
+        "speed_cps": 8.7,
+        "peak_db": -1.0,
+        "rms_db": -17.4
+      },
+      "KH21": {
+        "id": "KH21",
+        "text": "បងកក់តុសម្រាប់ប៉ុន្មាននាក់ដែរ?",
+        "chars": 30,
+        "duration_s": 2.37,
+        "speed_cps": 12.7,
+        "peak_db": -1.4,
+        "rms_db": -18.0
+      },
+      "KH22": {
+        "id": "KH22",
+        "text": "ម៉ោងប្រាំមួយកន្លះល្ងាច នៅមានតុទំនេរបង។",
+        "chars": 38,
+        "duration_s": 3.81,
+        "speed_cps": 10.0,
+        "peak_db": -1.7,
+        "rms_db": -16.7
+      },
+      "KH23": {
+        "id": "KH23",
+        "text": "ម៉ោងប្រាំមួយអត់មានតុទេ តែម៉ោងប្រាំពីរនៅមានបង។",
+        "chars": 45,
+        "duration_s": 4.43,
+        "speed_cps": 10.2,
+        "peak_db": -0.8,
+        "rms_db": -16.7
+      }
+    }
+  },
+  "khmerttsopensource/khmer-tts": {
+    "candidate_code": "C-003",
+    "name": "Khmer-TTS",
+    "repo": "khmerttsopensource/khmer-tts",
+    "license": "Apache-2.0",
+    "model_size": "~35M",
+    "latency_ms": 139.6,
+    "rtf": 0.0672,
+    "vram_mb": 224.2,
+    "sample_rate_hz": 16000,
+    "mean_duration_s": 2.18,
+    "mean_speed_cps": 15.0,
+    "min_speed_cps": 9.3,
+    "max_speed_cps": 20.2,
+    "mean_peak_db": -8.9,
+    "mean_rms_db": -24.5,
+    "records": {
+      "KH01": {
+        "id": "KH01",
+        "text": "អាឡូ សួស្តីបង!",
+        "chars": 14,
+        "duration_s": 1.34,
+        "speed_cps": 10.4,
+        "peak_db": -8.7,
+        "rms_db": -24.6
+      },
+      "KH02": {
+        "id": "KH02",
+        "text": "សួស្តីបង មានអីឲ្យខ្ញុំជួយបានខ្លះ?",
+        "chars": 33,
+        "duration_s": 2.34,
+        "speed_cps": 14.1,
+        "peak_db": -9.3,
+        "rms_db": -25.2
+      },
+      "KH03": {
+        "id": "KH03",
+        "text": "បានបង ចាំខ្ញុំឆែកមើលឲ្យសិនណា។",
+        "chars": 29,
+        "duration_s": 2.18,
+        "speed_cps": 13.3,
+        "peak_db": -9.6,
+        "rms_db": -24.8
+      },
+      "KH04": {
+        "id": "KH04",
+        "text": "បងចង់កុម្ម៉ង់អីខ្លះ?",
+        "chars": 20,
+        "duration_s": 1.39,
+        "speed_cps": 14.4,
+        "peak_db": -8.4,
+        "rms_db": -24.9
+      },
+      "KH05": {
+        "id": "KH05",
+        "text": "ថ្ងៃនេះមានមុខម្ហូបពិសេសអីខ្លះ?",
+        "chars": 30,
+        "duration_s": 1.79,
+        "speed_cps": 16.7,
+        "peak_db": -11.4,
+        "rms_db": -24.4
+      },
+      "KH06": {
+        "id": "KH06",
+        "text": "បងចូលចិត្តហឹរតិច ឬហឹរខ្លាំង?",
+        "chars": 28,
+        "duration_s": 1.82,
+        "speed_cps": 15.4,
+        "peak_db": -10.4,
+        "rms_db": -25.2
+      },
+      "KH07": {
+        "id": "KH07",
+        "text": "យើងមានបាយសាច់មាន់ បាយសាច់គោ ហើយក៏មានមីឆាដែរ។",
+        "chars": 44,
+        "duration_s": 3.15,
+        "speed_cps": 14.0,
+        "peak_db": -9.2,
+        "rms_db": -24.6
+      },
+      "KH08": {
+        "id": "KH08",
+        "text": "មានកាហ្វេទឹកកក តែទឹកដោះគោ ហើយក៏មាន Iced Latte ដែរ។",
+        "chars": 50,
+        "duration_s": 3.2,
+        "speed_cps": 15.6,
+        "peak_db": -8.4,
+        "rms_db": -24.9
+      },
+      "KH09": {
+        "id": "KH09",
+        "text": "បងចង់បន្ថែមអីទៀតអត់?",
+        "chars": 20,
+        "duration_s": 1.54,
+        "speed_cps": 13.0,
+        "peak_db": -9.8,
+        "rms_db": -25.6
+      },
+      "KH10": {
+        "id": "KH10",
+        "text": "អូខេបង អញ្ចឹងខ្ញុំកត់បាយសាច់មាន់មួយចាន និងទឹកសុទ្ធមួយដបណា។",
+        "chars": 58,
+        "duration_s": 4.26,
+        "speed_cps": 13.6,
+        "peak_db": -8.1,
+        "rms_db": -25.0
+      },
+      "KH11": {
+        "id": "KH11",
+        "text": "បាយសាច់មាន់មួយចាន តម្លៃមួយម៉ឺនប្រាំពាន់រៀលបង។",
+        "chars": 45,
+        "duration_s": 2.77,
+        "speed_cps": 16.3,
+        "peak_db": -7.0,
+        "rms_db": -23.5
+      },
+      "KH12": {
+        "id": "KH12",
+        "text": "កាហ្វេទឹកកកមួយកែវ ប្រាំពាន់រៀលបង។",
+        "chars": 33,
+        "duration_s": 1.94,
+        "speed_cps": 17.0,
+        "peak_db": -8.0,
+        "rms_db": -24.0
+      },
+      "KH13": {
+        "id": "KH13",
+        "text": "សរុបអស់ដប់ពីរដុល្លារកន្លះបង។",
+        "chars": 28,
+        "duration_s": 2.06,
+        "speed_cps": 13.6,
+        "peak_db": -7.9,
+        "rms_db": -24.5
+      },
+      "KH14": {
+        "id": "KH14",
+        "text": "ឥឡូវនេះហាងយើងមានបញ្ចុះតម្លៃដប់ភាគរយណាបង។",
+        "chars": 40,
+        "duration_s": 2.66,
+        "speed_cps": 15.1,
+        "peak_db": -7.4,
+        "rms_db": -23.3
+      },
+      "KH15": {
+        "id": "KH15",
+        "text": "សុំទោសបង មុខម្ហូបនេះអស់ហើយ។",
+        "chars": 27,
+        "duration_s": 1.55,
+        "speed_cps": 17.4,
+        "peak_db": -9.9,
+        "rms_db": -24.1
+      },
+      "KH16": {
+        "id": "KH16",
+        "text": "នៅមានបង ចង់កុម្ម៉ង់ប៉ុន្មានចាន?",
+        "chars": 31,
+        "duration_s": 1.73,
+        "speed_cps": 17.9,
+        "peak_db": -10.0,
+        "rms_db": -22.6
+      },
+      "KH17": {
+        "id": "KH17",
+        "text": "បើមុខនេះអស់ ខ្ញុំអាចណែនាំមុខផ្សេងឲ្យបានណា។",
+        "chars": 42,
+        "duration_s": 2.34,
+        "speed_cps": 18.0,
+        "peak_db": -9.2,
+        "rms_db": -24.2
+      },
+      "KH18": {
+        "id": "KH18",
+        "text": "បងចង់កក់តុមែនទេ?",
+        "chars": 16,
+        "duration_s": 1.73,
+        "speed_cps": 9.3,
+        "peak_db": -9.8,
+        "rms_db": -25.4
+      },
+      "KH19": {
+        "id": "KH19",
+        "text": "បងចង់កក់ថ្ងៃណា?",
+        "chars": 15,
+        "duration_s": 1.3,
+        "speed_cps": 11.6,
+        "peak_db": -8.5,
+        "rms_db": -28.0
+      },
+      "KH20": {
+        "id": "KH20",
+        "text": "ថ្ងៃទីម្ភៃប្រាំ ខែធ្នូ នៅមានតុទំនេរបង។",
+        "chars": 38,
+        "duration_s": 2.72,
+        "speed_cps": 14.0,
+        "peak_db": -9.8,
+        "rms_db": -24.0
+      },
+      "KH21": {
+        "id": "KH21",
+        "text": "បងកក់តុសម្រាប់ប៉ុន្មាននាក់ដែរ?",
+        "chars": 30,
+        "duration_s": 1.49,
+        "speed_cps": 20.2,
+        "peak_db": -7.7,
+        "rms_db": -24.8
+      },
+      "KH22": {
+        "id": "KH22",
+        "text": "ម៉ោងប្រាំមួយកន្លះល្ងាច នៅមានតុទំនេរបង។",
+        "chars": 38,
+        "duration_s": 2.42,
+        "speed_cps": 15.7,
+        "peak_db": -7.4,
+        "rms_db": -22.9
+      },
+      "KH23": {
+        "id": "KH23",
+        "text": "ម៉ោងប្រាំមួយអត់មានតុទេ តែម៉ោងប្រាំពីរនៅមានបង។",
+        "chars": 45,
+        "duration_s": 2.53,
+        "speed_cps": 17.8,
+        "peak_db": -8.0,
+        "rms_db": -22.8
+      }
+    }
+  },
+  "openbmb/VoxCPM2": {
+    "candidate_code": "C-002",
+    "name": "VoxCPM2",
+    "repo": "openbmb/VoxCPM2",
+    "license": "Apache-2.0",
+    "model_size": "~2.0B",
+    "latency_ms": 38443.0,
+    "rtf": 17.23,
+    "vram_mb": 5466.4,
+    "sample_rate_hz": 48000,
+    "mean_duration_s": 2.24,
+    "mean_speed_cps": 15.2,
+    "min_speed_cps": 8.8,
+    "max_speed_cps": 20.8,
+    "mean_peak_db": -6.5,
+    "mean_rms_db": -23.9,
+    "records": {
+      "KH01": {
+        "id": "KH01",
+        "text": "អាឡូ សួស្តីបង!",
+        "chars": 14,
+        "duration_s": 1.44,
+        "speed_cps": 9.7,
+        "peak_db": -0.1,
+        "rms_db": -13.2
+      },
+      "KH02": {
+        "id": "KH02",
+        "text": "សួស្តីបង មានអីឲ្យខ្ញុំជួយបានខ្លះ?",
+        "chars": 33,
+        "duration_s": 2.24,
+        "speed_cps": 14.7,
+        "peak_db": -12.2,
+        "rms_db": -30.4
+      },
+      "KH03": {
+        "id": "KH03",
+        "text": "បានបង ចាំខ្ញុំឆែកមើលឲ្យសិនណា។",
+        "chars": 29,
+        "duration_s": 1.92,
+        "speed_cps": 15.1,
+        "peak_db": -8.8,
+        "rms_db": -23.6
+      },
+      "KH04": {
+        "id": "KH04",
+        "text": "បងចង់កុម្ម៉ង់អីខ្លះ?",
+        "chars": 20,
+        "duration_s": 1.12,
+        "speed_cps": 17.9,
+        "peak_db": -6.9,
+        "rms_db": -23.4
+      },
+      "KH05": {
+        "id": "KH05",
+        "text": "ថ្ងៃនេះមានមុខម្ហូបពិសេសអីខ្លះ?",
+        "chars": 30,
+        "duration_s": 1.6,
+        "speed_cps": 18.8,
+        "peak_db": -9.4,
+        "rms_db": -20.4
+      },
+      "KH06": {
+        "id": "KH06",
+        "text": "បងចូលចិត្តហឹរតិច ឬហឹរខ្លាំង?",
+        "chars": 28,
+        "duration_s": 2.24,
+        "speed_cps": 12.5,
+        "peak_db": -3.3,
+        "rms_db": -19.6
+      },
+      "KH07": {
+        "id": "KH07",
+        "text": "យើងមានបាយសាច់មាន់ បាយសាច់គោ ហើយក៏មានមីឆាដែរ។",
+        "chars": 44,
+        "duration_s": 4.48,
+        "speed_cps": 9.8,
+        "peak_db": -10.6,
+        "rms_db": -25.6
+      },
+      "KH08": {
+        "id": "KH08",
+        "text": "មានកាហ្វេទឹកកក តែទឹកដោះគោ ហើយក៏មាន Iced Latte ដែរ។",
+        "chars": 50,
+        "duration_s": 3.04,
+        "speed_cps": 16.4,
+        "peak_db": -15.1,
+        "rms_db": -31.9
+      },
+      "KH09": {
+        "id": "KH09",
+        "text": "បងចង់បន្ថែមអីទៀតអត់?",
+        "chars": 20,
+        "duration_s": 1.12,
+        "speed_cps": 17.9,
+        "peak_db": -7.0,
+        "rms_db": -23.4
+      },
+      "KH10": {
+        "id": "KH10",
+        "text": "អូខេបង អញ្ចឹងខ្ញុំកត់បាយសាច់មាន់មួយចាន និងទឹកសុទ្ធមួយដបណា។",
+        "chars": 58,
+        "duration_s": 3.52,
+        "speed_cps": 16.5,
+        "peak_db": -7.7,
+        "rms_db": -23.3
+      },
+      "KH11": {
+        "id": "KH11",
+        "text": "បាយសាច់មាន់មួយចាន តម្លៃមួយម៉ឺនប្រាំពាន់រៀលបង។",
+        "chars": 45,
+        "duration_s": 2.56,
+        "speed_cps": 17.6,
+        "peak_db": -4.8,
+        "rms_db": -22.6
+      },
+      "KH12": {
+        "id": "KH12",
+        "text": "កាហ្វេទឹកកកមួយកែវ ប្រាំពាន់រៀលបង។",
+        "chars": 33,
+        "duration_s": 2.08,
+        "speed_cps": 15.9,
+        "peak_db": -1.1,
+        "rms_db": -17.3
+      },
+      "KH13": {
+        "id": "KH13",
+        "text": "សរុបអស់ដប់ពីរដុល្លារកន្លះបង។",
+        "chars": 28,
+        "duration_s": 2.08,
+        "speed_cps": 13.5,
+        "peak_db": -3.3,
+        "rms_db": -23.9
+      },
+      "KH14": {
+        "id": "KH14",
+        "text": "ឥឡូវនេះហាងយើងមានបញ្ចុះតម្លៃដប់ភាគរយណាបង។",
+        "chars": 40,
+        "duration_s": 2.24,
+        "speed_cps": 17.9,
+        "peak_db": -10.0,
+        "rms_db": -27.7
+      },
+      "KH15": {
+        "id": "KH15",
+        "text": "សុំទោសបង មុខម្ហូបនេះអស់ហើយ។",
+        "chars": 27,
+        "duration_s": 1.92,
+        "speed_cps": 14.1,
+        "peak_db": -2.5,
+        "rms_db": -20.1
+      },
+      "KH16": {
+        "id": "KH16",
+        "text": "នៅមានបង ចង់កុម្ម៉ង់ប៉ុន្មានចាន?",
+        "chars": 31,
+        "duration_s": 1.76,
+        "speed_cps": 17.6,
+        "peak_db": -8.5,
+        "rms_db": -27.3
+      },
+      "KH17": {
+        "id": "KH17",
+        "text": "បើមុខនេះអស់ ខ្ញុំអាចណែនាំមុខផ្សេងឲ្យបានណា។",
+        "chars": 42,
+        "duration_s": 2.24,
+        "speed_cps": 18.7,
+        "peak_db": -4.5,
+        "rms_db": -25.0
+      },
+      "KH18": {
+        "id": "KH18",
+        "text": "បងចង់កក់តុមែនទេ?",
+        "chars": 16,
+        "duration_s": 1.28,
+        "speed_cps": 12.5,
+        "peak_db": -8.1,
+        "rms_db": -29.4
+      },
+      "KH19": {
+        "id": "KH19",
+        "text": "បងចង់កក់ថ្ងៃណា?",
+        "chars": 15,
+        "duration_s": 1.12,
+        "speed_cps": 13.4,
+        "peak_db": -5.0,
+        "rms_db": -23.8
+      },
+      "KH20": {
+        "id": "KH20",
+        "text": "ថ្ងៃទីម្ភៃប្រាំ ខែធ្នូ នៅមានតុទំនេរបង។",
+        "chars": 38,
+        "duration_s": 3.2,
+        "speed_cps": 11.9,
+        "peak_db": -4.4,
+        "rms_db": -26.2
+      },
+      "KH21": {
+        "id": "KH21",
+        "text": "បងកក់តុសម្រាប់ប៉ុន្មាននាក់ដែរ?",
+        "chars": 30,
+        "duration_s": 1.44,
+        "speed_cps": 20.8,
+        "peak_db": -1.8,
+        "rms_db": -16.8
+      },
+      "KH22": {
+        "id": "KH22",
+        "text": "ម៉ោងប្រាំមួយកន្លះល្ងាច នៅមានតុទំនេរបង។",
+        "chars": 38,
+        "duration_s": 4.32,
+        "speed_cps": 8.8,
+        "peak_db": -5.1,
+        "rms_db": -28.5
+      },
+      "KH23": {
+        "id": "KH23",
+        "text": "ម៉ោងប្រាំមួយអត់មានតុទេ តែម៉ោងប្រាំពីរនៅមានបង។",
+        "chars": 45,
+        "duration_s": 2.56,
+        "speed_cps": 17.6,
+        "peak_db": -8.6,
+        "rms_db": -27.0
+      }
+    }
+  },
+  "sengtha/khmer-tts-female-v2": {
+    "candidate_code": "C-004",
+    "name": "Sengtha Female",
+    "repo": "sengtha/khmer-tts-female-v2",
+    "license": "CC-BY-SA 4.0",
+    "model_size": "~40M",
+    "latency_ms": 1299.1,
+    "rtf": 0.3722,
+    "vram_mb": 0.0,
+    "sample_rate_hz": 22050,
+    "mean_duration_s": 3.49,
+    "mean_speed_cps": 9.3,
+    "min_speed_cps": 6.0,
+    "max_speed_cps": 11.1,
+    "mean_peak_db": -3.5,
+    "mean_rms_db": -16.5,
+    "records": {
+      "KH01": {
+        "id": "KH01",
+        "text": "អាឡូ សួស្តីបង!",
+        "chars": 14,
+        "duration_s": 2.07,
+        "speed_cps": 6.8,
+        "peak_db": -2.9,
+        "rms_db": -13.8
+      },
+      "KH02": {
+        "id": "KH02",
+        "text": "សួស្តីបង មានអីឲ្យខ្ញុំជួយបានខ្លះ?",
+        "chars": 33,
+        "duration_s": 3.52,
+        "speed_cps": 9.4,
+        "peak_db": -2.0,
+        "rms_db": -13.7
+      },
+      "KH03": {
+        "id": "KH03",
+        "text": "បានបង ចាំខ្ញុំឆែកមើលឲ្យសិនណា។",
+        "chars": 29,
+        "duration_s": 3.23,
+        "speed_cps": 9.0,
+        "peak_db": -2.6,
+        "rms_db": -14.6
+      },
+      "KH04": {
+        "id": "KH04",
+        "text": "បងចង់កុម្ម៉ង់អីខ្លះ?",
+        "chars": 20,
+        "duration_s": 1.92,
+        "speed_cps": 10.4,
+        "peak_db": -2.7,
+        "rms_db": -15.3
+      },
+      "KH05": {
+        "id": "KH05",
+        "text": "ថ្ងៃនេះមានមុខម្ហូបពិសេសអីខ្លះ?",
+        "chars": 30,
+        "duration_s": 2.82,
+        "speed_cps": 10.6,
+        "peak_db": -4.2,
+        "rms_db": -19.1
+      },
+      "KH06": {
+        "id": "KH06",
+        "text": "បងចូលចិត្តហឹរតិច ឬហឹរខ្លាំង?",
+        "chars": 28,
+        "duration_s": 2.9,
+        "speed_cps": 9.6,
+        "peak_db": -4.3,
+        "rms_db": -19.0
+      },
+      "KH07": {
+        "id": "KH07",
+        "text": "យើងមានបាយសាច់មាន់ បាយសាច់គោ ហើយក៏មានមីឆាដែរ។",
+        "chars": 44,
+        "duration_s": 4.85,
+        "speed_cps": 9.1,
+        "peak_db": -5.0,
+        "rms_db": -18.7
+      },
+      "KH08": {
+        "id": "KH08",
+        "text": "មានកាហ្វេទឹកកក តែទឹកដោះគោ ហើយក៏មាន Iced Latte ដែរ។",
+        "chars": 50,
+        "duration_s": 5.06,
+        "speed_cps": 9.9,
+        "peak_db": -3.5,
+        "rms_db": -15.3
+      },
+      "KH09": {
+        "id": "KH09",
+        "text": "បងចង់បន្ថែមអីទៀតអត់?",
+        "chars": 20,
+        "duration_s": 2.39,
+        "speed_cps": 8.4,
+        "peak_db": -2.1,
+        "rms_db": -13.7
+      },
+      "KH10": {
+        "id": "KH10",
+        "text": "អូខេបង អញ្ចឹងខ្ញុំកត់បាយសាច់មាន់មួយចាន និងទឹកសុទ្ធមួយដបណា។",
+        "chars": 58,
+        "duration_s": 5.33,
+        "speed_cps": 10.9,
+        "peak_db": -3.7,
+        "rms_db": -16.7
+      },
+      "KH11": {
+        "id": "KH11",
+        "text": "បាយសាច់មាន់មួយចាន តម្លៃមួយម៉ឺនប្រាំពាន់រៀលបង។",
+        "chars": 45,
+        "duration_s": 4.06,
+        "speed_cps": 11.1,
+        "peak_db": -2.8,
+        "rms_db": -14.1
+      },
+      "KH12": {
+        "id": "KH12",
+        "text": "កាហ្វេទឹកកកមួយកែវ ប្រាំពាន់រៀលបង។",
+        "chars": 33,
+        "duration_s": 3.66,
+        "speed_cps": 9.0,
+        "peak_db": -7.7,
+        "rms_db": -24.1
+      },
+      "KH13": {
+        "id": "KH13",
+        "text": "សរុបអស់ដប់ពីរដុល្លារកន្លះបង។",
+        "chars": 28,
+        "duration_s": 2.93,
+        "speed_cps": 9.6,
+        "peak_db": -3.1,
+        "rms_db": -15.3
+      },
+      "KH14": {
+        "id": "KH14",
+        "text": "ឥឡូវនេះហាងយើងមានបញ្ចុះតម្លៃដប់ភាគរយណាបង។",
+        "chars": 40,
+        "duration_s": 4.23,
+        "speed_cps": 9.5,
+        "peak_db": -3.0,
+        "rms_db": -14.1
+      },
+      "KH15": {
+        "id": "KH15",
+        "text": "សុំទោសបង មុខម្ហូបនេះអស់ហើយ។",
+        "chars": 27,
+        "duration_s": 3.33,
+        "speed_cps": 8.1,
+        "peak_db": -2.2,
+        "rms_db": -14.0
+      },
+      "KH16": {
+        "id": "KH16",
+        "text": "នៅមានបង ចង់កុម្ម៉ង់ប៉ុន្មានចាន?",
+        "chars": 31,
+        "duration_s": 2.96,
+        "speed_cps": 10.5,
+        "peak_db": -2.6,
+        "rms_db": -16.4
+      },
+      "KH17": {
+        "id": "KH17",
+        "text": "បើមុខនេះអស់ ខ្ញុំអាចណែនាំមុខផ្សេងឲ្យបានណា។",
+        "chars": 42,
+        "duration_s": 4.41,
+        "speed_cps": 9.5,
+        "peak_db": -1.7,
+        "rms_db": -13.6
+      },
+      "KH18": {
+        "id": "KH18",
+        "text": "បងចង់កក់តុមែនទេ?",
+        "chars": 16,
+        "duration_s": 2.65,
+        "speed_cps": 6.0,
+        "peak_db": -7.0,
+        "rms_db": -24.5
+      },
+      "KH19": {
+        "id": "KH19",
+        "text": "បងចង់កក់ថ្ងៃណា?",
+        "chars": 15,
+        "duration_s": 2.08,
+        "speed_cps": 7.2,
+        "peak_db": -3.0,
+        "rms_db": -15.5
+      },
+      "KH20": {
+        "id": "KH20",
+        "text": "ថ្ងៃទីម្ភៃប្រាំ ខែធ្នូ នៅមានតុទំនេរបង។",
+        "chars": 38,
+        "duration_s": 4.27,
+        "speed_cps": 8.9,
+        "peak_db": -2.9,
+        "rms_db": -15.9
+      },
+      "KH21": {
+        "id": "KH21",
+        "text": "បងកក់តុសម្រាប់ប៉ុន្មាននាក់ដែរ?",
+        "chars": 30,
+        "duration_s": 2.69,
+        "speed_cps": 11.1,
+        "peak_db": -4.1,
+        "rms_db": -22.1
+      },
+      "KH22": {
+        "id": "KH22",
+        "text": "ម៉ោងប្រាំមួយកន្លះល្ងាច នៅមានតុទំនេរបង។",
+        "chars": 38,
+        "duration_s": 4.27,
+        "speed_cps": 8.9,
+        "peak_db": -4.3,
+        "rms_db": -15.7
+      },
+      "KH23": {
+        "id": "KH23",
+        "text": "ម៉ោងប្រាំមួយអត់មានតុទេ តែម៉ោងប្រាំពីរនៅមានបង។",
+        "chars": 45,
+        "duration_s": 4.66,
+        "speed_cps": 9.7,
+        "peak_db": -3.7,
+        "rms_db": -14.4
+      }
+    }
+  }
+}

@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AUDIO STUDIO — Acoustic &amp; Speech Benchmark</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="alternate icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/css/style.css?v=20261107-p3">
+</head>
+<body class="bg-[#FAFAFA] text-[#18181B] antialiased">
+
+  <div class="studio-shell">
+    
+    <!-- MINIMAL LEFT NAVIGATION (FISH AUDIO STYLE) -->
+    <aside class="w-60 border-r border-zinc-200 bg-white flex flex-col justify-between p-6 z-20 shrink-0">
+      <div class="space-y-6">
+        <!-- Brand Header -->
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-[#09090B] p-2 flex items-center justify-center shadow-sm shrink-0">
+            <svg viewBox="0 0 512 512" class="w-full h-full text-white" fill="currentColor">
+              <path d="M 116 320 C 98 320, 86 308, 86 290 L 86 270 C 86 252, 98 240, 116 240 L 160 240 C 190 240, 210 215, 225 175 L 235 150 C 245 125, 260 110, 285 110 L 310 110 C 318 110, 324 116, 324 124 L 324 240 L 370 240 C 388 240, 400 252, 400 270 L 400 290 C 400 308, 388 320, 370 320 L 345 320 C 336 320, 330 314, 330 305 L 330 255 C 330 245, 324 240, 314 240 L 295 240 C 270 240, 250 255, 240 280 C 230 305, 215 320, 190 320 Z" transform="translate(-72, -34) scale(1.35)"/>
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <h1 class="text-sm font-extrabold text-zinc-950 tracking-tight leading-tight uppercase font-mono" data-i18n="brand">Audio Studio</h1>
+            <p class="text-[11px] text-zinc-400 leading-tight font-medium">Acoustic Benchmark</p>
+          </div>
+        </div>
+
+        <!-- Navigation Menu -->
+        <nav class="space-y-1.5 pt-2">
+          <button type="button" data-nav-view="evaluation" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold bg-zinc-100 text-zinc-900 transition-colors">
+            <svg class="w-4 h-4 text-zinc-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z"/>
+            </svg>
+            <span data-i18n="navEvaluation">Evaluation Studio</span>
+          </button>
+
+          <button type="button" data-nav-view="admin" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-zinc-600 hover:bg-zinc-50 transition-colors">
+            <svg class="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            <span data-i18n="navAdmin">Consensus Analytics</span>
+          </button>
+
+          <button type="button" data-nav-view="inspector" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-zinc-600 hover:bg-zinc-50 transition-colors">
+            <svg class="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+            <span data-i18n="navInspector">Acoustic Inspector</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- Workspace Info in Sidebar -->
+      <div class="border-t border-zinc-100 pt-4 space-y-1">
+        <div class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Workspace</div>
+        <div class="text-xs font-semibold text-zinc-800">Veaja Khmer Speech</div>
+        <div class="text-[11px] text-zinc-400 mt-1">
+          CADT Capstone · Year 3
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN WORKSPACE -->
+    <main class="studio-main">
+      
+      <!-- TOP BAR -->
+      <header class="h-16 border-b border-zinc-200 bg-white flex items-center justify-between px-8 z-10 shrink-0">
+        <div class="flex items-center gap-4">
+          <!-- Active Campaign Badge / Dropdown -->
+          <div id="campaign-dropdown-container" class="w-64">
+            <!-- Custom Select -->
+          </div>
+
+          <!-- New Run Button -->
+          <button type="button" id="btn-open-new-run" class="btn-carbon text-xs py-1.5 px-3">
+            <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            <span>New Run</span>
+          </button>
+
+          <!-- Share Campaign Button -->
+          <button type="button" id="btn-share-campaign" class="btn-ghost text-xs py-1.5 px-3 flex items-center gap-1.5" title="Generate Shareable Campaign Link">
+            <svg class="w-3.5 h-3.5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+            </svg>
+            <span>Share</span>
+          </button>
+
+          <!-- Progress Counter & Bar -->
+          <div class="flex items-center gap-3 pl-4 border-l border-zinc-200">
+            <span id="item-progress-text" class="text-xs font-mono font-bold text-zinc-700">1 / 23</span>
+            <div class="w-24 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+              <div id="item-progress-bar" class="h-full bg-zinc-900 rounded-full transition-all duration-200" style="width: 4%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+          <!-- Language Toggle -->
+          <button type="button" id="lang-toggle-btn" class="btn-ghost text-xs">
+            ភាសាខ្មែរ
+          </button>
+
+          <!-- Active Rater Chip -->
+          <div class="flex items-center gap-2 text-xs">
+            <span class="text-zinc-400" data-i18n="raterLabel">Rater:</span>
+            <span id="active-rater-name" class="font-semibold text-zinc-800">Evaluator</span>
+            <button type="button" id="btn-change-rater" class="text-blue-600 hover:underline font-medium text-[11px] ml-1" data-i18n="changeRater">Change</button>
+          </div>
+        </div>
+      </header>
+
+      <!-- CONTENT SCROLL AREA -->
+      <div class="content-scroll-area p-8">
+        
+        <!-- VIEW: EVALUATION STUDIO (CLEAN FISH AUDIO STYLE) -->
+        <div id="view-evaluation" class="max-w-4xl mx-auto space-y-6">
+          
+          <!-- EMPTY STATE WHEN ZERO EVALUATIONS RUNNING -->
+          <div id="evaluation-empty-state" class="hidden studio-card p-12 bg-white text-center space-y-4">
+            <div class="w-12 h-12 rounded-full bg-zinc-100 text-zinc-600 flex items-center justify-center mx-auto">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z"/>
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-base font-bold text-zinc-900">No Active Evaluation Run</h2>
+              <p class="text-xs text-zinc-500 max-w-md mx-auto mt-1">Get started by creating your first speech evaluation run with your candidate models and prompts, or load the pre-configured Capstone benchmark.</p>
+            </div>
+            <div class="flex items-center justify-center gap-3 pt-2">
+              <button type="button" id="btn-empty-new-run" class="btn-carbon text-xs">
+                + Setup New Evaluation Run
+              </button>
+              <button type="button" id="btn-load-capstone-demo" class="btn-ghost text-xs">
+                Load Capstone Benchmark (DEV-23)
+              </button>
+            </div>
+          </div>
+
+          <!-- ACTIVE EVALUATION WORKSPACE -->
+          <div id="evaluation-active-workspace" class="space-y-6">
+            <!-- Item Header & Breadcrumb -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span id="item-key-badge" class="font-mono text-xs font-bold bg-zinc-900 text-white px-2.5 py-1 rounded-md">KH01</span>
+                <h2 class="text-sm font-semibold text-zinc-800" id="item-category-text">Phone Greeting</h2>
+                <span class="text-xs text-zinc-300">·</span>
+                <span class="text-xs text-zinc-500" id="item-intent-text">Answer an incoming business call politely.</span>
+              </div>
+              <div id="item-tags-container" class="flex items-center gap-1.5">
+                <!-- Badges -->
+              </div>
+            </div>
+
+            <!-- PROMPT SENTENCE CARD (CENTER STAGE) -->
+            <div class="studio-card p-8 bg-white space-y-4">
+              <div class="flex items-center justify-between text-xs text-zinc-400">
+                <span class="font-semibold uppercase tracking-wider">Khmer Speech Prompt</span>
+                <span class="italic" data-i18n="clickWordTip">Click any word to tag defects</span>
+              </div>
+
+              <!-- Large Khmer Word Pills Container -->
+              <div id="word-pills-container" class="py-2 flex flex-wrap items-center gap-2 min-h-[70px]">
+                <!-- Populated dynamically via Tokenizer -->
+              </div>
+
+              <!-- Defect Ribbon -->
+              <div id="defect-tag-ribbon" class="flex items-center gap-2 flex-wrap pt-2">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+
+            <!-- AUDIO PLAYBACK & WAVEFORMS (FISH AUDIO DUAL TRACKS) -->
+            <div class="studio-card p-8 bg-white space-y-4">
+              <div class="flex items-center justify-between border-b border-zinc-100 pb-4">
+                <div class="flex items-center gap-3">
+                  <h2 class="text-sm font-bold text-zinc-900 uppercase tracking-wider">Candidate Audio Comparison</h2>
+                  <span class="text-xs text-zinc-400 font-mono" id="playback-time-display">0:00 / 0:00</span>
+                </div>
+
+                <!-- Quick Audio Controls -->
+                <div class="flex items-center gap-4 text-xs">
+                  <!-- Audio Quality Badge -->
+                  <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-[11px] font-medium select-none">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    Pure Unaltered Audio
+                  </span>
+
+                  <!-- Speed Buttons -->
+                  <div class="flex items-center gap-1 border-l border-zinc-200 pl-3">
+                    <button type="button" data-speed="0.8" class="speed-btn btn-ghost text-xs py-0.5 px-2">0.8x</button>
+                    <button type="button" data-speed="1.0" class="speed-btn btn-ghost text-xs py-0.5 px-2 active">1.0x</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Candidate Tracks List -->
+              <ul class="space-y-3">
+                <!-- Candidate 1 Track -->
+                <li class="waveform-track active-track" id="track-candidate-a">
+                  <button type="button" id="btn-play-a" class="w-10 h-10 rounded-full bg-[#18181B] text-white flex items-center justify-center shrink-0 hover:bg-zinc-800 transition-colors">
+                    <svg class="w-4 h-4 ml-0.5 play-icon-a" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    <svg class="w-4 h-4 pause-icon-a hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                  </button>
+                  
+                  <div class="shrink-0 w-52" id="model-select-a-container">
+                    <!-- Custom Dropdown -->
+                  </div>
+
+                  <canvas id="waveform-canvas-a" width="400" height="40" class="waveform-canvas"></canvas>
+                </li>
+
+                <!-- Candidate 2 Track -->
+                <li class="waveform-track" id="track-candidate-b">
+                  <button type="button" id="btn-play-b" class="w-10 h-10 rounded-full bg-zinc-200 text-zinc-800 flex items-center justify-center shrink-0 hover:bg-zinc-300 transition-colors">
+                    <svg class="w-4 h-4 ml-0.5 play-icon-b" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    <svg class="w-4 h-4 pause-icon-b hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                  </button>
+
+                  <div class="shrink-0 w-52" id="model-select-b-container">
+                    <!-- Custom Dropdown -->
+                  </div>
+
+                  <canvas id="waveform-canvas-b" width="400" height="40" class="waveform-canvas"></canvas>
+                </li>
+              </ul>
+            </div>
+
+            <!-- EVALUATION & SCORING DOCK (CLEAN FISH AUDIO STYLE) -->
+            <div class="studio-card p-8 bg-white space-y-6">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h2 class="text-sm font-bold text-zinc-900 uppercase tracking-wider">Evaluation & Consensus</h2>
+                  <p class="text-xs text-zinc-400 mt-1">Which generation delivers clearer, more natural pronunciation?</p>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex items-center gap-3">
+                  <button type="button" id="btn-replay" class="btn-ghost text-xs">
+                    Replay [Space]
+                  </button>
+                  <button type="button" id="btn-save-next" class="btn-carbon text-xs">
+                    Save & Next [Enter]
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Pairwise Preference Arena -->
+              <div id="protocol-pairwise-area" class="space-y-2">
+                <div class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Pairwise Preference (Blind Test)</div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <button type="button" data-choice="Take 1 is better" class="pairwise-btn pairwise-choice-btn active">
+                    Take 1 is better
+                  </button>
+                  <button type="button" data-choice="Take 2 is better" class="pairwise-btn pairwise-choice-btn">
+                    Take 2 is better
+                  </button>
+                  <button type="button" data-choice="Both are good" class="pairwise-btn pairwise-choice-btn">
+                    Both are good
+                  </button>
+                  <button type="button" data-choice="Both are bad" class="pairwise-btn pairwise-choice-btn">
+                    Both are bad
+                  </button>
+                </div>
+              </div>
+
+              <!-- Dynamic Evaluation Matrix / Rubric Dimensions -->
+              <div id="protocol-metrics-area" class="pt-4 border-t border-zinc-100 space-y-3">
+                <div class="flex items-center justify-between">
+                  <div class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider" id="rubric-title-label">Evaluation Matrix</div>
+                  <span class="text-[11px] text-zinc-400 font-mono" id="rubric-scale-label">Scale 1-5</span>
+                </div>
+                
+                <div id="dynamic-metrics-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <!-- Dynamically rendered based on active campaign rubric -->
+                </div>
+              </div>
+
+              <!-- Optional Blind Listener Transcript -->
+              <div class="pt-2">
+                <input type="text" id="blind-transcription-input" class="w-full p-3 text-xs rounded-xl border border-zinc-200 bg-zinc-50/50 focus:bg-white focus:outline-none" placeholder="Optional: Type what you heard if words were dropped or misread...">
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- VIEW: ACOUSTIC INSPECTOR (MOVED FROM MAIN SCREEN) -->
+        <div id="view-inspector" class="hidden max-w-5xl mx-auto space-y-6">
+          <div>
+            <h2 class="text-xl font-bold text-zinc-900">Acoustic Inspector & Engineering Telemetry</h2>
+            <p class="text-xs text-zinc-500 mt-1">Real-time frequency spectrogram, bandwidth cutoff analysis, and hardware profiling.</p>
+          </div>
+
+          <!-- Spectrogram & Bandwidth -->
+          <div class="studio-card p-6 bg-[#18181B] text-white space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-mono uppercase tracking-wider text-zinc-400">Real-Time Frequency Spectrogram (FFT 256)</span>
+              <span class="text-xs font-mono text-emerald-400" id="inspector-active-model">openbmb/VoxCPM2 (48 kHz)</span>
+            </div>
+            <canvas id="spectrogram-canvas" width="800" height="140" class="w-full h-36 rounded-lg bg-black/40"></canvas>
+            <div class="flex justify-between text-xs font-mono text-zinc-400">
+              <span>300 Hz</span>
+              <span>3.4 kHz (Cellular Cutoff)</span>
+              <span>8 kHz (16 kHz Nyquist)</span>
+              <span>24 kHz (Studio Ceiling)</span>
+            </div>
+          </div>
+
+          <!-- Hardware Telemetry Cards -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="studio-card p-6 bg-white">
+              <div class="text-[11px] font-semibold text-zinc-400 uppercase">Latency</div>
+              <div class="text-xl font-bold font-mono text-zinc-900 mt-1" id="telem-latency">4,130 ms</div>
+            </div>
+            <div class="studio-card p-6 bg-white">
+              <div class="text-[11px] font-semibold text-zinc-400 uppercase">RTF</div>
+              <div class="text-xl font-bold font-mono text-zinc-900 mt-1" id="telem-rtf">1.95</div>
+            </div>
+            <div class="studio-card p-6 bg-white">
+              <div class="text-[11px] font-semibold text-zinc-400 uppercase">Peak VRAM</div>
+              <div class="text-xl font-bold font-mono text-zinc-900 mt-1" id="telem-vram">5,466 MB</div>
+            </div>
+            <div class="studio-card p-6 bg-white">
+              <div class="text-[11px] font-semibold text-zinc-400 uppercase">Sample Rate</div>
+              <div class="text-xl font-bold font-mono text-zinc-900 mt-1" id="telem-sr">48 kHz</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- VIEW: ADMIN DASHBOARD -->
+        <div id="view-admin" class="hidden max-w-5xl mx-auto space-y-6">
+          <div id="admin-view-container">
+            <!-- Populated via AdminView -->
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- DEFECT TAGGING POPOVER MODAL -->
+  <div id="modal-backdrop" class="modal-backdrop" style="display: none;"></div>
+  <div id="defect-popover" class="defect-popover" style="display: none;">
+    <div class="flex items-center justify-between border-b border-zinc-100 pb-3 mb-4">
+      <h2 class="text-base font-bold text-zinc-900">
+        <span data-i18n="tagDefectTitle">Tag Speech Defect on</span>
+        <span id="popover-word-title" class="text-red-600 ml-1 font-sans"></span>
+      </h2>
+      <button type="button" id="popover-cancel-btn" class="text-zinc-400 hover:text-zinc-700 text-xl leading-none">&times;</button>
+    </div>
+
+    <div class="space-y-4">
+      <div>
+        <label for="popover-error-select" class="block text-xs font-semibold text-zinc-700 mb-1" data-i18n="errorCodeLabel">Clinical Error Code:</label>
+        <select id="popover-error-select" class="w-full text-xs p-2.5 rounded-lg border border-zinc-200 bg-zinc-50 font-medium text-zinc-900 focus:bg-white focus:outline-none">
+          <!-- Populated from SQLite Taxonomies -->
+        </select>
+      </div>
+
+      <div>
+        <label for="popover-note-input" class="block text-xs font-semibold text-zinc-700 mb-1" data-i18n="noteLabel">Evaluator Note (Optional):</label>
+        <input type="text" id="popover-note-input" class="w-full text-xs p-2.5 rounded-lg border border-zinc-200 bg-zinc-50 focus:bg-white focus:outline-none" placeholder="e.g. Missing vowel ឲ្យ, muted English loanword">
+      </div>
+
+      <div class="flex items-center justify-between pt-3 border-t border-zinc-100">
+        <button type="button" id="popover-remove-btn" class="text-xs text-red-600 hover:underline font-medium" style="display: none;" data-i18n="removeTagBtn">Remove Tag</button>
+        <div class="flex gap-2 ml-auto">
+          <button type="button" id="popover-apply-btn" class="btn-carbon text-xs">
+            <span data-i18n="applyTagBtn">Apply Tag</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RATER SELECTION MODAL -->
+  <div id="rater-backdrop" class="modal-backdrop hidden"></div>
+  <div id="rater-modal" class="defect-popover hidden">
+    <div class="border-b border-zinc-100 pb-3 mb-4">
+      <h2 class="text-base font-bold text-zinc-900" data-i18n="selectRaterModalTitle">Select or Enter Evaluator Name</h2>
+      <p class="text-xs text-zinc-400 mt-1">Zero password required. Enter your name to begin your evaluation session.</p>
+    </div>
+
+    <div class="space-y-4">
+      <div>
+        <input type="text" id="rater-name-input" class="w-full p-3 text-sm rounded-xl border border-zinc-200 bg-zinc-50 focus:bg-white focus:outline-none font-medium" data-i18n-placeholder="raterNamePlaceholder" placeholder="Your full name (e.g. Bora, Monirath)">
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button type="button" id="save-rater-btn" class="btn-carbon w-full py-2.5">
+          <span data-i18n="startTestingBtn">Start Testing</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETUP NEW EVALUATION RUN MODAL -->
+  <div id="new-run-backdrop" class="modal-backdrop hidden"></div>
+  <div id="new-run-modal" class="defect-popover hidden">
+    <div class="flex items-center justify-between border-b border-zinc-100 pb-3 mb-4">
+      <div>
+        <h2 class="text-base font-bold text-zinc-900">Setup New Evaluation Run</h2>
+        <p class="text-xs text-zinc-400 mt-0.5">Dynamically configure candidate speech models, test prompts, and protocols.</p>
+      </div>
+      <button type="button" id="btn-close-new-run" class="text-zinc-400 hover:text-zinc-700 text-xl leading-none">&times;</button>
+    </div>
+
+    <form id="new-run-form" class="space-y-4 text-xs">
+      <!-- Run Name -->
+      <div>
+        <label for="new-run-name" class="block font-semibold text-zinc-700 mb-1">Evaluation Run Name:</label>
+        <input type="text" id="new-run-name" required class="w-full p-2.5 rounded-lg border border-zinc-200 bg-zinc-50 focus:bg-white focus:outline-none" placeholder="e.g. Sprint 2 Diffusion Steps (4 vs 8)">
+      </div>
+
+      <!-- Candidate Models -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block font-semibold text-zinc-700 mb-1">Candidate Model 1:</label>
+          <div id="new-run-model-a-container"></div>
+        </div>
+        <div>
+          <label class="block font-semibold text-zinc-700 mb-1">Candidate Model 2:</label>
+          <div id="new-run-model-b-container"></div>
+        </div>
+      </div>
+
+      <!-- Register New Model Toggle Button -->
+      <div>
+        <button type="button" id="toggle-add-model-btn" class="text-blue-600 hover:underline font-medium text-[11px]">
+          + Register a New Model Checkpoint
+        </button>
+      </div>
+
+      <!-- Collapsible New Model Subform -->
+      <div id="new-model-subform" class="hidden py-3 space-y-3 border-t border-b border-zinc-100">
+        <div class="font-semibold text-zinc-800 text-xs">Register Model Checkpoint</div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] text-zinc-500 mb-1">Model Name</label>
+            <input type="text" id="add-model-name" class="w-full p-2 text-xs rounded border border-zinc-200 bg-white" placeholder="e.g. VoxCPM2-4steps">
+          </div>
+          <div>
+            <label class="block text-[11px] text-zinc-500 mb-1">Candidate Code</label>
+            <input type="text" id="add-model-code" class="w-full p-2 text-xs rounded border border-zinc-200 bg-white" placeholder="e.g. C-005">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] text-zinc-500 mb-1">Sample Rate (Hz)</label>
+            <input type="number" id="add-model-sr" value="48000" class="w-full p-2 text-xs rounded border border-zinc-200 bg-white">
+          </div>
+          <div>
+            <label class="block text-[11px] text-zinc-500 mb-1">Audio Folder Path</label>
+            <input type="text" id="add-model-dir" class="w-full p-2 text-xs rounded border border-zinc-200 bg-white" placeholder="e.g. sprint-2/outputs/...">
+          </div>
+        </div>
+        <button type="button" id="save-new-model-btn" class="btn-ghost text-xs py-1.5 px-3">Save Model to Registry</button>
+      </div>
+
+      <!-- Test Prompts Selection -->
+      <div>
+        <label class="block font-semibold text-zinc-700 mb-1">Benchmark Test Prompts:</label>
+        <div class="space-y-2">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="benchmark-suite-choice" value="suite-dev23" checked class="text-zinc-900 focus:ring-0">
+            <span>Tier 1: 23 Dialogue Sentences (DEV-23)</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="benchmark-suite-choice" value="suite-vocab200" class="text-zinc-900 focus:ring-0">
+            <span>Tier 2: 200 Restaurant Vocabulary Words (VOCAB-200)</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="benchmark-suite-choice" value="custom-prompts" class="text-zinc-900 focus:ring-0">
+            <span>Paste Custom Sentences</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Custom Prompts Textarea (if selected) -->
+      <div id="custom-prompts-area" class="hidden">
+        <label for="custom-sentences-input" class="block text-[11px] text-zinc-500 mb-1">Enter Sentences (one per line):</label>
+        <textarea id="custom-sentences-input" rows="3" class="w-full p-2.5 rounded-lg border border-zinc-200 bg-white focus:outline-none" placeholder="អាឡូ សួស្តីបង!&#10;សូមកុម្ម៉ង់អាយឡាតេមួយកែវ..."></textarea>
+      </div>
+
+      <!-- Scoring Protocol Selection -->
+      <div>
+        <label class="block font-semibold text-zinc-700 mb-1">Evaluation Protocol & Matrix:</label>
+        <div class="space-y-2">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="rubric-choice" value="rubric-pairwise" checked class="text-zinc-900 focus:ring-0">
+            <span>Blind Pairwise Arena (Take 1 vs Take 2)</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="rubric-choice" value="rubric-veaja-p85" class="text-zinc-900 focus:ring-0">
+            <span>ITU-T P.85 Speech Quality (1 to 5)</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="radio" name="rubric-choice" value="custom-matrix" class="text-zinc-900 focus:ring-0">
+            <span>Custom Evaluation Matrix (Define your own criteria and scale)</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Custom Matrix Builder Area (if selected) -->
+      <div id="custom-matrix-area" class="hidden p-3 bg-zinc-50 rounded-xl border border-zinc-200 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-zinc-800 text-[11px] uppercase tracking-wider">Evaluation Dimensions</span>
+          <div class="flex items-center gap-2">
+            <label for="custom-scale-max" class="text-[11px] text-zinc-500">Rating Scale:</label>
+            <select id="custom-scale-max" class="text-xs p-1 rounded border border-zinc-200 bg-white">
+              <option value="5" selected>1 to 5 (Standard)</option>
+              <option value="7">1 to 7 (Fine-Grained)</option>
+              <option value="10">1 to 10 (Granular)</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="custom-matrix-rows" class="space-y-2">
+          <!-- Default Row 1 -->
+          <div class="flex items-center gap-2 matrix-row">
+            <input type="text" class="metric-name-input flex-1 p-2 text-xs rounded border border-zinc-200 bg-white" placeholder="Dimension Name (e.g. Naturalness)" value="Naturalness">
+            <input type="text" class="metric-desc-input flex-2 p-2 text-xs rounded border border-zinc-200 bg-white" placeholder="Description / Evaluation Guide" value="How human-like and conversational does it sound?">
+            <button type="button" class="btn-remove-metric text-zinc-400 hover:text-red-500 text-base font-bold px-1">&times;</button>
+          </div>
+          <!-- Default Row 2 -->
+          <div class="flex items-center gap-2 matrix-row">
+            <input type="text" class="metric-name-input flex-1 p-2 text-xs rounded border border-zinc-200 bg-white" placeholder="Dimension Name (e.g. Intelligibility)" value="Intelligibility">
+            <input type="text" class="metric-desc-input flex-2 p-2 text-xs rounded border border-zinc-200 bg-white" placeholder="Description / Evaluation Guide" value="How clearly are individual words understood?">
+            <button type="button" class="btn-remove-metric text-zinc-400 hover:text-red-500 text-base font-bold px-1">&times;</button>
+          </div>
+        </div>
+
+        <button type="button" id="btn-add-metric-row" class="text-blue-600 hover:underline font-medium text-[11px] flex items-center gap-1">
+          + Add Evaluation Dimension
+        </button>
+      </div>
+
+      <div class="flex justify-end gap-3 pt-4 border-t border-zinc-100">
+        <button type="button" id="btn-cancel-new-run" class="btn-ghost text-xs">Cancel</button>
+        <button type="submit" class="btn-carbon text-xs">Launch Evaluation Run</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- SHARE CAMPAIGN MODAL -->
+  <div id="share-backdrop" class="modal-backdrop hidden"></div>
+  <div id="share-modal" class="defect-popover hidden max-w-lg">
+    <div class="flex items-center justify-between border-b border-zinc-100 pb-3 mb-4">
+      <div>
+        <h2 class="text-base font-bold text-zinc-900">Share Evaluation Campaign</h2>
+        <p class="text-xs text-zinc-400 mt-0.5">Distribute this evaluation run to raters with zero account setup.</p>
+      </div>
+      <button type="button" id="btn-close-share" class="text-zinc-400 hover:text-zinc-700 text-xl leading-none">&times;</button>
+    </div>
+
+    <div class="space-y-4 text-xs">
+      <div>
+        <label for="share-url-input" class="block font-semibold text-zinc-700 mb-1">Direct Evaluation URL:</label>
+        <div class="flex gap-2">
+          <input type="text" id="share-url-input" readonly class="w-full p-2.5 rounded-lg border border-zinc-200 bg-zinc-50 font-mono text-[11px] text-zinc-800 select-all focus:outline-none">
+          <button type="button" id="btn-copy-share-url" class="btn-carbon text-xs shrink-0 px-4">
+            Copy Link
+          </button>
+        </div>
+      </div>
+
+      <div class="p-3 bg-zinc-50 rounded-xl border border-zinc-100 space-y-2">
+        <div class="font-semibold text-zinc-800">Evaluator Zero-Login Access</div>
+        <p class="text-zinc-500 leading-relaxed text-[11px]">
+          Anyone who opens this link will immediately be directed to this exact evaluation campaign. They will simply type their name to begin rating. Every score and defect tag is saved automatically to your database.
+        </p>
+      </div>
+
+      <div class="border-t border-zinc-100 pt-3">
+        <div class="font-semibold text-zinc-800 mb-1">Remote Public Distribution:</div>
+        <p class="text-zinc-500 text-[11px] leading-relaxed">
+          To distribute outside your local Wi-Fi, run the server with the share flag:
+          <code class="block mt-1 p-2 bg-zinc-900 text-zinc-100 rounded-md font-mono text-[11px]">python3 run_server.py --share</code>
+        </p>
+      </div>
+
+      <div class="flex justify-end pt-2">
+        <button type="button" id="btn-done-share" class="btn-carbon text-xs">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="/js/i18n.js"></script>
+  <script src="/js/tokenizer.js"></script>
+  <script src="/js/audio_dsp.js"></script>
+  <script src="/js/word_tagger.js"></script>
+  <script src="/js/admin_view.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

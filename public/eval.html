@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AUDIO STUDIO — Evaluation Portal</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="alternate icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/css/style.css?v=20261107-p4">
+</head>
+<body class="bg-[#FAFAFA] text-[#18181B] min-h-screen flex flex-col font-sans antialiased">
+
+  <!-- Rater Onboarding Screen (Zero PIN required - Open evaluation) -->
+  <div id="onboarding-screen" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="rater-onboard-card bg-white border border-zinc-200 rounded-2xl p-6 sm:p-7 shadow-2xl w-full max-w-md">
+      <div class="flex items-center justify-between pb-3 border-b border-zinc-100 mb-4">
+        <div>
+          <div class="text-[11px] font-bold tracking-wider uppercase text-zinc-500">Listener Participation</div>
+          <h1 class="text-lg font-bold text-zinc-900 leading-snug" id="onboard-campaign-title">Audio Studio Evaluation</h1>
+        </div>
+        <div class="w-9 h-9 rounded-xl bg-[#09090B] p-1.5 flex items-center justify-center shadow-xs shrink-0">
+          <svg viewBox="0 0 512 512" class="w-full h-full text-white" fill="currentColor">
+            <path d="M 116 320 C 98 320, 86 308, 86 290 L 86 270 C 86 252, 98 240, 116 240 L 160 240 C 190 240, 210 215, 225 175 L 235 150 C 245 125, 260 110, 285 110 L 310 110 C 318 110, 324 116, 324 124 L 324 240 L 370 240 C 388 240, 400 252, 400 270 L 400 290 C 400 308, 388 320, 370 320 L 345 320 C 336 320, 330 314, 330 305 L 330 255 C 330 245, 324 240, 314 240 L 295 240 C 270 240, 250 255, 240 280 C 230 305, 215 320, 190 320 Z" transform="translate(-72, -34) scale(1.35)"/>
+          </svg>
+        </div>
+      </div>
+
+      <p class="text-xs text-zinc-600 mb-4 leading-relaxed" id="onboard-campaign-desc">
+        Please enter your evaluator name or nickname to begin rating Khmer speech synthesis.
+      </p>
+
+      <div id="onboard-error-msg" class="hidden p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 mb-4 font-medium"></div>
+
+      <form id="onboard-form" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-zinc-700 mb-1" for="rater-name-input">
+            Evaluator Name or Nickname / ឈ្មោះអ្នកវាយតម្លៃ
+          </label>
+          <input
+            type="text"
+            id="rater-name-input"
+            required
+            placeholder="e.g. Sokha, Listener A, Monirath"
+            class="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:bg-white transition"
+          />
+        </div>
+
+        <button
+          type="submit"
+          id="btn-onboard-submit"
+          class="w-full py-2.5 px-4 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-sm font-semibold transition cursor-pointer shadow-sm"
+        >
+          Enter Evaluation Studio
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Top Sticky Navigation Bar -->
+  <header class="bg-white border-b border-zinc-200 px-4 sm:px-6 py-2.5 flex items-center justify-between sticky top-0 z-30">
+    <div class="flex items-center gap-3">
+      <a href="/index.html" class="w-8 h-8 rounded-lg bg-[#09090B] p-1.5 flex items-center justify-center shadow-xs shrink-0 hover:opacity-90 transition" title="Audio Studio Home">
+        <svg viewBox="0 0 512 512" class="w-full h-full text-white" fill="currentColor">
+          <path d="M 116 320 C 98 320, 86 308, 86 290 L 86 270 C 86 252, 98 240, 116 240 L 160 240 C 190 240, 210 215, 225 175 L 235 150 C 245 125, 260 110, 285 110 L 310 110 C 318 110, 324 116, 324 124 L 324 240 L 370 240 C 388 240, 400 252, 400 270 L 400 290 C 400 308, 388 320, 370 320 L 345 320 C 336 320, 330 314, 330 305 L 330 255 C 330 245, 324 240, 314 240 L 295 240 C 270 240, 250 255, 240 280 C 230 305, 215 320, 190 320 Z" transform="translate(-72, -34) scale(1.35)"/>
+        </svg>
+      </a>
+      <button
+        id="btn-toggle-sidebar"
+        class="md:hidden p-1.5 rounded-lg border border-zinc-200 text-xs font-medium cursor-pointer"
+      >
+        Menu
+      </button>
+      <div>
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 truncate max-w-[100px] sm:max-w-none" id="study-name-tag">Study Evaluation</div>
+        <h1 class="text-xs sm:text-sm font-bold text-zinc-900 leading-tight truncate max-w-[120px] sm:max-w-none" id="study-headline">Speech Evaluation</h1>
+      </div>
+    </div>
+
+    <!-- Mode Switcher: Evaluation Studio vs Try Out (TTS & ASR) -->
+    <div class="flex items-center p-0.5 sm:p-1 bg-zinc-100 rounded-xl text-[11px] sm:text-xs font-medium" id="header-mode-nav">
+      <button type="button" id="tab-eval-mode" class="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg bg-white text-zinc-900 shadow-2xs font-semibold cursor-pointer transition">
+        <span>Evaluate</span><span class="hidden sm:inline"> Studio</span>
+      </button>
+      <button type="button" id="tab-tryout-mode" class="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-zinc-600 hover:text-zinc-900 cursor-pointer transition flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span>Try Out</span><span class="hidden sm:inline"> (TTS & ASR)</span>
+      </button>
+    </div>
+
+    <!-- Right Header Controls -->
+    <div class="flex items-center gap-2 sm:gap-4 text-xs text-zinc-600">
+      <div class="flex items-center gap-1">
+        <span class="text-zinc-500 hidden md:inline">Listener:</span>
+        <span class="font-semibold text-zinc-800 max-w-[70px] sm:max-w-[120px] truncate" id="rater-display-name">-</span>
+        <button id="btn-change-rater" class="text-[10px] sm:text-[11px] text-zinc-500 hover:text-zinc-800 underline cursor-pointer ml-0.5">Change</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Sidebar Backdrop -->
+  <div id="sidebar-backdrop" class="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 hidden md:hidden transition-opacity"></div>
+
+  <!-- Dual-Column Layout: Left Sidebar Navigator + Main Evaluation Stage -->
+  <div class="flex-1 flex flex-col md:flex-row w-full max-w-[1560px] mx-auto p-3 sm:p-4 md:px-8 md:py-5 gap-4 md:gap-6">
+
+    <!-- LEFT SIDEBAR: Model Groups & Zero-Scroll Matrix Navigator -->
+    <aside id="audio-sidebar" class="hidden md:flex w-full md:w-80 flex-shrink-0 flex-col bg-white border border-zinc-200 rounded-2xl p-4 shadow-xs md:sticky md:top-20 md:self-start md:max-h-[calc(100vh-96px)] overflow-hidden">
+      <!-- Progress Header -->
+      <div class="pb-3 border-b border-zinc-100">
+        <div class="flex items-center justify-between text-xs mb-1.5">
+          <span class="font-bold text-zinc-900">Evaluation Progress</span>
+          <span id="sidebar-progress-text" class="font-mono text-zinc-700 font-semibold">0 / 92 (0%)</span>
+        </div>
+        <div class="w-full bg-zinc-100 h-2 rounded-full overflow-hidden">
+          <div id="sidebar-progress-bar" class="bg-zinc-900 h-full rounded-none transition-all duration-200" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <!-- Model Group Selector (Pill Tabs) -->
+      <div class="py-2.5 border-b border-zinc-100 space-y-1.5">
+        <div class="flex items-center justify-between text-[11px] text-zinc-500 font-medium">
+          <span>Filter by Model</span>
+          <div class="flex items-center gap-1">
+            <button id="view-mode-matrix" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-zinc-900 text-white cursor-pointer" title="Zero-scroll matrix grid">Grid</button>
+            <button id="view-mode-list" class="px-1.5 py-0.5 rounded text-[10px] font-medium text-zinc-600 hover:text-zinc-900 bg-zinc-100 cursor-pointer" title="List with text snippets">List</button>
+          </div>
+        </div>
+
+        <div id="model-tabs-container" class="space-y-1">
+          <!-- Dynamically filled with model buttons: Khmer-TTS, Meta MMS, Sengtha, VoxCPM2 -->
+        </div>
+      </div>
+
+      <!-- Filter status row (All / Unrated / Done) -->
+      <div class="flex gap-1 py-2 border-b border-zinc-100 text-[11px]">
+        <button id="filter-all" class="flex-1 py-1 rounded-md font-semibold bg-zinc-900 text-white cursor-pointer transition">
+          All (<span id="count-all">92</span>)
+        </button>
+        <button id="filter-unrated" class="flex-1 py-1 rounded-md font-medium bg-zinc-50 text-zinc-700 hover:bg-zinc-100 cursor-pointer transition">
+          Unrated (<span id="count-unrated">92</span>)
+        </button>
+        <button id="filter-completed" class="flex-1 py-1 rounded-md font-medium bg-zinc-50 text-zinc-700 hover:bg-zinc-100 cursor-pointer transition">
+          Done (<span id="count-completed">0</span>)
+        </button>
+      </div>
+
+      <!-- Zero-Scroll Matrix Grid View (Default) -->
+      <div id="sidebar-matrix-view" class="flex-1 overflow-y-auto pt-2.5 pr-0.5 space-y-2">
+        <div class="flex items-center justify-between text-[11px] text-zinc-500 font-medium px-0.5">
+          <span id="matrix-active-model-label">All Models (23 Sentences)</span>
+          <span class="text-[10px] text-zinc-400">Click to jump</span>
+        </div>
+        <div id="sidebar-matrix-grid" class="space-y-3">
+          <!-- Rendered dynamically as distinct model groups or single model grid -->
+        </div>
+
+        <!-- Per-model progress summary checklist -->
+        <div id="sidebar-model-summary-list" class="pt-2 space-y-1.5 border-t border-zinc-100 text-[11px]">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+
+      <!-- Traditional List View (Hidden by default, toggleable) -->
+      <div id="sidebar-items-list" class="hidden flex-1 overflow-y-auto space-y-1.5 pt-2 pr-1">
+        <!-- Rendered dynamically -->
+      </div>
+    </aside>
+
+    <!-- RIGHT STAGE: Adaptive Responsive Workspace -->
+    <div id="eval-stage" class="flex-1 flex flex-col gap-4 min-w-0 pb-28 md:pb-12">
+
+      <!-- 1. Unified Stimulus Card: Header + Transcript + Audio Waveform -->
+      <section class="stimulus-card bg-white border border-zinc-200 rounded-2xl p-4 md:p-5 shadow-xs relative">
+        <!-- Top row: Identity & Action Bar -->
+        <div class="flex items-center justify-between pb-2.5 border-b border-zinc-100 text-xs">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="font-bold text-zinc-900" id="audio-title-label">Sample 1 of 92 • KH01</span>
+            <span id="audio-model-badge" class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200/80">Khmer-TTS (VITS)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <!-- Waveform Mode Toggle (Fish Audio Fluid Scrub vs Defect Tag) -->
+            <div class="flex items-center p-0.5 bg-zinc-100 rounded-lg text-[11px] font-medium" id="waveform-mode-toggle">
+              <button type="button" id="mode-btn-scrub" class="px-2.5 py-0.5 rounded-md bg-white text-zinc-900 shadow-2xs font-semibold cursor-pointer">Scrub</button>
+              <button type="button" id="mode-btn-tag" class="px-2.5 py-0.5 rounded-md text-zinc-500 hover:text-zinc-900 cursor-pointer">Tag Defect</button>
+            </div>
+            <button
+              id="toggle-speed"
+              class="px-2 py-0.5 text-xs border border-zinc-200 rounded-lg text-zinc-600 hover:bg-zinc-50 cursor-pointer font-mono font-medium"
+              title="Toggle playback speed (1.0x / 0.8x)"
+            >
+              1.0x
+            </button>
+            <button
+              id="btn-show-instructions"
+              class="px-2.5 py-0.5 text-xs text-zinc-600 hover:text-zinc-900 border border-zinc-200 hover:border-zinc-300 rounded-lg cursor-pointer transition font-medium flex items-center gap-1"
+            >
+              <span>(?) Instructions</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Middle: Verbatim Khmer Transcript (TTS Mode) -->
+        <div id="tts-transcript-container" class="py-1">
+          <div class="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-1">Transcript to Evaluate • អត្ថបទសម្រាប់វាយតម្លៃ</div>
+          <div id="raw-khmer-content" class="raw-khmer-text text-xl font-khmer text-zinc-900 select-text leading-relaxed">
+            Loading transcript...
+          </div>
+        </div>
+
+        <!-- ASR Side-by-Side Visual Diff Container (ASR Mode) -->
+        <div id="asr-diff-container" class="hidden py-2 space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="p-3.5 bg-zinc-50 rounded-xl">
+              <div class="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-1">
+                Expected Sentence (Ground Truth) • អត្ថបទដើមត្រឹមត្រូវ
+              </div>
+              <div id="asr-reference-text" class="text-base font-khmer text-zinc-900 leading-relaxed font-medium">
+                -
+              </div>
+            </div>
+            <div class="p-3.5 bg-amber-50/60 rounded-xl">
+              <div class="text-[11px] font-semibold uppercase tracking-wider text-amber-900 mb-1">
+                Recognized Speech (Model Output) • អត្ថបទដែលម៉ូឌែលស្តាប់ឮ
+              </div>
+              <div id="asr-hypothesis-text" class="text-base font-khmer text-zinc-900 leading-relaxed font-medium">
+                -
+              </div>
+            </div>
+          </div>
+
+          <!-- ASR Adjudication Controls (Flattened) -->
+          <div class="pt-2 space-y-2">
+            <div class="text-xs font-semibold text-zinc-800">
+              Review Text Match • ពិនិត្យភាពត្រឹមត្រូវ:
+            </div>
+            <div class="flex flex-col sm:flex-row items-center gap-2.5">
+              <button
+                type="button"
+                id="btn-asr-acceptable"
+                class="flex-1 w-full py-2.5 px-4 text-xs font-semibold rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
+                <span>Acceptable Spoken Khmer Variation</span>
+                <span class="text-[11px] font-normal text-emerald-600">(ពាក្យនិយាយធម្មតា)</span>
+              </button>
+              <button
+                type="button"
+                id="btn-asr-error"
+                class="flex-1 w-full py-2.5 px-4 text-xs font-semibold rounded-xl border border-red-300 bg-red-50 text-red-800 hover:bg-red-100 transition cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span>
+                <span>True Speech Recognition Error</span>
+                <span class="text-[11px] font-normal text-red-600">(កំហុសស្តាប់ខុសជាក់ស្តែង)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Perceived Speech Differences (Collapsible Drawer to save vertical space) -->
+        <div id="heard-transcription-wrapper" class="pt-2 border-t border-zinc-100">
+          <div id="heard-toggle-bar" class="flex items-center justify-between">
+            <button
+              type="button"
+              id="btn-toggle-heard"
+              class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg bg-zinc-50 hover:bg-zinc-100 text-zinc-700 border border-zinc-200 transition cursor-pointer"
+            >
+              <svg class="w-3.5 h-3.5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              <span>Heard differences in audio? Report misheard words • កត់ត្រាពាក្យឮខុស</span>
+              <span id="heard-indicator-badge" class="hidden ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">Edited</span>
+            </button>
+            <span class="text-[11px] text-zinc-400 hidden sm:inline">Optional • មិនតម្រូវជាកាតព្វកិច្ច</span>
+          </div>
+
+          <div id="heard-transcription-container" class="hidden mt-2.5 p-3.5 bg-zinc-50/80 rounded-xl space-y-2.5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <span class="text-xs font-bold text-zinc-900 font-khmer">តើអ្នកបានឮអ្វីខ្លះ? (What did you hear?)</span>
+                <p class="text-[11px] text-zinc-500">Edit below to match exactly what the audio spoke.</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button
+                  type="button"
+                  id="btn-copy-expected-transcript"
+                  class="px-3 py-1 text-xs font-semibold bg-white hover:bg-zinc-100 text-zinc-800 border border-zinc-300 rounded-lg cursor-pointer transition shadow-2xs flex items-center gap-1.5"
+                  title="Populate input with the prompt transcript to edit only differences"
+                >
+                  <svg class="w-3.5 h-3.5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                  <span class="font-khmer">ចម្លងអត្ថបទគំរូ</span> <span class="font-sans text-[11px]">(Copy Prompt)</span>
+                </button>
+                <button
+                  type="button"
+                  id="btn-clear-heard-transcript"
+                  class="text-xs font-medium text-zinc-500 hover:text-zinc-800 cursor-pointer px-2 py-1"
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  id="btn-hide-heard"
+                  class="text-xs text-zinc-400 hover:text-zinc-700 cursor-pointer px-1.5 py-0.5 rounded hover:bg-zinc-200/60"
+                  title="Close editor"
+                >
+                  ✕ Close
+                </button>
+              </div>
+            </div>
+
+            <textarea
+              id="heard-transcript-input"
+              rows="2"
+              placeholder="Click 'Copy Prompt' to start with the prompt text, or type what you heard..."
+              class="w-full text-base font-khmer text-zinc-900 px-3.5 py-2.5 bg-white border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 leading-relaxed transition"
+            ></textarea>
+
+            <!-- Real-Time Khmer Visual Diff Container -->
+            <div id="heard-diff-preview" class="hidden p-3 bg-zinc-100/70 rounded-xl text-sm font-khmer leading-relaxed">
+              <div class="flex items-center justify-between text-[11px] text-zinc-500 uppercase tracking-wider mb-1.5 font-sans">
+                <span class="font-semibold">Visual Differences (Expected vs Heard)</span>
+                <span id="diff-status-badge" class="font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">Matches prompt</span>
+              </div>
+              <div id="heard-diff-content" class="text-sm font-khmer text-zinc-800 break-words">
+                <!-- Dynamically populated with color-coded diff marks -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom: Prominent Audio Player & 76px Waveform (Flattened) -->
+        <div class="audio-player-deck pt-3 border-t border-zinc-100 flex items-center gap-4">
+          <button
+            id="btn-play-toggle"
+            class="w-12 h-12 flex-shrink-0 rounded-full bg-zinc-900 hover:bg-zinc-800 text-white flex items-center justify-center cursor-pointer transition shadow-sm"
+            title="Play/Pause (Space)"
+          >
+            <svg id="icon-play" class="w-5 h-5 ml-0.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            <svg id="icon-pause" class="w-5 h-5 fill-current hidden" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          </button>
+
+          <div class="flex-1 min-w-0 flex flex-col gap-1.5">
+            <div class="flex items-center justify-between text-[11px] text-zinc-500">
+              <span id="audio-time-label" class="time-display font-medium text-xs">0.00s / 0.00s</span>
+              <span class="hidden sm:inline text-zinc-400">Click & drag on waveform to tag defect region • ចុចអូសលើរលកសំឡេងដើម្បីសម្គាល់កំហុស</span>
+            </div>
+            <div class="waveform-canvas-box rounded-lg overflow-hidden h-[76px] relative" id="waveform-box">
+              <canvas id="waveform-canvas" class="w-full h-[76px] block cursor-crosshair"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tagged Defect Regions List -->
+        <div id="defect-tags-list" class="flex flex-wrap gap-1.5 items-center min-h-[22px]">
+          <!-- Dynamic defect badges appear here -->
+        </div>
+
+        <!-- Floating Region Defect Tag Popover -->
+        <div id="region-tag-popover" class="region-popover hidden">
+          <div class="flex items-center justify-between pb-2 border-b border-zinc-100 mb-2">
+            <div class="text-xs font-bold text-zinc-900 flex items-center gap-1.5">
+              <span class="font-khmer">សម្គាល់កំហុស</span>
+              <span class="font-normal text-zinc-500 font-sans text-[11px]">(Mark Defect)</span>
+              <span id="popover-time-range" class="font-mono text-zinc-600 font-normal ml-1"></span>
+            </div>
+            <button id="btn-popover-close" class="text-zinc-500 hover:text-zinc-700 text-sm cursor-pointer">&times;</button>
+          </div>
+
+          <div class="flex items-center gap-2 mb-3">
+            <button id="btn-play-slice" class="px-2.5 py-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded-lg text-xs font-medium cursor-pointer transition font-khmer">
+              ស្តាប់ផ្នែកនេះ (Play Slice)
+            </button>
+            <span class="text-xs text-zinc-500">Audition selected range</span>
+          </div>
+
+          <div class="mb-2">
+            <div class="text-[11px] font-semibold text-zinc-700 mb-1 font-khmer">ប្រភេទកំហុស (Defect Type)</div>
+            <div class="chip-group" id="popover-chip-group">
+              <!-- Dynamically populated with bilingual chips -->
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <input
+              type="text"
+              id="popover-defect-note"
+              placeholder="កំណត់សម្គាល់បន្ថែម (e.g. បាត់ស្រៈ / dropped vowel)..."
+              class="w-full px-2.5 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900 font-khmer text-xs"
+            />
+          </div>
+
+          <div class="flex justify-end gap-2">
+            <button id="btn-popover-cancel" class="px-3 py-1 text-xs text-zinc-600 hover:text-zinc-900 cursor-pointer">Cancel</button>
+            <button id="btn-popover-save" class="px-3 py-1 text-xs bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg font-medium cursor-pointer font-khmer">រក្សាទុក (Save Defect)</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. Dynamic 2x2 Rating Criteria Deck -->
+      <section class="rating-section" id="rating-form-container">
+        <!-- Rendered dynamically as 2x2 grid from study rubric -->
+      </section>
+
+      <!-- 3. Docked Action Bar: Previous + Inline Note + Validation + Submit -->
+      <footer class="bg-white border border-zinc-200 rounded-xl p-3 flex items-center justify-between gap-2 sm:gap-3 shadow-xs mobile-bottom-dock">
+        <div class="flex items-center gap-2">
+          <button id="btn-prev-item" class="btn-ghost py-1.5 px-3 text-xs">&larr; Previous</button>
+          <div class="hidden xl:flex items-center gap-1.5 text-[11px] text-zinc-500">
+            <span class="key-hint">Space</span> Play
+            <span class="key-hint">Enter</span> Submit
+          </div>
+        </div>
+
+        <!-- Inline Note Field (Desktop / Tablet only to preserve mobile tap targets) -->
+        <div class="hidden md:block flex-1 max-w-md">
+          <input
+            type="text"
+            id="eval-notes-input"
+            placeholder="Add optional note or defect comment on this sample..."
+            class="w-full text-xs text-zinc-900 px-3 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900"
+          />
+        </div>
+
+        <div class="flex items-center gap-2 sm:gap-2.5">
+          <div id="eval-status-indicator" class="text-xs font-semibold px-2 sm:px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-800 transition whitespace-nowrap text-center">
+            0 of 4 answered
+          </div>
+          <button id="btn-next-item" class="btn-carbon py-1.5 px-3.5 sm:px-4 text-xs font-semibold cursor-pointer whitespace-nowrap flex items-center">
+            <span>Submit & Next</span>
+            <svg class="w-3.5 h-3.5 ml-1 fill-none stroke-current" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          </button>
+        </div>
+      </footer>
+
+    </div>
+
+    <!-- TRY OUT STAGE (Free Audition Playground without Formal Rating) -->
+    <div id="tryout-stage" class="hidden flex-1 flex flex-col gap-4 min-w-0 pb-20 md:pb-12">
+      <!-- Playground Header Card -->
+      <section class="bg-white border border-zinc-200 rounded-2xl p-5 shadow-xs space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-zinc-100">
+          <div>
+            <div class="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Acoustic Audition Laboratory</div>
+            <h2 class="text-base font-bold text-zinc-900 font-khmer">បន្ទប់សាកល្បងស្តាប់សំឡេងម៉ូឌែល (TTS & ASR Playground)</h2>
+            <p class="text-xs text-zinc-600 mt-0.5">Freely audition candidate models, compare speech quality, or test recognition accuracy without submitting survey scores.</p>
+          </div>
+          <!-- Sub-mode toggle: TTS vs ASR -->
+          <div class="flex items-center p-1 bg-zinc-100 rounded-xl text-xs font-semibold" id="tryout-submode-nav">
+            <button type="button" id="tryout-tab-tts" class="px-3 py-1.5 rounded-lg bg-white text-zinc-900 shadow-2xs cursor-pointer transition">
+              TTS Synthesis
+            </button>
+            <button type="button" id="tryout-tab-asr" class="px-3 py-1.5 rounded-lg text-zinc-600 hover:text-zinc-900 cursor-pointer transition">
+              ASR Recognition
+            </button>
+          </div>
+        </div>
+
+        <!-- TTS Playground View -->
+        <div id="tryout-tts-view" class="space-y-4">
+          <!-- Model Selection Pills -->
+          <div>
+            <div class="text-[11px] font-semibold text-zinc-700 uppercase tracking-wider mb-1.5">Select Model • ជ្រើសរើសម៉ូឌែល</div>
+            <div class="flex flex-wrap gap-2" id="tryout-model-pills">
+              <!-- Dynamically populated model buttons -->
+            </div>
+          </div>
+
+          <!-- Sentence Selection -->
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-2 border-t border-zinc-100">
+            <div class="text-[11px] font-semibold text-zinc-700 uppercase tracking-wider">Select Sample Sentence • ជ្រើសរើសប្រយោគ</div>
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+              <select id="tryout-sentence-select" class="w-full sm:w-80 px-3 py-1.5 text-xs bg-zinc-50 border border-zinc-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900 font-khmer text-zinc-900">
+                <!-- KH01 to KH23 options -->
+              </select>
+            </div>
+          </div>
+
+          <!-- Prompt Transcript Display -->
+          <div class="p-4 bg-zinc-50/70 rounded-xl space-y-1">
+            <div class="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Khmer Sentence Transcript • អត្ថបទគំរូ</div>
+            <div id="tryout-transcript-text" class="text-xl font-khmer text-zinc-900 leading-relaxed font-medium">
+              Loading prompt...
+            </div>
+          </div>
+
+          <!-- Pure Acoustic Player Deck -->
+          <div class="p-4 bg-zinc-50/50 rounded-xl space-y-3">
+            <div class="flex items-center justify-between text-xs">
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-zinc-900" id="tryout-active-model-name">Khmer-TTS (VITS)</span>
+                <span class="text-zinc-400">•</span>
+                <span id="tryout-time-label" class="font-mono text-zinc-600">0.00s / 0.00s</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <button type="button" id="tryout-toggle-speed" class="px-2 py-0.5 text-xs border border-zinc-200 rounded-lg text-zinc-600 hover:bg-zinc-50 cursor-pointer font-mono font-medium">1.0x</button>
+              </div>
+            </div>
+
+            <!-- Waveform Canvas Box -->
+            <div class="waveform-canvas-box rounded-lg overflow-hidden h-[76px] relative" id="tryout-waveform-box">
+              <canvas id="tryout-waveform-canvas" class="w-full h-[76px] block cursor-pointer"></canvas>
+            </div>
+
+            <!-- Player Controls Row -->
+            <div class="flex items-center justify-between pt-1">
+              <button
+                type="button"
+                id="tryout-btn-play"
+                class="px-5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold cursor-pointer transition shadow-sm flex items-center gap-2"
+              >
+                <svg id="tryout-icon-play" class="w-4 h-4 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                <svg id="tryout-icon-pause" class="w-4 h-4 fill-current hidden" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                <span id="tryout-play-btn-text">Play Audio</span>
+              </button>
+              <div class="flex items-center gap-2 text-xs text-zinc-500">
+                <span>Click & drag on waveform to scrub position</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ASR Recognition Playground View -->
+        <div id="tryout-asr-view" class="hidden space-y-4">
+          <div class="text-[11px] font-semibold text-zinc-700 uppercase tracking-wider mb-1.5">Select ASR Test Sentence • ជ្រើសរើសប្រយោគ</div>
+          <select id="tryout-asr-sentence-select" class="w-full sm:w-80 px-3 py-1.5 text-xs bg-zinc-50 border border-zinc-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900 font-khmer text-zinc-900">
+            <!-- Dynamically filled -->
+          </select>
+
+          <!-- ASR Expected vs Recognized Visual Diff Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div class="p-4 bg-zinc-50 rounded-xl space-y-1">
+              <div class="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Expected Ground Truth (អត្ថបទដើម)</div>
+              <div id="tryout-asr-ref-text" class="text-base font-khmer text-zinc-900 leading-relaxed font-medium">-</div>
+            </div>
+            <div class="p-4 bg-amber-50/70 rounded-xl space-y-1">
+              <div class="text-[11px] font-semibold uppercase tracking-wider text-amber-900">Recognized Output (អត្ថបទម៉ូឌែល)</div>
+              <div id="tryout-asr-hyp-text" class="text-base font-khmer text-zinc-900 leading-relaxed font-medium">-</div>
+            </div>
+          </div>
+
+          <!-- Live Diff Box -->
+          <div class="p-3.5 bg-zinc-50/70 rounded-xl space-y-1">
+            <div class="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Visual Character Differences</div>
+            <div id="tryout-asr-diff-content" class="text-base font-khmer text-zinc-800 break-words leading-relaxed">-</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  </div>
+
+  <!-- Collapsible Instructions Modal (Bilingual Khmer-English) -->
+  <div id="modal-instructions" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div class="bg-white border border-zinc-200 rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-zinc-100">
+        <div>
+          <h2 class="text-sm font-bold text-zinc-900 font-khmer">របៀបវាយតម្លៃសំឡេងសិប្បនិម្មិត</h2>
+          <div class="text-[11px] text-zinc-500 font-sans">How to Evaluate Speech Samples</div>
+        </div>
+        <button id="btn-close-instructions" class="text-zinc-400 hover:text-zinc-700 text-lg cursor-pointer">&times;</button>
+      </div>
+      <div class="space-y-3 text-xs text-zinc-700 leading-relaxed">
+        <ol class="list-decimal list-inside space-y-2.5 font-medium">
+          <li>
+            <span class="font-khmer text-zinc-900">ចុចប៊ូតុង <strong>ចាក់សំឡេង</strong> (ឬចុច <kbd class="key-hint">Space</kbd>) ដើម្បីស្តាប់សំឡេងគំរូ។</span>
+            <div class="text-[11px] text-zinc-500 ml-4 font-sans">Click <strong>Play</strong> (or press <kbd class="key-hint">Space</kbd>) to listen to the speech sample.</div>
+          </li>
+          <li>
+            <span class="font-khmer text-zinc-900"><span class="text-zinc-500">(ជម្រើសបន្ថែម)</span> ប្រសិនបើអ្នកឮសំឡេងខុស ឬរំខាន សូមអូសលើរលកសំឡេង រួចចុច <strong>Save Defect</strong>។</span>
+            <div class="text-[11px] text-zinc-500 ml-4 font-sans">(Optional) If you hear an awkward sound, buzz, or mispronunciation, drag across the waveform to tag it.</div>
+          </li>
+          <li>
+            <span class="font-khmer text-zinc-900">ដាក់ពិន្ទុលើលក្ខណៈទាំង ៤ (១: ខ្សោយ ដល់ ៥: ល្អឥតខ្ចោះ) រួចចុច <strong>Submit & Next</strong> (ឬ <kbd class="key-hint">Enter</kbd>)។</span>
+            <div class="text-[11px] text-zinc-500 ml-4 font-sans">Rate all 4 dimensions (1: Poor to 5: Excellent) and click <strong>Submit & Next</strong> (or <kbd class="key-hint">Enter</kbd>).</div>
+          </li>
+        </ol>
+        <div id="modal-study-instructions-box" class="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-amber-900">
+          <div class="font-bold mb-1 text-amber-950 font-khmer">សេចក្តីណែនាំនៃការសិក្សា (Study Instructions):</div>
+          <div id="modal-study-instructions-text" class="leading-relaxed">Please listen carefully to each sample...</div>
+        </div>
+      </div>
+      <div class="pt-2 flex justify-end">
+        <button id="btn-dismiss-instructions" class="btn-carbon text-xs py-1.5 px-4 font-khmer">យល់ព្រម (Got it)</button>
+      </div>
+    </div>
+  </div>
+
+  </div>
+
+  <!-- Study Completed Screen -->
+  <div id="completion-screen" class="hidden flex-1 flex flex-col items-center justify-center p-6 text-center max-w-lg mx-auto">
+    <div class="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center mb-5 text-emerald-600">
+      <svg class="w-8 h-8 fill-none stroke-current" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+    </div>
+    <div class="text-xs font-semibold uppercase tracking-wider text-emerald-600 mb-1">All Items Completed</div>
+    <h2 class="text-2xl font-bold text-zinc-900 mb-3">Thank You for Your Evaluation</h2>
+    <p class="text-sm text-zinc-600 mb-6 leading-relaxed">
+      Your ratings and acoustic defect tags have been recorded into the evaluation database.
+    </p>
+
+    <div class="w-full bg-white border border-zinc-200 rounded-xl p-4 mb-6 text-left space-y-2 text-xs">
+      <div class="flex justify-between py-1 border-b border-zinc-100">
+        <span class="text-zinc-700">Evaluator:</span>
+        <span class="font-semibold text-zinc-800" id="summary-rater-name">-</span>
+      </div>
+      <div class="flex justify-between py-1 border-b border-zinc-100">
+        <span class="text-zinc-700">Items Rated:</span>
+        <span class="font-semibold text-zinc-800" id="summary-items-count">-</span>
+      </div>
+      <div class="flex justify-between py-1">
+        <span class="text-zinc-700">Defects Tagged:</span>
+        <span class="font-semibold text-zinc-800" id="summary-defects-count">-</span>
+      </div>
+    </div>
+
+    <div class="flex gap-3">
+      <button
+        id="btn-review-evaluations"
+        class="btn-ghost"
+      >
+        Review & Edit Answers
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container"></div>
+
+  <script src="/js/audio_dsp.js"></script>
+  <script src="/js/eval_app.js"></script>
+</body>
+</html>

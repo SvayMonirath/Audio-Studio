@@ -1,0 +1,945 @@
+[
+  {
+    "id": "KH01",
+    "category": "phone_greeting",
+    "length": "short",
+    "intent": "Answer an incoming business call politely.",
+    "source_text": "អាឡូ សួស្តីបង!",
+    "tts_input": "អាឡូ សួស្តីបង!",
+    "coverage_tags": [
+      "phone_register",
+      "short_utterance",
+      "greeting",
+      "conversational_address"
+    ],
+    "native_review": "Confirm that អាឡូ is the expected way this receptionist persona answers calls; a face-to-face greeting may differ.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH01.wav",
+        "size_bytes": 138284
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH01.wav",
+        "size_bytes": 58412
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH01.wav",
+        "size_bytes": 43052
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH01.wav",
+        "size_bytes": 91180
+      }
+    }
+  },
+  {
+    "id": "KH02",
+    "category": "opening_and_help",
+    "length": "medium",
+    "intent": "Ask what the caller needs.",
+    "source_text": "សួស្តីបង មានអីឲ្យខ្ញុំជួយបានខ្លះ?",
+    "tts_input": "សួស្តីបង មានអីឲ្យខ្ញុំជួយបានខ្លះ?",
+    "coverage_tags": [
+      "spoken_អី",
+      "question_intonation",
+      "conversational_address",
+      "common_khmer"
+    ],
+    "native_review": "Check that this sounds friendly and natural rather than too familiar or too scripted for a local business.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH02.wav",
+        "size_bytes": 215084
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH02.wav",
+        "size_bytes": 93740
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH02.wav",
+        "size_bytes": 74796
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH02.wav",
+        "size_bytes": 155180
+      }
+    }
+  },
+  {
+    "id": "KH03",
+    "category": "hold_and_check",
+    "length": "medium",
+    "intent": "Tell the customer the agent will check something.",
+    "source_text": "បានបង ចាំខ្ញុំឆែកមើលឲ្យសិនណា។",
+    "tts_input": "បានបង ចាំខ្ញុំឆែកមើលឲ្យសិនណា។",
+    "coverage_tags": [
+      "colloquial_ឆែក",
+      "discourse_particle_ណា",
+      "phrase_break",
+      "code_mixed_loanword"
+    ],
+    "native_review": "Confirm  ឆែកមើល and សិនណា are appropriate for a polite receptionist in the target region.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH03.wav",
+        "size_bytes": 184364
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH03.wav",
+        "size_bytes": 85036
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH03.wav",
+        "size_bytes": 69676
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH03.wav",
+        "size_bytes": 142380
+      }
+    }
+  },
+  {
+    "id": "KH04",
+    "category": "ordering",
+    "length": "short",
+    "intent": "Ask what the customer wants to order.",
+    "source_text": "បងចង់កុម្ម៉ង់អីខ្លះ?",
+    "tts_input": "បងចង់កុម្ម៉ង់អីខ្លះ?",
+    "coverage_tags": [
+      "spoken_អី",
+      "food_service_register",
+      "question_intonation",
+      "conversational_address"
+    ],
+    "native_review": "Approve the common spelling choice កុម្ម៉ង់ versus កម្មង់ and make it consistent across project artifacts.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH04.wav",
+        "size_bytes": 107564
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH04.wav",
+        "size_bytes": 64044
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH04.wav",
+        "size_bytes": 44588
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH04.wav",
+        "size_bytes": 84524
+      }
+    }
+  },
+  {
+    "id": "KH05",
+    "category": "menu",
+    "length": "medium",
+    "intent": "Ask what menu items the customer wants to know about.",
+    "source_text": "ថ្ងៃនេះមានមុខម្ហូបពិសេសអីខ្លះ?",
+    "tts_input": "ថ្ងៃនេះមានមុខម្ហូបពិសេសអីខ្លះ?",
+    "coverage_tags": [
+      "menu_vocabulary",
+      "spoken_អី",
+      "question_intonation",
+      "phrase_boundaries"
+    ],
+    "native_review": "Check that the phrase sounds like spontaneous restaurant speech, not a translated script.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH05.wav",
+        "size_bytes": 153644
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH05.wav",
+        "size_bytes": 109612
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH05.wav",
+        "size_bytes": 57388
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH05.wav",
+        "size_bytes": 124460
+      }
+    }
+  },
+  {
+    "id": "KH06",
+    "category": "food_preference",
+    "length": "medium",
+    "intent": "Ask how spicy the customer wants the dish.",
+    "source_text": "បងចូលចិត្តហឹរតិច ឬហឹរខ្លាំង?",
+    "tts_input": "បងចូលចិត្តហឹរតិច ឬហឹរខ្លាំង?",
+    "coverage_tags": [
+      "contrastive_choice",
+      "question_intonation",
+      "food_vocabulary",
+      "vowel_and_consonant_coverage"
+    ],
+    "native_review": "Check whether a real staff member would phrase this as a preference question; adjust if another everyday expression is more idiomatic.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH06.wav",
+        "size_bytes": 215084
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH06.wav",
+        "size_bytes": 92204
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH06.wav",
+        "size_bytes": 58412
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH06.wav",
+        "size_bytes": 128044
+      }
+    }
+  },
+  {
+    "id": "KH07",
+    "category": "menu_listing",
+    "length": "long",
+    "intent": "List several available foods clearly.",
+    "source_text": "យើងមានបាយសាច់មាន់ បាយសាច់គោ ហើយក៏មានមីឆាដែរ។",
+    "tts_input": "យើងមានបាយសាច់មាន់ បាយសាច់គោ ហើយក៏មានមីឆាដែរ។",
+    "coverage_tags": [
+      "food_names",
+      "list_intonation",
+      "phrase_boundaries",
+      "longer_utterance"
+    ],
+    "native_review": "Check that the list connector and pauses are natural; avoid an artificial announcer cadence.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH07.wav",
+        "size_bytes": 430124
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH07.wav",
+        "size_bytes": 146476
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH07.wav",
+        "size_bytes": 100908
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH07.wav",
+        "size_bytes": 214060
+      }
+    }
+  },
+  {
+    "id": "KH08",
+    "category": "drinks_and_code_switching",
+    "length": "long",
+    "intent": "List drinks including a familiar English menu item.",
+    "source_text": "មានកាហ្វេទឹកកក តែទឹកដោះគោ ហើយក៏មាន Iced Latte ដែរ។",
+    "tts_input": "មានកាហ្វេទឹកកក តែទឹកដោះគោ ហើយក៏មាន Iced Latte ដែរ។",
+    "coverage_tags": [
+      "food_and_drink_vocabulary",
+      "code_switching",
+      "latin_script",
+      "list_intonation"
+    ],
+    "native_review": "Confirm whether Iced Latte is realistic for the chosen partner businesses and document the expected local pronunciation without demanding one English accent.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH08.wav",
+        "size_bytes": 291884
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH08.wav",
+        "size_bytes": 178220
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH08.wav",
+        "size_bytes": 102444
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH08.wav",
+        "size_bytes": 223276
+      }
+    }
+  },
+  {
+    "id": "KH09",
+    "category": "add_to_order",
+    "length": "short",
+    "intent": "Ask whether the customer wants to add anything.",
+    "source_text": "បងចង់បន្ថែមអីទៀតអត់?",
+    "tts_input": "បងចង់បន្ថែមអីទៀតអត់?",
+    "coverage_tags": [
+      "spoken_អី",
+      "spoken_អត់",
+      "question_intonation",
+      "short_utterance"
+    ],
+    "native_review": "Check that the ending particle feels friendly, not abrupt, for this business context.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH09.wav",
+        "size_bytes": 107564
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH09.wav",
+        "size_bytes": 64556
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH09.wav",
+        "size_bytes": 49196
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH09.wav",
+        "size_bytes": 105516
+      }
+    }
+  },
+  {
+    "id": "KH10",
+    "category": "order_readback",
+    "length": "long",
+    "intent": "Repeat an order back to the customer.",
+    "source_text": "អូខេបង អញ្ចឹងខ្ញុំកត់បាយសាច់មាន់មួយចាន និងទឹកសុទ្ធមួយដបណា។",
+    "tts_input": "អូខេបង អញ្ចឹងខ្ញុំកត់បាយសាច់មាន់មួយចាន និងទឹកសុទ្ធមួយដបណា។",
+    "coverage_tags": [
+      "code_switching",
+      "quantity_classifiers",
+      "order_confirmation",
+      "phrase_boundaries",
+      "longer_utterance"
+    ],
+    "native_review": "Confirm that អូខេ and the full read-back sound natural; consider local preference for អូខេ/អូកេ spelling.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH10.wav",
+        "size_bytes": 337964
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH10.wav",
+        "size_bytes": 183852
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH10.wav",
+        "size_bytes": 136236
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH10.wav",
+        "size_bytes": 235052
+      }
+    }
+  },
+  {
+    "id": "KH11",
+    "category": "riel_price",
+    "length": "medium",
+    "intent": "State a dish price in Cambodian riel.",
+    "source_text": "បាយសាច់មាន់មួយចាន តម្លៃ ១៥,០០០ រៀលបង។",
+    "tts_input": "បាយសាច់មាន់មួយចាន តម្លៃមួយម៉ឺនប្រាំពាន់រៀលបង។",
+    "coverage_tags": [
+      "currency_normalization",
+      "khmer_business_context",
+      "amount_15000",
+      "phrase_break"
+    ],
+    "native_review": "Validate the spoken form for 15,000 riel and decide whether including តម្លៃ is natural in the target utterance.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH11.wav",
+        "size_bytes": 245804
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH11.wav",
+        "size_bytes": 140844
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH11.wav",
+        "size_bytes": 88620
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH11.wav",
+        "size_bytes": 179244
+      }
+    }
+  },
+  {
+    "id": "KH12",
+    "category": "drink_price",
+    "length": "short",
+    "intent": "Give the price of a drink.",
+    "source_text": "កាហ្វេទឹកកកមួយកែវ ៥,០០០ រៀលបង។",
+    "tts_input": "កាហ្វេទឹកកកមួយកែវ ប្រាំពាន់រៀលបង។",
+    "coverage_tags": [
+      "currency_normalization",
+      "number_5000",
+      "food_and_drink_vocabulary",
+      "short_utterance"
+    ],
+    "native_review": "Confirm that the compact price statement is ordinary Cambodian service speech.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH12.wav",
+        "size_bytes": 199724
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH12.wav",
+        "size_bytes": 112172
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH12.wav",
+        "size_bytes": 61996
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH12.wav",
+        "size_bytes": 161324
+      }
+    }
+  },
+  {
+    "id": "KH13",
+    "category": "bill_total_usd",
+    "length": "short",
+    "intent": "State a total in US dollars.",
+    "source_text": "សរុបអស់ $12.50 បង។",
+    "tts_input": "សរុបអស់ដប់ពីរដុល្លារកន្លះបង។",
+    "coverage_tags": [
+      "currency_normalization",
+      "decimal_amount",
+      "code_switching_context",
+      "natural_spoken_amount"
+    ],
+    "native_review": "Critical: confirm whether ដប់ពីរដុល្លារកន្លះ is the preferred spoken reading for USD 12.50 in this context.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH13.wav",
+        "size_bytes": 199724
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH13.wav",
+        "size_bytes": 96812
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH13.wav",
+        "size_bytes": 66092
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH13.wav",
+        "size_bytes": 129068
+      }
+    }
+  },
+  {
+    "id": "KH14",
+    "category": "discount",
+    "length": "medium",
+    "intent": "Inform the caller about a discount.",
+    "source_text": "ឥឡូវនេះហាងយើងមានបញ្ចុះតម្លៃ ១០% ណាបង។",
+    "tts_input": "ឥឡូវនេះហាងយើងមានបញ្ចុះតម្លៃដប់ភាគរយណាបង។",
+    "coverage_tags": [
+      "percentage_normalization",
+      "khmer_digits",
+      "business_vocabulary",
+      "discourse_particle_ណា"
+    ],
+    "native_review": "Confirm that this phrasing is natural and does not overpromise a promotion for all example businesses.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH14.wav",
+        "size_bytes": 215084
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH14.wav",
+        "size_bytes": 129580
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH14.wav",
+        "size_bytes": 85036
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH14.wav",
+        "size_bytes": 186412
+      }
+    }
+  },
+  {
+    "id": "KH15",
+    "category": "unavailable_item",
+    "length": "short",
+    "intent": "Apologize that a dish is sold out.",
+    "source_text": "សុំទោសបង មុខម្ហូបនេះអស់ហើយ។",
+    "tts_input": "សុំទោសបង មុខម្ហូបនេះអស់ហើយ។",
+    "coverage_tags": [
+      "apology",
+      "availability",
+      "consonant_clusters",
+      "phrase_break"
+    ],
+    "native_review": "Compare សុំទោស with សូមទោស and select one house style; ensure this sounds spoken rather than ceremonially formal.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH15.wav",
+        "size_bytes": 184364
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH15.wav",
+        "size_bytes": 89644
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH15.wav",
+        "size_bytes": 49708
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH15.wav",
+        "size_bytes": 146988
+      }
+    }
+  },
+  {
+    "id": "KH16",
+    "category": "available_quantity",
+    "length": "medium",
+    "intent": "Confirm availability and ask how many portions are wanted.",
+    "source_text": "នៅមានបង ចង់កុម្ម៉ង់ប៉ុន្មានចាន?",
+    "tts_input": "នៅមានបង ចង់កុម្ម៉ង់ប៉ុន្មានចាន?",
+    "coverage_tags": [
+      "availability",
+      "quantity",
+      "spoken_service_register",
+      "question_intonation"
+    ],
+    "native_review": "Check whether omitting the explicit subject sounds natural here; Khmer often allows contextually understood subjects.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH16.wav",
+        "size_bytes": 169004
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH16.wav",
+        "size_bytes": 82988
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH16.wav",
+        "size_bytes": 55340
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH16.wav",
+        "size_bytes": 130604
+      }
+    }
+  },
+  {
+    "id": "KH17",
+    "category": "alternative_recommendation",
+    "length": "long",
+    "intent": "Offer another dish when the requested item is unavailable.",
+    "source_text": "បើមុខនេះអស់ ខ្ញុំអាចណែនាំមុខផ្សេងឲ្យបានណា។",
+    "tts_input": "បើមុខនេះអស់ ខ្ញុំអាចណែនាំមុខផ្សេងឲ្យបានណា។",
+    "coverage_tags": [
+      "conditional_clause",
+      "repair_and_recommendation",
+      "phrase_boundaries",
+      "longer_utterance"
+    ],
+    "native_review": "Check whether មុខនេះ / មុខផ្សេង is natural enough in context or whether the noun មុខម្ហូប should be retained.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH17.wav",
+        "size_bytes": 215084
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH17.wav",
+        "size_bytes": 138284
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH17.wav",
+        "size_bytes": 74796
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH17.wav",
+        "size_bytes": 194604
+      }
+    }
+  },
+  {
+    "id": "KH18",
+    "category": "booking_intent",
+    "length": "short",
+    "intent": "Confirm that the caller wants to reserve a table.",
+    "source_text": "បងចង់កក់តុមែនទេ?",
+    "tts_input": "បងចង់កក់តុមែនទេ?",
+    "coverage_tags": [
+      "booking_vocabulary",
+      "confirmation_question",
+      "short_utterance"
+    ],
+    "native_review": "Check that this is a natural clarification question in a real call.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH18.wav",
+        "size_bytes": 122924
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH18.wav",
+        "size_bytes": 48684
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH18.wav",
+        "size_bytes": 55340
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH18.wav",
+        "size_bytes": 116780
+      }
+    }
+  },
+  {
+    "id": "KH19",
+    "category": "booking_date",
+    "length": "short",
+    "intent": "Ask which day the customer wants to reserve.",
+    "source_text": "បងចង់កក់ថ្ងៃណា?",
+    "tts_input": "បងចង់កក់ថ្ងៃណា?",
+    "coverage_tags": [
+      "booking",
+      "date_information",
+      "spoken_question_word",
+      "question_intonation"
+    ],
+    "native_review": "Check whether the sentence needs a marker such as សម្រាប់ in this local context or sounds natural as a short follow-up.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH19.wav",
+        "size_bytes": 107564
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH19.wav",
+        "size_bytes": 47660
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH19.wav",
+        "size_bytes": 41516
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH19.wav",
+        "size_bytes": 91692
+      }
+    }
+  },
+  {
+    "id": "KH20",
+    "category": "spoken_date",
+    "length": "long",
+    "intent": "Confirm a specific date for a booking.",
+    "source_text": "ថ្ងៃទី២៥ ខែធ្នូ នៅមានតុទំនេរបង។",
+    "tts_input": "ថ្ងៃទីម្ភៃប្រាំ ខែធ្នូ នៅមានតុទំនេរបង។",
+    "coverage_tags": [
+      "date_normalization",
+      "ordinal_day",
+      "calendar_vocabulary",
+      "longer_utterance"
+    ],
+    "native_review": "Confirm whether the date is naturally phrased this way and approve the spoken reading of the day number; no weekday is included, avoiding a calendar-dependent claim.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH20.wav",
+        "size_bytes": 307244
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH20.wav",
+        "size_bytes": 140332
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH20.wav",
+        "size_bytes": 87084
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH20.wav",
+        "size_bytes": 188460
+      }
+    }
+  },
+  {
+    "id": "KH21",
+    "category": "booking_party_size",
+    "length": "medium",
+    "intent": "Ask for the number of people in the reservation.",
+    "source_text": "បងកក់តុសម្រាប់ប៉ុន្មាននាក់ដែរ?",
+    "tts_input": "បងកក់តុសម្រាប់ប៉ុន្មាននាក់ដែរ?",
+    "coverage_tags": [
+      "booking",
+      "quantity_question",
+      "classifier_nាក់",
+      "spoken_particle_ដែរ"
+    ],
+    "native_review": "Confirm local naturalness and whether ប៉ុន្មាននាក់ is the preferred phrase for this scenario.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH21.wav",
+        "size_bytes": 138284
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH21.wav",
+        "size_bytes": 75820
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH21.wav",
+        "size_bytes": 47660
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH21.wav",
+        "size_bytes": 118828
+      }
+    }
+  },
+  {
+    "id": "KH22",
+    "category": "available_time",
+    "length": "medium",
+    "intent": "Offer an available evening time.",
+    "source_text": "ម៉ោង ៦:៣០ ល្ងាច នៅមានតុទំនេរបង។",
+    "tts_input": "ម៉ោងប្រាំមួយកន្លះល្ងាច នៅមានតុទំនេរបង។",
+    "coverage_tags": [
+      "time_normalization",
+      "half_past_time",
+      "booking",
+      "phrase_boundaries"
+    ],
+    "native_review": "Validate 6:30 PM → ម៉ោងប្រាំមួយកន្លះល្ងាច for this service context; record alternatives if accepted.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH22.wav",
+        "size_bytes": 414764
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH22.wav",
+        "size_bytes": 121900
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH22.wav",
+        "size_bytes": 77356
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH22.wav",
+        "size_bytes": 188460
+      }
+    }
+  },
+  {
+    "id": "KH23",
+    "category": "alternative_time",
+    "length": "medium",
+    "intent": "Offer an alternative after the requested time is full.",
+    "source_text": "ម៉ោង ៦ អត់មានតុទេ តែម៉ោង ៧ នៅមានបង។",
+    "tts_input": "ម៉ោងប្រាំមួយអត់មានតុទេ តែម៉ោងប្រាំពីរនៅមានបង។",
+    "coverage_tags": [
+      "time_normalization",
+      "spoken_អត់",
+      "contrastive_clause",
+      "time_digits"
+    ],
+    "native_review": "Check that this is the natural way to say no table is available at six but one is available at seven.",
+    "audio_files": {
+      "openbmb/VoxCPM2": {
+        "model_name": "VoxCPM2",
+        "model_id": "C-002",
+        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH23.wav",
+        "size_bytes": 245804
+      },
+      "facebook/mms-tts-khm": {
+        "model_name": "Meta MMS-TTS",
+        "model_id": "C-001",
+        "url": "/audio/facebook-mms-tts-khm/run_20261020_165836/audio/KH23.wav",
+        "size_bytes": 141868
+      },
+      "khmerttsopensource/khmer-tts": {
+        "model_name": "Khmer-TTS (VITS)",
+        "model_id": "C-003",
+        "url": "/audio/khmerttsopensource-khmer-tts/run_20261020_210752/audio/KH23.wav",
+        "size_bytes": 80940
+      },
+      "sengtha/khmer-tts-female-v2": {
+        "model_name": "Sengtha Female",
+        "model_id": "C-004",
+        "url": "/audio/sengtha-khmer-tts-female-v2/run_20261026_204357/audio/KH23.wav",
+        "size_bytes": 205356
+      }
+    }
+  }
+]
