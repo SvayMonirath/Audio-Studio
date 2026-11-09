@@ -1,5 +1,9 @@
 <p align="center">
-  <img src="docs/images/logo_banner.svg" alt="Audio Studio" width="480">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/logo_banner_dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/images/logo_banner_light.svg">
+    <img alt="Audio Studio" src="docs/images/logo_banner_light.svg" width="480">
+  </picture>
 </p>
 
 <p align="center">

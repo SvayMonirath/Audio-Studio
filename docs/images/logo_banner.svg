@@ -1,5 +1,15 @@
-<svg fill="#000000" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 320" width="960" height="320"><title>AUDIO STUDIO Logo</title>
-  
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 320" width="960" height="320">
+  <title>AUDIO STUDIO Logo</title>
+  <style>
+    .mark { fill: #09090B; }
+    .title { fill: #09090B; }
+    .sub { fill: #71717A; }
+    @media (prefers-color-scheme: dark) {
+      .mark { fill: #FFFFFF; }
+      .title { fill: #FFFFFF; }
+      .sub { fill: #A1A1AA; }
+    }
+  </style>
   <g transform="translate(48, 50)">
     <g transform="scale(0.68) translate(-40, -50)">
       <path d="M 116 320
@@ -24,11 +34,11 @@ C 330 245, 324 240, 314 240
 L 295 240
 C 270 240, 250 255, 240 280
 C 230 305, 215 320, 190 320
-Z" fill="#000000"/>
+Z" class="mark"/>
     </g>
     <text x="256" y="132" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Display', sans-serif" 
-          font-size="82" font-weight="900" letter-spacing="-3" fill="#000000">audio studio</text>
+          font-size="82" font-weight="900" letter-spacing="-3" class="title">audio studio</text>
     <text x="260" y="168" font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif" 
-          font-size="15" font-weight="700" letter-spacing="4" fill="#000000">ACOUSTIC &amp; SPEECH BENCHMARK</text>
+          font-size="15" font-weight="700" letter-spacing="4" class="sub">ACOUSTIC &amp; SPEECH BENCHMARK</text>
   </g>
 </svg>
