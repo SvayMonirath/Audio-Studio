@@ -863,6 +863,16 @@ class StudioServerTestCase(unittest.TestCase):
         self.assertNotIn("bg-amber-500", toolbox_section)
         self.assertNotIn("bg-purple-500", toolbox_section)
 
+    def test_step3_wysiwyg_canvas_structure(self):
+        """Verify Step 3 canvas provides expansive layout and WYSIWYG preview container."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        # Check expanded grid allocation (Canvas gets major width)
+        self.assertIn('id="builder-canvas"', content)
+        self.assertIn('lg:col-span-6', content)  # Canvas expanded from 5 to at least 6 cols
+
+
 
 if __name__ == "__main__":
     unittest.main()

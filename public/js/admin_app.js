@@ -1773,48 +1773,206 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         }`;
         card.dataset.id = block.id;
 
-        let iconColor = "bg-zinc-400";
         let title = "Component";
         let sub = "";
 
         if (block.type === "audio_player") {
-          iconColor = "bg-emerald-500";
           title = block.label || "Audio Player & DSP";
           sub = `Speeds: ${block.speeds ? "Yes" : "No"} • 8kHz Filter: ${block.phone_filter ? "Enabled" : "Off"}`;
         } else if (block.type === "text_prompt") {
-          iconColor = "bg-blue-500";
-          title = "Text Prompt Card";
+          title = "Prompt Text Card";
           sub = `Mode: ${block.mode === "blind_gated" ? "Blind-Gated (Blurred)" : "Open Verbatim"} • Size: ${block.font_size || "32px"}`;
         } else if (block.type === "word_tagger") {
-          iconColor = "bg-amber-500";
-          title = "Word Pills & Defect Tagger";
+          title = "Word Glitch Highlighter";
           sub = `Tagging: ${block.mode} • Taxonomies: ${block.active_taxonomies || "all"}`;
         } else if (block.type === "scoring_questions") {
-          iconColor = "bg-purple-500";
-          title = `Scoring Questions (${block.criteria?.length || 0} questions)`;
+          title = `Rating Questions (${block.criteria?.length || 0} questions)`;
           sub = `Scale: 1 to ${block.scale_max || 5} Points`;
         } else if (block.type === "transcription") {
-          iconColor = "bg-zinc-600";
-          title = "Listener Transcription ('What did you hear?')";
+          title = "Heard Speech Comparison";
           sub = `Visual Diff: ${block.show_diff ? "Active" : "Off"}`;
         }
 
+        // Generate WYSIWYG inner preview HTML based on component type
+        let previewHtml = "";
+        if (block.type === "audio_player") {
+          const showSpeeds = block.speeds !== false;
+          const showFilter = Boolean(block.phone_filter);
+          previewHtml = `
+            <div class="mt-3 p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl space-y-2.5">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 rounded-full bg-zinc-900 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                    <svg class="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  </div>
+                  <div>
+                    <span class="text-xs font-mono font-semibold text-zinc-900">0:00 / 0:04</span>
+                    <span class="text-[10px] text-zinc-400 block font-sans">${escapeHtml(block.source_model || "Candidate Model")}</span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  ${showFilter ? `<span class="px-2 py-0.5 rounded-md text-[10px] font-medium bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>8 kHz Phone</span>` : ""}
+                  ${showSpeeds ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-white border border-zinc-200 text-zinc-700">0.8x</span><span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-zinc-900 text-white">1.0x</span>` : ""}
+                </div>
+              </div>
+              <!-- Simulated Waveform SVG -->
+              <div class="h-12 w-full bg-zinc-900 rounded-lg p-2 flex items-center gap-1 overflow-hidden">
+                <svg class="w-full h-8 text-emerald-400/80" viewBox="0 0 300 32" preserveAspectRatio="none">
+                  <rect x="0" y="10" width="3" height="12" rx="1.5" fill="currentColor" opacity="0.4"/>
+                  <rect x="6" y="7" width="3" height="18" rx="1.5" fill="currentColor" opacity="0.6"/>
+                  <rect x="12" y="12" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.5"/>
+                  <rect x="18" y="4" width="3" height="24" rx="1.5" fill="currentColor" opacity="0.8"/>
+                  <rect x="24" y="2" width="3" height="28" rx="1.5" fill="currentColor"/>
+                  <rect x="30" y="6" width="3" height="20" rx="1.5" fill="currentColor" opacity="0.9"/>
+                  <rect x="36" y="9" width="3" height="14" rx="1.5" fill="currentColor" opacity="0.7"/>
+                  <rect x="42" y="13" width="3" height="6" rx="1.5" fill="currentColor" opacity="0.4"/>
+                  <rect x="48" y="5" width="3" height="22" rx="1.5" fill="currentColor" opacity="0.85"/>
+                  <rect x="54" y="8" width="3" height="16" rx="1.5" fill="currentColor" opacity="0.7"/>
+                  <rect x="60" y="11" width="3" height="10" rx="1.5" fill="currentColor" opacity="0.5"/>
+                  <rect x="66" y="3" width="3" height="26" rx="1.5" fill="currentColor" opacity="0.95"/>
+                  <rect x="72" y="7" width="3" height="18" rx="1.5" fill="currentColor" opacity="0.7"/>
+                  <rect x="78" y="12" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.4"/>
+                  <rect x="84" y="6" width="3" height="20" rx="1.5" fill="currentColor" opacity="0.8"/>
+                  <rect x="90" y="1" width="3" height="30" rx="1.5" fill="currentColor"/>
+                  <rect x="96" y="4" width="3" height="24" rx="1.5" fill="currentColor" opacity="0.85"/>
+                  <rect x="102" y="10" width="3" height="12" rx="1.5" fill="currentColor" opacity="0.6"/>
+                  <rect x="108" y="14" width="3" height="4" rx="1.5" fill="currentColor" opacity="0.3"/>
+                  <rect x="114" y="5" width="3" height="22" rx="1.5" fill="currentColor" opacity="0.8"/>
+                  <rect x="120" y="8" width="3" height="16" rx="1.5" fill="currentColor" opacity="0.7"/>
+                  <rect x="126" y="2" width="3" height="28" rx="1.5" fill="currentColor"/>
+                  <rect x="132" y="7" width="3" height="18" rx="1.5" fill="currentColor" opacity="0.7"/>
+                  <rect x="138" y="11" width="3" height="10" rx="1.5" fill="currentColor" opacity="0.5"/>
+                  <rect x="144" y="6" width="3" height="20" rx="1.5" fill="currentColor" opacity="0.8"/>
+                  <rect x="150" y="12" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.4"/>
+                  <rect x="156" y="4" width="3" height="24" rx="1.5" fill="currentColor" opacity="0.85"/>
+                  <rect x="162" y="8" width="3" height="16" rx="1.5" fill="currentColor" opacity="0.6"/>
+                  <rect x="168" y="3" width="3" height="26" rx="1.5" fill="currentColor" opacity="0.9"/>
+                  <rect x="174" y="7" width="3" height="18" rx="1.5" fill="currentColor" opacity="0.7"/>
+                  <rect x="180" y="13" width="3" height="6" rx="1.5" fill="currentColor" opacity="0.4"/>
+                  <rect x="186" y="5" width="3" height="22" rx="1.5" fill="currentColor" opacity="0.8"/>
+                  <rect x="192" y="10" width="3" height="12" rx="1.5" fill="currentColor" opacity="0.5"/>
+                  <rect x="198" y="2" width="3" height="28" rx="1.5" fill="currentColor"/>
+                  <rect x="204" y="6" width="3" height="20" rx="1.5" fill="currentColor" opacity="0.8"/>
+                  <rect x="210" y="9" width="3" height="14" rx="1.5" fill="currentColor" opacity="0.6"/>
+                  <rect x="216" y="4" width="3" height="24" rx="1.5" fill="currentColor" opacity="0.85"/>
+                  <rect x="222" y="11" width="3" height="10" rx="1.5" fill="currentColor" opacity="0.5"/>
+                  <rect x="228" y="7" width="3" height="18" rx="1.5" fill="currentColor" opacity="0.7"/>
+                  <rect x="234" y="1" width="3" height="30" rx="1.5" fill="currentColor"/>
+                  <rect x="240" y="8" width="3" height="16" rx="1.5" fill="currentColor" opacity="0.65"/>
+                  <rect x="246" y="12" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.4"/>
+                  <rect x="252" y="5" width="3" height="22" rx="1.5" fill="currentColor" opacity="0.8"/>
+                  <rect x="258" y="9" width="3" height="14" rx="1.5" fill="currentColor" opacity="0.6"/>
+                  <rect x="264" y="3" width="3" height="26" rx="1.5" fill="currentColor" opacity="0.9"/>
+                  <rect x="270" y="7" width="3" height="18" rx="1.5" fill="currentColor" opacity="0.7"/>
+                  <rect x="276" y="12" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.4"/>
+                  <rect x="282" y="6" width="3" height="20" rx="1.5" fill="currentColor" opacity="0.75"/>
+                  <rect x="288" y="10" width="3" height="12" rx="1.5" fill="currentColor" opacity="0.5"/>
+                  <rect x="294" y="14" width="3" height="4" rx="1.5" fill="currentColor" opacity="0.3"/>
+                </svg>
+              </div>
+            </div>
+          `;
+        } else if (block.type === "text_prompt") {
+          const fontSize = block.font_size || "32px";
+          const isGated = block.mode === "blind_gated";
+          previewHtml = `
+            <div class="mt-3 p-4 bg-zinc-50 border border-zinc-200/80 rounded-xl relative overflow-hidden">
+              <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">Transcript to Evaluate • អត្ថបទសម្រាប់វាយតម្លៃ</div>
+              <div class="font-khmer text-zinc-900 leading-relaxed ${isGated ? "blur-xs select-none" : ""}" style="font-size: ${fontSize};">
+                អាឡូ សួស្តីបង! មានអីឲ្យខ្ញុំជួយបានខ្លះ?
+              </div>
+              ${isGated ? `
+                <div class="absolute inset-0 bg-white/70 backdrop-blur-xs flex flex-col items-center justify-center gap-1.5 p-3 text-center">
+                  <span class="text-[11px] font-semibold text-zinc-800">Blind Pronunciation Test — Prompt is hidden until revealed</span>
+                  <button type="button" class="px-3 py-1 bg-zinc-900 text-white rounded-lg text-xs font-medium shadow-2xs hover:bg-zinc-800 pointer-events-none">
+                    Reveal Prompt (Space)
+                  </button>
+                </div>
+              ` : ""}
+            </div>
+          `;
+        } else if (block.type === "word_tagger") {
+          previewHtml = `
+            <div class="mt-3 p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl space-y-2">
+              <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Clickable Word Tokens • សម្គាល់ពាក្យខុស</div>
+              <div class="flex flex-wrap gap-2 items-center">
+                <span class="px-2.5 py-1 bg-white border border-zinc-200 rounded-lg text-sm font-khmer text-zinc-800 shadow-2xs">អាឡូ</span>
+                <span class="px-2.5 py-1 bg-amber-50 border-2 border-amber-400 rounded-lg text-sm font-khmer text-amber-900 font-semibold shadow-2xs relative">
+                  សួស្តីបង!
+                  <span class="absolute -top-2.5 -right-2 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-amber-500 text-white font-sans uppercase shadow-xs">Glitch</span>
+                </span>
+                <span class="px-2.5 py-1 bg-white border border-zinc-200 rounded-lg text-sm font-khmer text-zinc-800 shadow-2xs">មានអីឲ្យខ្ញុំជួយបានខ្លះ?</span>
+              </div>
+              <div class="flex items-center gap-1.5 pt-1 text-[10px] text-zinc-500">
+                <span class="inline-block w-2 h-2 rounded-full bg-amber-500"></span>
+                <span>Flagged Defect: <strong class="text-zinc-700">Awkward Pause / Pronunciation</strong></span>
+              </div>
+            </div>
+          `;
+        } else if (block.type === "scoring_questions") {
+          const criteria = block.criteria && block.criteria.length > 0 ? block.criteria : [
+            { name: "Naturalness", desc: "Does it sound like a real human speaking?" },
+            { name: "Pronunciation Accuracy", desc: "Are vowels and consonants clear?" }
+          ];
+          const scaleMax = block.scale_max || 5;
+          const criteriaColsHtml = criteria.map(c => `
+            <div class="p-2.5 bg-white border border-zinc-200 rounded-lg space-y-1.5">
+              <div class="flex items-baseline justify-between">
+                <div class="text-xs font-bold text-zinc-900">${escapeHtml(c.name)}</div>
+                <span class="text-[9px] text-zinc-400">1 to ${scaleMax}</span>
+              </div>
+              <div class="text-[10px] text-zinc-500 truncate" title="${escapeHtml(c.desc || "")}">${escapeHtml(c.desc || "")}</div>
+              <div class="flex gap-1 pt-1">
+                ${Array.from({ length: scaleMax }, (_, i) => i + 1).map(num => `
+                  <div class="flex-1 h-7 rounded border ${num === 4 ? "bg-zinc-900 border-zinc-900 text-white" : "bg-zinc-50 border-zinc-200 text-zinc-700"} flex items-center justify-center text-xs font-semibold">
+                    ${num}
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+          `).join("");
+
+          previewHtml = `
+            <div class="mt-3 p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl space-y-2">
+              <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Evaluator Rubric • លក្ខណៈវិនិច្ឆ័យ</div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                ${criteriaColsHtml}
+              </div>
+            </div>
+          `;
+        } else if (block.type === "transcription") {
+          previewHtml = `
+            <div class="mt-3 p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Listener Transcription • តើអ្នកឮអ្វី?</span>
+                <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">Visual Diff Active</span>
+              </div>
+              <div class="p-2 bg-white border border-zinc-300 rounded-lg text-xs font-khmer text-zinc-700">
+                អាឡូ សួស្តីបង! មានអីឲ្យខ្ញុំជួយបានខ្លះ?
+              </div>
+              <div class="p-2 bg-zinc-100 rounded-lg text-xs font-khmer leading-relaxed">
+                <span>អាឡូ</span> <span class="bg-red-100 text-red-700 line-through px-1 rounded">សួស្ដី</span> <span class="bg-emerald-100 text-emerald-800 font-bold px-1 rounded">សួស្តីបង!</span> <span>មានអីឲ្យខ្ញុំជួយបានខ្លះ?</span>
+              </div>
+            </div>
+          `;
+        }
+
         card.innerHTML = `
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2.5">
+          <div class="flex items-center justify-between pb-2 border-b border-zinc-100">
+            <div class="flex items-center gap-2">
               <span class="card-drag-handle text-zinc-400 hover:text-zinc-800 cursor-grab text-xs font-mono select-none" title="Drag to reorder">&#x2630;</span>
-              <span class="w-2 h-2 rounded-full ${iconColor}"></span>
               <div>
                 <div class="text-xs font-bold text-zinc-900 leading-tight">${escapeHtml(title)}</div>
-                <div class="text-[10px] text-zinc-500 mt-0.5">${escapeHtml(sub)}</div>
+                <div class="text-[10px] text-zinc-500">${escapeHtml(sub)}</div>
               </div>
             </div>
             <div class="flex items-center gap-1">
-              ${idx > 0 ? `<button type="button" class="btn-card-move-up p-1 text-zinc-400 hover:text-zinc-700 text-xs" title="Move Up">&uarr;</button>` : ""}
-              ${idx < blocks.length - 1 ? `<button type="button" class="btn-card-move-down p-1 text-zinc-400 hover:text-zinc-700 text-xs" title="Move Down">&darr;</button>` : ""}
-              <button type="button" class="btn-card-remove p-1 text-zinc-400 hover:text-red-600 text-xs ml-1" title="Delete Block">&times;</button>
+              ${idx > 0 ? `<button type="button" class="btn-card-move-up p-1 text-zinc-400 hover:text-zinc-700 text-xs cursor-pointer" title="Move Up">&uarr;</button>` : ""}
+              ${idx < blocks.length - 1 ? `<button type="button" class="btn-card-move-down p-1 text-zinc-400 hover:text-zinc-700 text-xs cursor-pointer" title="Move Down">&darr;</button>` : ""}
+              <button type="button" class="btn-card-remove p-1 text-zinc-400 hover:text-red-600 text-xs ml-1 cursor-pointer" title="Delete Block">&times;</button>
             </div>
           </div>
+          ${previewHtml}
         `;
 
         // Selection
