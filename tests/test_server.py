@@ -757,5 +757,57 @@ class StudioServerTestCase(unittest.TestCase):
             self.assertEqual(summary["total_evaluations"], 1)
             self.assertEqual(summary["total_raters"], 1)
 
+    def test_campaign_launch_with_empty_models(self):
+        """Verify POST /api/suites and POST /api/campaigns succeed even when items have no predefined model_id or models array is empty."""
+        suite_id = f"suite-empty-models-{int(time.time() * 1000)}"
+        # Suite items without predefined model_id or with fallback candidate model
+        items_payload = [
+            {
+                "item_key": f"ITEM-ZERO-{i}",
+                "text": f"ឃ្លាសាកល្បងគំរូទទេ {i}",
+                "audio_url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH01.wav",
+                "audio_files_json": json.dumps({
+                    "model-candidate": {
+                        "model_name": "Candidate Voice",
+                        "model_id": "model-candidate",
+                        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH01.wav"
+                    }
+                })
+            }
+            for i in range(1, 3)
+        ]
+
+        req_suite = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/suites",
+            data=json.dumps({"id": suite_id, "name": "Zero Model Suite", "items": items_payload}).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(req_suite) as res:
+            self.assertIn(res.status, [200, 201])
+            suite_data = json.loads(res.read().decode("utf-8"))
+            self.assertTrue(suite_data.get("success", True))
+
+        # Launch campaign linked to this suite
+        camp_req = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/campaigns",
+            data=json.dumps({
+                "name": "Zero Model Campaign",
+                "suite_id": suite_id,
+                "rubric_id": "rubric-veaja-p85",
+                "instructions": "Single candidate model evaluation without predefined comparison models."
+            }).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(camp_req) as res:
+            self.assertEqual(res.status, 201)
+            camp_data = json.loads(res.read().decode("utf-8"))
+            camp_id = camp_data["campaign_id"]
+
+        # Verify items can be fetched for campaign
+        with urlopen(f"http://127.0.0.1:{TEST_PORT}/api/items?campaign_id={camp_id}") as res:
+            items_data = json.loads(res.read().decode("utf-8"))
+            self.assertEqual(items_data["count"], 2)
+
+
 if __name__ == "__main__":
     unittest.main()

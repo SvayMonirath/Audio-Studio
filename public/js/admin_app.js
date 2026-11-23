@@ -21,10 +21,7 @@
       desc: "",
       instructions: "",
       modality: "TTS",
-      models: [
-        { id: "model-veaja", name: "Veaja AI (Ours)" },
-        { id: "model-mms", name: "Meta MMS-TTS" }
-      ],
+      models: [],
       items: [], // Array of { id, filename, audio_url, base64, text, model_name, model_id }
       scaleMax: 5,
       template: "standard",
@@ -662,6 +659,22 @@
       el.modelsChipsContainer.innerHTML = "";
       el.selUploadTargetModel.innerHTML = "";
 
+      if (state.wizardData.models.length === 0) {
+        const emptyNote = document.createElement("div");
+        emptyNote.className = "inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-zinc-50 border border-zinc-200 text-xs text-zinc-500";
+        emptyNote.innerHTML = `
+          <span class="w-2 h-2 rounded-full bg-zinc-300"></span>
+          <span>No comparison models added (Single model evaluation)</span>
+        `;
+        el.modelsChipsContainer.appendChild(emptyNote);
+
+        const defaultOpt = document.createElement("option");
+        defaultOpt.value = "model-candidate";
+        defaultOpt.textContent = "Candidate Voice (Default)";
+        el.selUploadTargetModel.appendChild(defaultOpt);
+        return;
+      }
+
       state.wizardData.models.forEach((m, idx) => {
         // Chip
         const chip = document.createElement("div");
@@ -669,16 +682,14 @@
         chip.innerHTML = `
           <span class="w-2 h-2 rounded-full ${idx === 0 ? "bg-emerald-500" : "bg-blue-500"}"></span>
           <span class="font-bold text-zinc-900">${escapeHtml(m.name)}</span>
-          ${state.wizardData.models.length > 1 ? `<button type="button" class="text-zinc-400 hover:text-red-600 font-bold ml-1 cursor-pointer" data-idx="${idx}">&times;</button>` : ""}
+          <button type="button" class="text-zinc-400 hover:text-red-600 font-bold ml-1 cursor-pointer" data-idx="${idx}">&times;</button>
         `;
 
-        if (state.wizardData.models.length > 1) {
-          chip.querySelector("button").addEventListener("click", () => {
-            state.wizardData.models.splice(idx, 1);
-            renderModelsChips();
-            renderItemsTable();
-          });
-        }
+        chip.querySelector("button").addEventListener("click", () => {
+          state.wizardData.models.splice(idx, 1);
+          renderModelsChips();
+          renderItemsTable();
+        });
         el.modelsChipsContainer.appendChild(chip);
 
         // Option
@@ -736,8 +747,10 @@
     async function processAudioFiles(files) {
       if (!files || files.length === 0) return;
 
-      const targetModelId = el.selUploadTargetModel.value;
-      const targetModelObj = state.wizardData.models.find(m => m.id === targetModelId) || state.wizardData.models[0];
+      const targetModelId = el.selUploadTargetModel ? el.selUploadTargetModel.value : null;
+      const targetModelObj = (state.wizardData.models && state.wizardData.models.find(m => m.id === targetModelId)) 
+        || (state.wizardData.models && state.wizardData.models[0])
+        || { id: "model-candidate", name: "Candidate Voice" };
 
       let added = 0;
       for (let i = 0; i < files.length; i++) {
@@ -752,8 +765,8 @@
           filename: file.name,
           audio_url: blobUrl,
           base64: base64Str,
-          model_id: targetModelObj.id,
-          model_name: targetModelObj.name,
+          model_id: targetModelObj.id || "model-candidate",
+          model_name: targetModelObj.name || "Candidate Voice",
           text: ""
         });
         added++;
@@ -1183,8 +1196,10 @@
               return;
             }
 
-            const targetModelId = el.selUploadTargetModel ? el.selUploadTargetModel.value : state.wizardData.models[0]?.id;
-            const targetModelObj = state.wizardData.models.find(m => m.id === targetModelId) || state.wizardData.models[0];
+            const targetModelId = el.selUploadTargetModel ? el.selUploadTargetModel.value : null;
+            const targetModelObj = (state.wizardData.models && state.wizardData.models.find(m => m.id === targetModelId))
+              || (state.wizardData.models && state.wizardData.models[0])
+              || { id: "model-candidate", name: "Candidate Voice" };
 
             let added = 0;
             files.forEach((f, idx) => {
@@ -1195,8 +1210,8 @@
                   id: `item-link-${Date.now()}-${idx}`,
                   filename: f.filename,
                   audio_url: f.url,
-                  model_id: targetModelObj?.id || "model-veaja",
-                  model_name: targetModelObj?.name || "Veaja AI (Ours)",
+                  model_id: targetModelObj?.id || "model-candidate",
+                  model_name: targetModelObj?.name || "Candidate Voice",
                   text: ""
                 });
                 added++;
@@ -1333,10 +1348,14 @@ Please write a Python script using standard libraries or soundfile to either:
 
       // Build model options
       let modelOptionsHtml = "";
-      state.wizardData.models.forEach(m => {
-        const isSelected = m.id === item.model_id || m.name === item.model_name;
-        modelOptionsHtml += `<option value="${m.id}" ${isSelected ? "selected" : ""}>${escapeHtml(m.name)}</option>`;
-      });
+      if (state.wizardData.models.length === 0) {
+        modelOptionsHtml = `<option value="${item.model_id || 'model-candidate'}" selected>${escapeHtml(item.model_name || 'Candidate Voice')}</option>`;
+      } else {
+        state.wizardData.models.forEach(m => {
+          const isSelected = m.id === item.model_id || m.name === item.model_name;
+          modelOptionsHtml += `<option value="${m.id}" ${isSelected ? "selected" : ""}>${escapeHtml(m.name)}</option>`;
+        });
+      }
 
       tr.innerHTML = `
         <td class="p-2.5 font-mono text-zinc-400 text-xs">${idx + 1}</td>
@@ -2062,8 +2081,8 @@ Please write a Python script using standard libraries or soundfile to either:
         const suiteId = `suite-${Date.now()}`;
         const suiteItemsPayload = state.wizardData.items.map((it, idx) => {
           const fallbackModel = state.wizardData.models && state.wizardData.models[0];
-          const mId = it.model_id || (fallbackModel ? fallbackModel.id : "model-veaja");
-          const mName = it.model_name || (fallbackModel ? fallbackModel.name : "Veaja AI (Ours)");
+          const mId = it.model_id || (fallbackModel ? fallbackModel.id : "model-candidate");
+          const mName = it.model_name || (fallbackModel ? fallbackModel.name : "Candidate Voice");
 
           return {
             item_key: it.item_key || `ITEM-${idx + 1}`,
