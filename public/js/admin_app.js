@@ -1352,21 +1352,35 @@
       });
     }
 
-    // AI Helper Prompt 1: Audio Generation Template
+    // AI Helper Prompt 1: Audio Dataset Preparation for AI Coding Agents
     if (el.btnCopyAiGenPrompt) {
       el.btnCopyAiGenPrompt.addEventListener("click", () => {
-        const title = "AI Prompt for Audio Generation";
-        const desc = "Paste this prompt into ChatGPT, Claude, or a Python notebook to synthesize WAV audio and format matching transcripts for this studio.";
-        const promptText = `I am preparing an audio speech evaluation dataset for TTS model testing.
-Please generate audio clips with the following specifications:
-1. Audio format: WAV (16,000 Hz sample rate, single channel mono, 16-bit PCM).
-2. Clean naming convention: [ITEM_ID]_[MODEL_NAME].wav (e.g. S01_Veaja.wav, S02_MMS.wav).
-3. Transcripts pairing CSV formatted in UTF-8 (no BOM):
-audio_filename,transcript_text,model_name
-S01_Veaja.wav,"អត្ថបទខ្មែរគំរូ",Veaja AI (Ours)
-S01_MMS.wav,"អត្ថបទខ្មែរគំរូ",Meta MMS-TTS
+        const title = "AI Agent Prompt: Prepare & Align Audio Dataset";
+        const desc = "Give this prompt to Claude Code, Codex, Antigravity, or your AI coding assistant. It instructs the agent to scan your existing audio files and text, standardize them to 16kHz mono WAV, and build the aligned CSV.";
+        const promptText = `I have audio files and text transcripts on my computer that I need to prepare for Speech Evaluation Studio.
+Please inspect my workspace and write/execute a Python script to organize, normalize, and align my dataset.
 
-Please return the generation code or script to synthesize these audio files.`;
+### MY CURRENT RAW DATA SETUP:
+- My audio files are located in: [INSERT PATH TO YOUR AUDIO FOLDER OR SUBFOLDERS]
+  (Common formats: /model_a/*.wav, /model_b/*.wav, OR flat files like item01_model_a.wav)
+- My matching text transcripts are located in: [INSERT PATH TO TEXT FILE, CSV, JSON, OR PASTE HERE]
+
+### TASK REQUIREMENTS:
+1. Standardize Audio Format:
+   - Convert all audio clips to standard evaluation format: WAV, 16,000 Hz sample rate, single channel (mono), 16-bit PCM.
+   - Save the cleaned audio into a new directory: \`./output_clean/audio/\` (do not alter or overwrite my original files).
+   - Use clean, collision-free filenames: \`[ITEM_ID]_[MODEL_NAME].wav\` (e.g. \`S01_ModelA.wav\`, \`S01_ModelB.wav\`).
+
+2. Generate Aligned CSV Manifest:
+   - Create \`./output_clean/dataset_manifest.csv\` encoded in UTF-8 without BOM.
+   - Format must match exactly:
+audio_filename,transcript_text,model_name
+S01_ModelA.wav,"Sample text transcript here",Model A
+S01_ModelB.wav,"Sample text transcript here",Model B
+
+3. Verification:
+   - Verify that every single row in the CSV has a corresponding .wav file in \`./output_clean/audio/\`.
+   - Print a summary table: total items, models found, and confirming 0 missing or orphaned files.`;
 
         openAiPromptModal(title, desc, promptText);
       });
@@ -1382,16 +1396,20 @@ Please return the generation code or script to synthesize these audio files.`;
         }
 
         const missingListText = missing.slice(0, 30).map(m => `- File: ${m.expectedFilename} | Prompt: "${m.text || ""}" | Model: ${m.model || "TTS"}`).join("\n");
-        const title = "AI Prompt to Fix Missing Audio";
-        const desc = "Use this prompt with an AI assistant to generate missing audio files or filter your CSV dataset so all rows match.";
-        const promptText = `I ran a reconciliation check on my Speech Evaluation Studio dataset, and the following ${missing.length} audio files referenced in my CSV are missing from the audio directory:
+        const title = "AI Agent Prompt: Fix Missing Audio Files";
+        const desc = "Give this prompt to Claude Code, Codex, Antigravity, or your AI coding agent to resolve missing audio mismatches in your dataset.";
+        const promptText = `I ran a reconciliation check on my Speech Evaluation Studio dataset, and the following ${missing.length} audio files referenced in my CSV are missing from disk:
 
 ${missingListText}
 ${missing.length > 30 ? `...and ${missing.length - 30} more missing items.` : ""}
 
-Please write a Python script using standard libraries or soundfile to either:
-1. Generate the missing WAV files at 16kHz mono, OR
-2. Filter my CSV file to exclude rows where the audio file does not exist on disk, producing a clean, aligned CSV.`;
+Please inspect my workspace and help me resolve this mismatch using one of these two options:
+
+Option A (Filter CSV):
+If these missing files were not generated or were intentionally removed, write a script to produce a cleaned CSV excluding rows with missing audio files, so every remaining row is 100% matched with real audio.
+
+Option B (Synthesize or Locate):
+If these files exist elsewhere or need to be synthesized, locate them or run the TTS inference script to output the missing 16kHz mono WAV files into the audio folder.`;
 
         openAiPromptModal(title, desc, promptText);
       });
