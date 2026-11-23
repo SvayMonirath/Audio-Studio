@@ -821,7 +821,7 @@ class StudioServerTestCase(unittest.TestCase):
         self.assertIn('id="multi-file-input"', content)
 
         # 2. Verify expanded viewport width
-        self.assertIn('max-w-6xl', content)
+        self.assertTrue('max-w-[1560px]' in content or 'max-w-6xl' in content)
 
         # 3. Verify no hardcoded default models rendered in the initial HTML template
         # Check models chips container is clean and empty
@@ -852,10 +852,6 @@ class StudioServerTestCase(unittest.TestCase):
         self.assertIn("Prompt Text Card", content)
         self.assertIn("Word Glitch Highlighter", content)
         self.assertIn("Rating Questions", content)
-        # Check starter kits plain English
-        self.assertIn("Standard Voice Rating", content)
-        self.assertIn("Hidden Prompt Test", content)
-        self.assertIn("Model Comparison", content)
         # Confirm rainbow dot classes removed from toolbox items
         toolbox_section = content.split('id="builder-toolbox"', 1)[1].split('<!-- ZONE 2', 1)[0]
         self.assertNotIn("bg-emerald-500", toolbox_section)
@@ -880,6 +876,16 @@ class StudioServerTestCase(unittest.TestCase):
         with open(admin_js_path, "r", encoding="utf-8") as f:
             content = f.read()
         self.assertIn('setDropzoneLoading(true, "Reading and parsing CSV transcript...")', content)
+
+
+    def test_step3_expanded_viewport_and_clean_header(self):
+        """Verify admin.html uses max-w-[1560px] layout and starter kits noise is removed."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        self.assertIn("max-w-[1560px]", content)
+        self.assertNotIn("Starter Kits:", content)
+        self.assertNotIn("btn-kit-mos", content)
 
 
 if __name__ == "__main__":
