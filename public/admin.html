@@ -239,15 +239,16 @@
                 <p class="text-[11px] text-zinc-500 leading-relaxed">Evaluate generated computer voice quality, naturalness, and mispronounced words.</p>
               </label>
 
-              <label id="opt-modality-asr" class="border border-zinc-200 bg-white hover:bg-zinc-50 p-3.5 rounded-xl cursor-pointer flex flex-col gap-1 transition">
+              <label id="opt-modality-asr" class="border border-zinc-200 bg-zinc-100/70 p-3.5 rounded-xl flex flex-col gap-1 transition opacity-50 cursor-not-allowed pointer-events-none border-dashed">
                 <div class="flex items-center justify-between">
-                  <span class="text-xs font-bold text-zinc-900 flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5 text-zinc-800" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  <span class="text-xs font-bold text-zinc-500 flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                     Speech Recognition (ASR)
+                    <span class="px-2 py-0.5 text-[9px] font-semibold bg-zinc-200 text-zinc-600 rounded-md uppercase tracking-wider">Coming Soon</span>
                   </span>
-                  <input type="radio" name="wiz-modality" value="ASR" class="text-zinc-900 focus:ring-0">
+                  <input type="radio" name="wiz-modality" value="ASR" disabled class="text-zinc-400 focus:ring-0 cursor-not-allowed">
                 </div>
-                <p class="text-[11px] text-zinc-500 leading-relaxed">Evaluate speech recognition accuracy, visual word differences, and spoken Khmer variations.</p>
+                <p class="text-[11px] text-zinc-400 leading-relaxed">Speech recognition accuracy evaluation is currently in development.</p>
               </label>
             </div>
           </div>

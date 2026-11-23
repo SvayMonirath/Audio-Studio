@@ -20,6 +20,7 @@
       name: "",
       desc: "",
       instructions: "",
+      modality: "TTS",
       models: [
         { id: "model-veaja", name: "Veaja AI (Ours)" },
         { id: "model-mms", name: "Meta MMS-TTS" }
