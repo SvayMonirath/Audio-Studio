@@ -191,6 +191,8 @@
     dropzoneAudio: document.getElementById("dropzone-audio"),
     multiAudioInput: document.getElementById("multi-audio-input"),
     dropzoneUnified: document.getElementById("dropzone-unified"),
+    dropzoneLoadingOverlay: document.getElementById("dropzone-loading-overlay"),
+    dropzoneLoadingText: document.getElementById("dropzone-loading-text"),
     multiFileInput: document.getElementById("multi-file-input"),
     btnToggleLocalFolder: document.getElementById("btn-toggle-local-folder"),
     boxLinkFolder: document.getElementById("box-link-folder"),
@@ -755,6 +757,19 @@
 
     renderModelsChips();
 
+    // Dropzone Loading Overlay Control
+    function setDropzoneLoading(loading, message = "Processing files...") {
+      if (!el.dropzoneLoadingOverlay || !el.dropzoneUnified) return;
+      if (loading) {
+        if (el.dropzoneLoadingText) el.dropzoneLoadingText.textContent = message;
+        el.dropzoneLoadingOverlay.classList.remove("hidden");
+        el.dropzoneUnified.classList.add("pointer-events-none");
+      } else {
+        el.dropzoneLoadingOverlay.classList.add("hidden");
+        el.dropzoneUnified.classList.remove("pointer-events-none");
+      }
+    }
+
     // Process Batch Audio Files
     async function processAudioFiles(files) {
       if (!files || files.length === 0) return;
@@ -764,28 +779,40 @@
         || (state.wizardData.models && state.wizardData.models[0])
         || { id: "model-candidate", name: "Candidate Voice" };
 
+      const audioFilesToProcess = files.filter(f => f.name.match(/\.(wav|mp3|ogg|flac|m4a)$/i));
+      const total = audioFilesToProcess.length;
+      if (total === 0) return;
+
+      setDropzoneLoading(true, `Reading audio samples (1 of ${total})...`);
+
       let added = 0;
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        if (!file.name.match(/\.(wav|mp3|ogg|flac|m4a)$/i)) continue;
+      try {
+        for (let i = 0; i < total; i++) {
+          const file = audioFilesToProcess[i];
+          if (el.dropzoneLoadingText) {
+            el.dropzoneLoadingText.textContent = `Reading audio samples (${i + 1} of ${total})...`;
+          }
 
-        const base64Str = await readFileAsBase64(file);
-        const blobUrl = URL.createObjectURL(file);
+          const base64Str = await readFileAsBase64(file);
+          const blobUrl = URL.createObjectURL(file);
 
-        state.wizardData.items.push({
-          id: `item-up-${Date.now()}-${i}`,
-          filename: file.name,
-          audio_url: blobUrl,
-          base64: base64Str,
-          model_id: targetModelObj.id || "model-candidate",
-          model_name: targetModelObj.name || "Candidate Voice",
-          text: ""
-        });
-        added++;
+          state.wizardData.items.push({
+            id: `item-up-${Date.now()}-${i}`,
+            filename: file.name,
+            audio_url: blobUrl,
+            base64: base64Str,
+            model_id: targetModelObj.id || "model-candidate",
+            model_name: targetModelObj.name || "Candidate Voice",
+            text: ""
+          });
+          added++;
+        }
+
+        renderItemsTable();
+        showToast(`Loaded ${added} audio samples.`, "success");
+      } finally {
+        setDropzoneLoading(false);
       }
-
-      renderItemsTable();
-      showToast(`Loaded ${added} audio samples.`, "success");
     }
 
     // Audio dropzone handling
@@ -1163,12 +1190,20 @@
         }
       }
 
-      if (audioFiles.length > 0) {
-        await processAudioFiles(audioFiles);
-      }
-
-      if (csvFiles.length > 0) {
-        await processCsvFile(csvFiles[0]);
+      try {
+        if (audioFiles.length > 0 && csvFiles.length === 0) {
+          await processAudioFiles(audioFiles);
+        } else if (audioFiles.length === 0 && csvFiles.length > 0) {
+          setDropzoneLoading(true, "Reading transcript file...");
+          await processCsvFile(csvFiles[0]);
+        } else if (audioFiles.length > 0 && csvFiles.length > 0) {
+          setDropzoneLoading(true, `Reading audio samples (1 of ${audioFiles.length})...`);
+          await processAudioFiles(audioFiles);
+          setDropzoneLoading(true, "Reconciling audio samples with transcript...");
+          await processCsvFile(csvFiles[0]);
+        }
+      } finally {
+        setDropzoneLoading(false);
       }
     }
 

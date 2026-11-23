@@ -833,6 +833,15 @@ class StudioServerTestCase(unittest.TestCase):
         self.assertNotIn("Kokoro", chips_section)
         self.assertNotIn("Bark", chips_section)
 
+    def test_dropzone_loading_overlay_structure(self):
+        """Verify public/admin.html contains the dropzone loading overlay and spinner elements."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        self.assertIn('id="dropzone-loading-overlay"', content)
+        self.assertIn('id="dropzone-loading-text"', content)
+        self.assertIn('id="dropzone-spinner"', content)
+
 
 if __name__ == "__main__":
     unittest.main()
