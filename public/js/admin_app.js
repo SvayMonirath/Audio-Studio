@@ -1357,6 +1357,21 @@
       el.btnCopyAiGenPrompt.addEventListener("click", () => {
         const title = "AI Agent Prompt: Prepare & Align Audio Dataset";
         const desc = "Give this prompt to Claude Code, Codex, Antigravity, or your AI coding assistant. It instructs the agent to scan your existing audio files and text, standardize them to 16kHz mono WAV, and build the aligned CSV.";
+        
+        const existingModelNames = state.wizardData.models.map(m => m.name);
+        let modelRequirementText = "";
+        let sampleCsvText = "";
+
+        if (existingModelNames.length > 0) {
+          modelRequirementText = `- Compare these specific models: ${existingModelNames.map(m => `"${m}"`).join(", ")}.
+   - Group or tag audio samples under these model names.`;
+          sampleCsvText = existingModelNames.map((name, i) => `S01_Item${i + 1}.wav,"Sample transcript text here",${name}`).join("\n");
+        } else {
+          modelRequirementText = `- Auto-detect models from subfolder names (e.g. /model_a/, /model_b/) or filename prefixes/suffixes.
+   - If only 1 voice or model exists, use a descriptive name like "Candidate Model".`;
+          sampleCsvText = `S01_ModelA.wav,"Sample transcript text here",Model A\nS01_ModelB.wav,"Sample transcript text here",Model B`;
+        }
+
         const promptText = `I have audio files and text transcripts on my computer that I need to prepare for Speech Evaluation Studio.
 Please inspect my workspace and write/execute a Python script to organize, normalize, and align my dataset.
 
@@ -1366,19 +1381,21 @@ Please inspect my workspace and write/execute a Python script to organize, norma
 - My matching text transcripts are located in: [INSERT PATH TO TEXT FILE, CSV, JSON, OR PASTE HERE]
 
 ### TASK REQUIREMENTS:
-1. Standardize Audio Format:
+1. Model Detection & Tagging:
+   ${modelRequirementText}
+
+2. Standardize Audio Format:
    - Convert all audio clips to standard evaluation format: WAV, 16,000 Hz sample rate, single channel (mono), 16-bit PCM.
    - Save the cleaned audio into a new directory: \`./output_clean/audio/\` (do not alter or overwrite my original files).
    - Use clean, collision-free filenames: \`[ITEM_ID]_[MODEL_NAME].wav\` (e.g. \`S01_ModelA.wav\`, \`S01_ModelB.wav\`).
 
-2. Generate Aligned CSV Manifest:
+3. Generate Aligned CSV Manifest:
    - Create \`./output_clean/dataset_manifest.csv\` encoded in UTF-8 without BOM.
    - Format must match exactly:
 audio_filename,transcript_text,model_name
-S01_ModelA.wav,"Sample text transcript here",Model A
-S01_ModelB.wav,"Sample text transcript here",Model B
+${sampleCsvText}
 
-3. Verification:
+4. Verification:
    - Verify that every single row in the CSV has a corresponding .wav file in \`./output_clean/audio/\`.
    - Print a summary table: total items, models found, and confirming 0 missing or orphaned files.`;
 
