@@ -906,6 +906,16 @@ class StudioServerTestCase(unittest.TestCase):
         self.assertIn("h-[76px]", content)
         self.assertIn("drawPreviewWaveform", content)
 
+    def test_step3_drag_drop_insertion_and_polite_guide(self):
+        """Verify Step 3 supports drop indicator positioning and uses polite guide copy."""
+        admin_js_path = os.path.join(TOOL_DIR, "public", "js", "admin_app.js")
+        with open(admin_js_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        self.assertIn("getDropInsertionIndex", content)
+        self.assertIn("drop-indicator", content)
+        self.assertNotIn("Blocker: Missing", content)
+        self.assertIn("Audio Player Needed", content)
+
 
 if __name__ == "__main__":
     unittest.main()

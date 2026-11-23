@@ -1712,16 +1712,47 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     }
 
     // Toolbox drag & drop + click add
+    let activeDropIndicator = null;
+
+    function removeDropIndicator() {
+      if (activeDropIndicator && activeDropIndicator.parentNode) {
+        activeDropIndicator.parentNode.removeChild(activeDropIndicator);
+      }
+      activeDropIndicator = null;
+    }
+
+    function createDropIndicator() {
+      const line = document.createElement("div");
+      line.className = "drop-indicator h-1 bg-zinc-900 rounded-full transition-all duration-75 shadow-xs my-1";
+      return line;
+    }
+
+    function getDropInsertionIndex(canvasEl, clientY) {
+      const cards = Array.from(canvasEl.querySelectorAll(".canvas-block-card"));
+      if (cards.length === 0) return 0;
+
+      for (let i = 0; i < cards.length; i++) {
+        const rect = cards[i].getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        if (clientY < midY) {
+          return i;
+        }
+      }
+      return cards.length;
+    }
+
     if (el.builderToolbox) {
       el.builderToolbox.querySelectorAll(".toolbox-item").forEach(item => {
         const toolType = item.dataset.tool;
 
         item.addEventListener("dragstart", (e) => {
           e.dataTransfer.setData("text/plain", toolType);
+          e.dataTransfer.setData("source", "toolbox");
           item.classList.add("opacity-50");
         });
         item.addEventListener("dragend", () => {
           item.classList.remove("opacity-50");
+          removeDropIndicator();
         });
 
         const addBtn = item.querySelector(".btn-tool-add");
@@ -1735,7 +1766,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
               renderCanvas();
               renderInspector();
               updateSmartGuide();
-              showToast(`Added ${toolType.replace("_", " ")} to canvas.`, "success");
+              showToast(`Added ${toolType.replace("_", " ")} to playground.`, "success");
             }
           });
         }
@@ -1747,18 +1778,57 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       el.builderCanvas.addEventListener("dragover", (e) => {
         e.preventDefault();
         el.builderCanvas.classList.add("border-zinc-900", "bg-zinc-100/60");
+
+        const cards = Array.from(el.builderCanvas.querySelectorAll(".canvas-block-card"));
+        const idx = getDropInsertionIndex(el.builderCanvas, e.clientY);
+
+        removeDropIndicator();
+        activeDropIndicator = createDropIndicator();
+
+        if (cards.length === 0) {
+          el.builderCanvas.appendChild(activeDropIndicator);
+        } else if (idx < cards.length) {
+          el.builderCanvas.insertBefore(activeDropIndicator, cards[idx]);
+        } else {
+          el.builderCanvas.appendChild(activeDropIndicator);
+        }
       });
-      el.builderCanvas.addEventListener("dragleave", () => {
-        el.builderCanvas.classList.remove("border-zinc-900", "bg-zinc-100/60");
+
+      el.builderCanvas.addEventListener("dragleave", (e) => {
+        // Only clear if leaving the canvas container itself
+        if (!el.builderCanvas.contains(e.relatedTarget)) {
+          el.builderCanvas.classList.remove("border-zinc-900", "bg-zinc-100/60");
+          removeDropIndicator();
+        }
       });
+
       el.builderCanvas.addEventListener("drop", (e) => {
         e.preventDefault();
         el.builderCanvas.classList.remove("border-zinc-900", "bg-zinc-100/60");
+        const idx = getDropInsertionIndex(el.builderCanvas, e.clientY);
+        removeDropIndicator();
+
         const toolType = e.dataTransfer.getData("text/plain");
-        if (toolType) {
+        const sourceBlockId = e.dataTransfer.getData("block-id");
+
+        if (sourceBlockId) {
+          // Reordering existing canvas block via drag handle
+          const blocks = state.wizardData.ui_config.blocks;
+          const oldIdx = blocks.findIndex(b => b.id === sourceBlockId);
+          if (oldIdx !== -1) {
+            const [movedBlock] = blocks.splice(oldIdx, 1);
+            const targetIdx = oldIdx < idx ? Math.max(0, idx - 1) : idx;
+            blocks.splice(targetIdx, 0, movedBlock);
+            state.selectedCardId = movedBlock.id;
+            renderCanvas();
+            renderInspector();
+            updateSmartGuide();
+          }
+        } else if (toolType) {
+          // Inserting new block from toolbox at calculated index
           const newBlock = createBlock(toolType);
           if (newBlock) {
-            state.wizardData.ui_config.blocks.push(newBlock);
+            state.wizardData.ui_config.blocks.splice(idx, 0, newBlock);
             state.selectedCardId = newBlock.id;
             renderCanvas();
             renderInspector();
@@ -1798,7 +1868,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       blocks.forEach((block, idx) => {
         const isSelected = block.id === state.selectedCardId;
         const card = document.createElement("div");
-        card.className = `p-3.5 bg-white border rounded-xl transition cursor-pointer relative shadow-2xs ${
+        card.className = `canvas-block-card p-3.5 bg-white border rounded-xl transition cursor-pointer relative shadow-2xs ${
           isSelected ? "border-zinc-900 ring-2 ring-zinc-900 shadow-sm" : "border-zinc-200 hover:border-zinc-300"
         }`;
         card.dataset.id = block.id;
@@ -1996,6 +2066,22 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           renderCanvas();
           renderInspector();
         });
+
+        // Drag handle for reordering card
+        const dragHandle = card.querySelector(".card-drag-handle");
+        if (dragHandle) {
+          dragHandle.setAttribute("draggable", "true");
+          dragHandle.addEventListener("dragstart", (e) => {
+            e.stopPropagation();
+            e.dataTransfer.setData("block-id", block.id);
+            card.classList.add("opacity-50");
+          });
+          dragHandle.addEventListener("dragend", (e) => {
+            e.stopPropagation();
+            card.classList.remove("opacity-50");
+            removeDropIndicator();
+          });
+        }
 
         // Reordering
         const btnUp = card.querySelector(".btn-card-move-up");
@@ -2344,21 +2430,21 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         el.guideTimeEstimate.textContent = `(~${totalMinutes} mins per evaluator for ${itemCount} items)`;
       }
 
-      // Blockers (Red)
+      // Requirements Checklist (Neutral & Polite)
       if (activeAudio.length === 0) {
-        el.guideStatusIcon.className = "w-2.5 h-2.5 rounded-full bg-red-500 shrink-0";
-        el.guideHeadline.textContent = "Blocker: Missing Audio Player";
-        el.guideHeadline.className = "font-bold text-red-900";
-        el.guideWarningText.textContent = "Every evaluation test requires at least one Audio Player block.";
+        el.guideStatusIcon.className = "w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0";
+        el.guideHeadline.textContent = "Audio Player Needed";
+        el.guideHeadline.className = "font-bold text-zinc-900";
+        el.guideWarningText.textContent = "Add an Audio Player from the components menu so listeners can play audio.";
         if (el.wizBtnStep3Next) el.wizBtnStep3Next.disabled = true;
         return;
       }
 
       if (activeScoring.length === 0 || totalQuestions === 0) {
-        el.guideStatusIcon.className = "w-2.5 h-2.5 rounded-full bg-red-500 shrink-0";
-        el.guideHeadline.textContent = "Blocker: Missing Scoring Questions";
-        el.guideHeadline.className = "font-bold text-red-900";
-        el.guideWarningText.textContent = "Please add at least one Scoring Question block to collect ratings.";
+        el.guideStatusIcon.className = "w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0";
+        el.guideHeadline.textContent = "Rating Questions Needed";
+        el.guideHeadline.className = "font-bold text-zinc-900";
+        el.guideWarningText.textContent = "Add at least one Rating Question so listeners can submit feedback.";
         if (el.wizBtnStep3Next) el.wizBtnStep3Next.disabled = true;
         return;
       }
