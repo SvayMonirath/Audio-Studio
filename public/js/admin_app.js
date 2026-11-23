@@ -156,6 +156,14 @@
 
     // Step 2
     btnCopyAiGenPrompt: document.getElementById("btn-copy-ai-gen-prompt"),
+    modalAiPromptPreview: document.getElementById("modal-ai-prompt-preview"),
+    aiPromptModalTitle: document.getElementById("ai-prompt-modal-title"),
+    aiPromptModalDesc: document.getElementById("ai-prompt-modal-desc"),
+    aiPromptModalTextarea: document.getElementById("ai-prompt-modal-textarea"),
+    aiPromptModalStatus: document.getElementById("ai-prompt-modal-status"),
+    btnAiPromptModalClose: document.getElementById("btn-ai-prompt-modal-close"),
+    btnAiPromptModalCloseIcon: document.getElementById("btn-ai-prompt-modal-close-icon"),
+    btnAiPromptModalCopy: document.getElementById("btn-ai-prompt-modal-copy"),
     inputLocalFolderPath: document.getElementById("input-local-folder-path"),
     btnLinkLocalFolder: document.getElementById("btn-link-local-folder"),
     boxColumnFallback: document.getElementById("box-column-fallback"),
@@ -1304,9 +1312,51 @@
       });
     }
 
+    // Transparent AI Prompt Modal Helper
+    function openAiPromptModal(title, description, text) {
+      if (!el.modalAiPromptPreview) return;
+      if (el.aiPromptModalTitle) el.aiPromptModalTitle.textContent = title;
+      if (el.aiPromptModalDesc) el.aiPromptModalDesc.textContent = description;
+      if (el.aiPromptModalTextarea) el.aiPromptModalTextarea.value = text;
+      if (el.aiPromptModalStatus) el.aiPromptModalStatus.classList.add("hidden");
+      el.modalAiPromptPreview.classList.remove("hidden");
+    }
+
+    function closeAiPromptModal() {
+      if (!el.modalAiPromptPreview) return;
+      el.modalAiPromptPreview.classList.add("hidden");
+    }
+
+    if (el.btnAiPromptModalClose) el.btnAiPromptModalClose.addEventListener("click", closeAiPromptModal);
+    if (el.btnAiPromptModalCloseIcon) el.btnAiPromptModalCloseIcon.addEventListener("click", closeAiPromptModal);
+    if (el.modalAiPromptPreview) {
+      el.modalAiPromptPreview.addEventListener("click", (e) => {
+        if (e.target === el.modalAiPromptPreview) closeAiPromptModal();
+      });
+    }
+
+    if (el.btnAiPromptModalCopy) {
+      el.btnAiPromptModalCopy.addEventListener("click", async () => {
+        const text = el.aiPromptModalTextarea ? el.aiPromptModalTextarea.value : "";
+        if (!text) return;
+        try {
+          await navigator.clipboard.writeText(text);
+          if (el.aiPromptModalStatus) {
+            el.aiPromptModalStatus.textContent = "Copied to clipboard!";
+            el.aiPromptModalStatus.classList.remove("hidden");
+          }
+          showToast("Prompt copied to clipboard!", "success");
+        } catch (e) {
+          showToast("Copy failed. Please manually copy from preview box.", "error");
+        }
+      });
+    }
+
     // AI Helper Prompt 1: Audio Generation Template
     if (el.btnCopyAiGenPrompt) {
-      el.btnCopyAiGenPrompt.addEventListener("click", async () => {
+      el.btnCopyAiGenPrompt.addEventListener("click", () => {
+        const title = "AI Prompt for Audio Generation";
+        const desc = "Paste this prompt into ChatGPT, Claude, or a Python notebook to synthesize WAV audio and format matching transcripts for this studio.";
         const promptText = `I am preparing an audio speech evaluation dataset for TTS model testing.
 Please generate audio clips with the following specifications:
 1. Audio format: WAV (16,000 Hz sample rate, single channel mono, 16-bit PCM).
@@ -1318,19 +1368,13 @@ S01_MMS.wav,"អត្ថបទខ្មែរគំរូ",Meta MMS-TTS
 
 Please return the generation code or script to synthesize these audio files.`;
 
-        try {
-          await navigator.clipboard.writeText(promptText);
-          showToast("AI Generation Prompt copied to clipboard!", "success");
-        } catch (e) {
-          showToast("Clipboard copy failed. See console.", "error");
-          console.log("AI Generation Prompt:\n", promptText);
-        }
+        openAiPromptModal(title, desc, promptText);
       });
     }
 
     // AI Helper Prompt 2: Missing Audio Fix Prompt
     if (el.btnCopyAiFixPrompt) {
-      el.btnCopyAiFixPrompt.addEventListener("click", async () => {
+      el.btnCopyAiFixPrompt.addEventListener("click", () => {
         const missing = state.reconciliation.missingAudio || [];
         if (missing.length === 0) {
           showToast("No missing audio files detected.", "info");
@@ -1338,6 +1382,8 @@ Please return the generation code or script to synthesize these audio files.`;
         }
 
         const missingListText = missing.slice(0, 30).map(m => `- File: ${m.expectedFilename} | Prompt: "${m.text || ""}" | Model: ${m.model || "TTS"}`).join("\n");
+        const title = "AI Prompt to Fix Missing Audio";
+        const desc = "Use this prompt with an AI assistant to generate missing audio files or filter your CSV dataset so all rows match.";
         const promptText = `I ran a reconciliation check on my Speech Evaluation Studio dataset, and the following ${missing.length} audio files referenced in my CSV are missing from the audio directory:
 
 ${missingListText}
@@ -1347,13 +1393,7 @@ Please write a Python script using standard libraries or soundfile to either:
 1. Generate the missing WAV files at 16kHz mono, OR
 2. Filter my CSV file to exclude rows where the audio file does not exist on disk, producing a clean, aligned CSV.`;
 
-        try {
-          await navigator.clipboard.writeText(promptText);
-          showToast("AI Fix Prompt copied to clipboard!", "success");
-        } catch (e) {
-          showToast("Clipboard copy failed. See console.", "error");
-          console.log("AI Fix Prompt:\n", promptText);
-        }
+        openAiPromptModal(title, desc, promptText);
       });
     }
 
