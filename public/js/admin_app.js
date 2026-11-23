@@ -201,26 +201,21 @@
     wizBtnStep2Prev: document.getElementById("wiz-btn-step2-prev"),
     wizBtnStep2Next: document.getElementById("wiz-btn-step2-next"),
 
-    // Step 3
-    tplBtnStandard: document.getElementById("tpl-btn-standard"),
-    tplBtnDetailed: document.getElementById("tpl-btn-detailed"),
-    tplBtnCustom: document.getElementById("tpl-btn-custom"),
-    wizScaleMax: document.getElementById("wiz-scale-max"),
-    btnAddCriterion: document.getElementById("btn-add-criterion"),
-    boxAddCriterionForm: document.getElementById("box-add-criterion-form"),
-    inputNewCriterionName: document.getElementById("input-new-criterion-name"),
-    inputNewCriterionDesc: document.getElementById("input-new-criterion-desc"),
-    btnSaveNewCriterion: document.getElementById("btn-save-new-criterion"),
-    btnCancelNewCriterion: document.getElementById("btn-cancel-new-criterion"),
-    criteriaListContainer: document.getElementById("criteria-list-container"),
-    wizCollectTranscription: document.getElementById("wiz-collect-transcription"),
-    btnAddDefectType: document.getElementById("btn-add-defect-type"),
-    boxAddDefectForm: document.getElementById("box-add-defect-form"),
-    inputNewDefectLabel: document.getElementById("input-new-defect-label"),
-    inputNewDefectCode: document.getElementById("input-new-defect-code"),
-    btnCancelNewDefect: document.getElementById("btn-cancel-new-defect"),
-    btnSaveNewDefect: document.getElementById("btn-save-new-defect"),
-    defectTypesContainer: document.getElementById("defect-types-container"),
+    // Step 3 (Modular Canvas & Inspector)
+    btnKitMos: document.getElementById("btn-kit-mos"),
+    btnKitVocab: document.getElementById("btn-kit-vocab"),
+    btnKitArena: document.getElementById("btn-kit-arena"),
+    btnKitBlank: document.getElementById("btn-kit-blank"),
+    builderToolbox: document.getElementById("builder-toolbox"),
+    builderCanvas: document.getElementById("builder-canvas"),
+    inspectorSelectedTitle: document.getElementById("inspector-selected-title"),
+    inspectorBlockBadge: document.getElementById("inspector-block-badge"),
+    inspectorControlsContainer: document.getElementById("inspector-controls-container"),
+    smartGuideBar: document.getElementById("smart-guide-bar"),
+    guideStatusIcon: document.getElementById("guide-status-icon"),
+    guideHeadline: document.getElementById("guide-headline"),
+    guideTimeEstimate: document.getElementById("guide-time-estimate"),
+    guideWarningText: document.getElementById("guide-warning-text"),
     wizBtnStep3Prev: document.getElementById("wiz-btn-step3-prev"),
     wizBtnStep3Next: document.getElementById("wiz-btn-step3-next"),
 
@@ -268,7 +263,7 @@
     setupTabSwitching();
     setupWizardFlow();
     setupAudioUploads();
-    setupTemplatesAndCriteria();
+    setupModularTestBuilder();
     setupLaunchAndShare();
     setupAnalytics();
     setupStudiesManagement();
@@ -621,11 +616,27 @@
     // Step 3 Nav
     el.wizBtnStep3Prev.addEventListener("click", () => goToStep(2));
     el.wizBtnStep3Next.addEventListener("click", () => {
-      if (state.wizardData.criteria.length === 0) {
-        showToast("Please select or add at least one rating question.", "error");
+      const blocks = state.wizardData.ui_config.blocks || [];
+      const activeAudio = blocks.filter(b => b.type === "audio_player");
+      const activeScoring = blocks.filter(b => b.type === "scoring_questions");
+      const totalQuestions = activeScoring.reduce((sum, b) => sum + (b.criteria?.length || 0), 0);
+
+      if (activeAudio.length === 0) {
+        showToast("Please add at least one Audio Player block to the canvas.", "error");
         return;
       }
-      state.wizardData.scaleMax = parseInt(el.wizScaleMax.value, 10) || 5;
+      if (activeScoring.length === 0 || totalQuestions === 0) {
+        showToast("Please add at least one Scoring Question block to the canvas.", "error");
+        return;
+      }
+
+      // Sync criteria
+      const allCriteria = [];
+      activeScoring.forEach(b => {
+        if (b.criteria) allCriteria.push(...b.criteria);
+      });
+      state.wizardData.criteria = allCriteria;
+      state.wizardData.scaleMax = activeScoring[0]?.scale_max || 5;
       goToStep(4);
     });
 
@@ -1379,195 +1390,578 @@ Please write a Python script using standard libraries or soundfile to either:
     });
   }
 
-  // Question Templates and Custom Criteria Builder
-  function setupTemplatesAndCriteria() {
-    function selectTemplate(tplKey) {
-      state.wizardData.template = tplKey;
-      el.tplBtnStandard.classList.toggle("border-2", tplKey === "standard");
-      el.tplBtnStandard.classList.toggle("border-zinc-900", tplKey === "standard");
-      el.tplBtnStandard.classList.toggle("bg-zinc-50", tplKey === "standard");
-
-      el.tplBtnDetailed.classList.toggle("border-2", tplKey === "detailed");
-      el.tplBtnDetailed.classList.toggle("border-zinc-900", tplKey === "detailed");
-      el.tplBtnDetailed.classList.toggle("bg-zinc-50", tplKey === "detailed");
-
-      el.tplBtnCustom.classList.toggle("border-2", tplKey === "custom");
-      el.tplBtnCustom.classList.toggle("border-zinc-900", tplKey === "custom");
-      el.tplBtnCustom.classList.toggle("bg-zinc-50", tplKey === "custom");
-
-      if (tplKey !== "custom") {
-        state.wizardData.criteria = JSON.parse(JSON.stringify(QUESTION_PRESETS[tplKey]));
+  // Step 3: Dynamic Modular Test Builder & Live Inspector
+  function setupModularTestBuilder() {
+    // Block factory
+    function createBlock(type) {
+      const ts = Date.now().toString().slice(-4);
+      switch (type) {
+        case "audio_player":
+          return {
+            id: `blk-audio-${ts}`,
+            type: "audio_player",
+            label: "Speech Audio",
+            source_model: "candidate",
+            phone_filter: false,
+            speeds: true,
+            auto_play: false
+          };
+        case "text_prompt":
+          return {
+            id: `blk-prompt-${ts}`,
+            type: "text_prompt",
+            mode: "open", // 'open' or 'blind_gated'
+            font_size: "32px",
+            show_badges: true
+          };
+        case "word_tagger":
+          return {
+            id: `blk-tagger-${ts}`,
+            type: "word_tagger",
+            mode: "both", // 'words', 'waveform', 'both'
+            active_taxonomies: "all",
+            require_note: false
+          };
+        case "scoring_questions":
+          return {
+            id: `blk-scoring-${ts}`,
+            type: "scoring_questions",
+            scale_max: 5,
+            criteria: JSON.parse(JSON.stringify(QUESTION_PRESETS.standard))
+          };
+        case "transcription":
+          return {
+            id: `blk-trans-${ts}`,
+            type: "transcription",
+            enabled: true,
+            show_diff: true
+          };
+        default:
+          return null;
       }
-      renderCriteriaList();
     }
 
-    el.tplBtnStandard.addEventListener("click", () => selectTemplate("standard"));
-    el.tplBtnDetailed.addEventListener("click", () => selectTemplate("detailed"));
-    el.tplBtnCustom.addEventListener("click", () => selectTemplate("custom"));
+    // 1-Click Starter Kits
+    function applyStarterKit(kitName) {
+      if (kitName === "mos") {
+        state.wizardData.ui_config.dsp.phone_filter_8khz = false;
+        state.wizardData.ui_config.presentation.blind_gating = false;
+        state.wizardData.ui_config.blocks = [
+          { id: "blk-prompt-1", type: "text_prompt", mode: "open", font_size: "32px", show_badges: true },
+          { id: "blk-audio-1", type: "audio_player", label: "Speech Audio", source_model: "candidate", phone_filter: false, speeds: true },
+          { id: "blk-tagger-1", type: "word_tagger", mode: "both", active_taxonomies: "all" },
+          { id: "blk-scoring-1", type: "scoring_questions", scale_max: 5, criteria: JSON.parse(JSON.stringify(QUESTION_PRESETS.standard)) },
+          { id: "blk-trans-1", type: "transcription", enabled: true, show_diff: true }
+        ];
+        showToast("Applied Conversational MOS Starter Kit.", "success");
+      } else if (kitName === "vocab") {
+        state.wizardData.ui_config.dsp.phone_filter_8khz = false;
+        state.wizardData.ui_config.presentation.blind_gating = true;
+        state.wizardData.ui_config.blocks = [
+          { id: "blk-audio-1", type: "audio_player", label: "Blind Speech", source_model: "candidate", phone_filter: false, speeds: true },
+          { id: "blk-prompt-1", type: "text_prompt", mode: "blind_gated", font_size: "32px", show_badges: true },
+          { id: "blk-scoring-1", type: "scoring_questions", scale_max: 5, criteria: [
+            { id: "pronunciation", name: "Pronunciation Accuracy", name_km: "ភាពត្រឹមត្រូវនៃការបញ្ចេញសំឡេង", desc: "Did the voice say the prompt accurately?" },
+            { id: "intelligibility", name: "Speech Intelligibility", name_km: "ភាពងាយស្រួលក្នុងការស្តាប់យល់", desc: "Clarity of spoken words" }
+          ]},
+          { id: "blk-tagger-1", type: "word_tagger", mode: "words", active_taxonomies: "all" }
+        ];
+        showToast("Applied Blind Vocab Gating Starter Kit.", "success");
+      } else if (kitName === "arena") {
+        state.wizardData.ui_config.dsp.phone_filter_8khz = false;
+        state.wizardData.ui_config.presentation.blind_gating = false;
+        state.wizardData.ui_config.blocks = [
+          { id: "blk-prompt-1", type: "text_prompt", mode: "open", font_size: "28px", show_badges: true },
+          { id: "blk-audio-1", type: "audio_player", label: "Model A (Candidate)", source_model: "candidate", phone_filter: false, speeds: true },
+          { id: "blk-audio-2", type: "audio_player", label: "Model B (Reference / Competitor)", source_model: "reference", phone_filter: false, speeds: true },
+          { id: "blk-scoring-1", type: "scoring_questions", scale_max: 5, criteria: [
+            { id: "preference", name: "Overall Preference", name_km: "ចំណូលចិត្តរួម", desc: "Which model produced more natural speech?" }
+          ]}
+        ];
+        showToast("Applied A/B Arena Starter Kit.", "success");
+      } else if (kitName === "blank") {
+        state.wizardData.ui_config.blocks = [];
+        showToast("Cleared canvas to Blank.", "info");
+      }
 
-    // Add Custom Criterion (Inline Form)
-    if (el.btnAddCriterion && el.boxAddCriterionForm) {
-      el.btnAddCriterion.addEventListener("click", () => {
-        selectTemplate("custom");
-        el.boxAddCriterionForm.classList.remove("hidden");
-        el.inputNewCriterionName.value = "";
-        el.inputNewCriterionDesc.value = "";
-        el.inputNewCriterionName.focus();
-      });
+      state.selectedCardId = state.wizardData.ui_config.blocks[0]?.id || null;
+      renderCanvas();
+      renderInspector();
+      updateSmartGuide();
+    }
 
-      el.btnCancelNewCriterion.addEventListener("click", () => {
-        el.boxAddCriterionForm.classList.add("hidden");
-        el.inputNewCriterionName.value = "";
-        el.inputNewCriterionDesc.value = "";
-      });
+    if (el.btnKitMos) el.btnKitMos.addEventListener("click", () => applyStarterKit("mos"));
+    if (el.btnKitVocab) el.btnKitVocab.addEventListener("click", () => applyStarterKit("vocab"));
+    if (el.btnKitArena) el.btnKitArena.addEventListener("click", () => applyStarterKit("arena"));
+    if (el.btnKitBlank) el.btnKitBlank.addEventListener("click", () => applyStarterKit("blank"));
 
-      const handleSaveCriterion = () => {
-        const name = el.inputNewCriterionName.value.trim();
-        if (!name) {
-          showToast("Please enter a question name.", "error");
-          el.inputNewCriterionName.focus();
-          return;
-        }
-        const desc = el.inputNewCriterionDesc.value.trim();
-        state.wizardData.criteria.push({
-          id: name.toLowerCase().replace(/[^a-z0-9]/g, "_"),
-          name: name,
-          desc: desc
+    // Toolbox drag & drop + click add
+    if (el.builderToolbox) {
+      el.builderToolbox.querySelectorAll(".toolbox-item").forEach(item => {
+        const toolType = item.dataset.tool;
+
+        item.addEventListener("dragstart", (e) => {
+          e.dataTransfer.setData("text/plain", toolType);
+          item.classList.add("opacity-50");
         });
-        renderCriteriaList();
-        el.boxAddCriterionForm.classList.add("hidden");
-        el.inputNewCriterionName.value = "";
-        el.inputNewCriterionDesc.value = "";
-        showToast(`Question "${name}" added!`, "success");
-      };
+        item.addEventListener("dragend", () => {
+          item.classList.remove("opacity-50");
+        });
 
-      el.btnSaveNewCriterion.addEventListener("click", handleSaveCriterion);
-      el.inputNewCriterionName.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") handleSaveCriterion();
-        if (e.key === "Escape") el.btnCancelNewCriterion.click();
-      });
-    }
-
-    // Transcription Toggle
-    if (el.wizCollectTranscription) {
-      el.wizCollectTranscription.checked = state.wizardData.collectTranscription;
-      el.wizCollectTranscription.addEventListener("change", (e) => {
-        state.wizardData.collectTranscription = e.target.checked;
-      });
-    }
-
-    // Defect Types Manager
-    if (el.btnAddDefectType && el.boxAddDefectForm) {
-      el.btnAddDefectType.addEventListener("click", () => {
-        el.boxAddDefectForm.classList.remove("hidden");
-        el.inputNewDefectLabel.value = "";
-        el.inputNewDefectCode.value = "";
-        el.inputNewDefectLabel.focus();
-      });
-
-      el.btnCancelNewDefect.addEventListener("click", () => {
-        el.boxAddDefectForm.classList.add("hidden");
-        el.inputNewDefectLabel.value = "";
-        el.inputNewDefectCode.value = "";
-      });
-
-      const handleSaveDefect = () => {
-        const label = el.inputNewDefectLabel.value.trim();
-        if (!label) {
-          showToast("Please enter a category label.", "error");
-          el.inputNewDefectLabel.focus();
-          return;
+        const addBtn = item.querySelector(".btn-tool-add");
+        if (addBtn) {
+          addBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const newBlock = createBlock(toolType);
+            if (newBlock) {
+              state.wizardData.ui_config.blocks.push(newBlock);
+              state.selectedCardId = newBlock.id;
+              renderCanvas();
+              renderInspector();
+              updateSmartGuide();
+              showToast(`Added ${toolType.replace("_", " ")} to canvas.`, "success");
+            }
+          });
         }
-        let code = el.inputNewDefectCode.value.trim().toUpperCase().replace(/[^A-Z0-9_]/g, "_");
-        if (!code) {
-          code = label.toUpperCase().replace(/[^A-Z0-9]/g, "_");
+      });
+    }
+
+    // Canvas Drop Zone
+    if (el.builderCanvas) {
+      el.builderCanvas.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        el.builderCanvas.classList.add("border-zinc-900", "bg-zinc-100/60");
+      });
+      el.builderCanvas.addEventListener("dragleave", () => {
+        el.builderCanvas.classList.remove("border-zinc-900", "bg-zinc-100/60");
+      });
+      el.builderCanvas.addEventListener("drop", (e) => {
+        e.preventDefault();
+        el.builderCanvas.classList.remove("border-zinc-900", "bg-zinc-100/60");
+        const toolType = e.dataTransfer.getData("text/plain");
+        if (toolType) {
+          const newBlock = createBlock(toolType);
+          if (newBlock) {
+            state.wizardData.ui_config.blocks.push(newBlock);
+            state.selectedCardId = newBlock.id;
+            renderCanvas();
+            renderInspector();
+            updateSmartGuide();
+          }
         }
-        state.wizardData.defectTypes.push({ code, label });
-        renderDefectTypesList();
-        el.boxAddDefectForm.classList.add("hidden");
-        el.inputNewDefectLabel.value = "";
-        el.inputNewDefectCode.value = "";
-        showToast(`Defect category "${label}" added!`, "success");
-      };
-
-      el.btnSaveNewDefect.addEventListener("click", handleSaveDefect);
-      el.inputNewDefectCode.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") handleSaveDefect();
-        if (e.key === "Escape") el.btnCancelNewDefect.click();
       });
     }
 
-    renderCriteriaList();
-    renderDefectTypesList();
-  }
+    // Canvas Rendering
+    function renderCanvas() {
+      if (!el.builderCanvas) return;
+      el.builderCanvas.innerHTML = "";
 
-  function renderDefectTypesList() {
-    if (!el.defectTypesContainer) return;
-    el.defectTypesContainer.innerHTML = "";
+      const blocks = state.wizardData.ui_config.blocks;
+      if (blocks.length === 0) {
+        el.builderCanvas.innerHTML = `
+          <div class="text-center py-16 text-zinc-400">
+            <div class="text-xs font-semibold text-zinc-600">Canvas is Empty</div>
+            <div class="text-[11px] mt-1">Drag components from the Toolbox or pick a Starter Kit above.</div>
+          </div>
+        `;
+        return;
+      }
 
-    if (state.wizardData.defectTypes.length === 0) {
-      el.defectTypesContainer.innerHTML = `
-        <span class="text-zinc-400 text-xs italic">No defect categories configured. Click "+ Add Defect Category" above.</span>
-      `;
-      return;
+      blocks.forEach((block, idx) => {
+        const isSelected = block.id === state.selectedCardId;
+        const card = document.createElement("div");
+        card.className = `p-3.5 bg-white border rounded-xl transition cursor-pointer relative shadow-2xs ${
+          isSelected ? "border-zinc-900 ring-2 ring-zinc-900/10 shadow-sm" : "border-zinc-200 hover:border-zinc-300"
+        }`;
+        card.dataset.id = block.id;
+
+        let iconColor = "bg-zinc-400";
+        let title = "Component";
+        let sub = "";
+
+        if (block.type === "audio_player") {
+          iconColor = "bg-emerald-500";
+          title = block.label || "Audio Player & DSP";
+          sub = `Speeds: ${block.speeds ? "Yes" : "No"} • 8kHz Filter: ${block.phone_filter ? "Enabled" : "Off"}`;
+        } else if (block.type === "text_prompt") {
+          iconColor = "bg-blue-500";
+          title = "Text Prompt Card";
+          sub = `Mode: ${block.mode === "blind_gated" ? "Blind-Gated (Blurred)" : "Open Verbatim"} • Size: ${block.font_size || "32px"}`;
+        } else if (block.type === "word_tagger") {
+          iconColor = "bg-amber-500";
+          title = "Word Pills & Defect Tagger";
+          sub = `Tagging: ${block.mode} • Taxonomies: ${block.active_taxonomies || "all"}`;
+        } else if (block.type === "scoring_questions") {
+          iconColor = "bg-purple-500";
+          title = `Scoring Questions (${block.criteria?.length || 0} questions)`;
+          sub = `Scale: 1 to ${block.scale_max || 5} Points`;
+        } else if (block.type === "transcription") {
+          iconColor = "bg-zinc-600";
+          title = "Listener Transcription ('What did you hear?')";
+          sub = `Visual Diff: ${block.show_diff ? "Active" : "Off"}`;
+        }
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="card-drag-handle text-zinc-400 hover:text-zinc-800 cursor-grab text-xs font-mono select-none" title="Drag to reorder">&#x2630;</span>
+              <span class="w-2 h-2 rounded-full ${iconColor}"></span>
+              <div>
+                <div class="text-xs font-bold text-zinc-900 leading-tight">${escapeHtml(title)}</div>
+                <div class="text-[10px] text-zinc-500 mt-0.5">${escapeHtml(sub)}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-1">
+              ${idx > 0 ? `<button type="button" class="btn-card-move-up p-1 text-zinc-400 hover:text-zinc-700 text-xs" title="Move Up">&uarr;</button>` : ""}
+              ${idx < blocks.length - 1 ? `<button type="button" class="btn-card-move-down p-1 text-zinc-400 hover:text-zinc-700 text-xs" title="Move Down">&darr;</button>` : ""}
+              <button type="button" class="btn-card-remove p-1 text-zinc-400 hover:text-red-600 text-xs ml-1" title="Delete Block">&times;</button>
+            </div>
+          </div>
+        `;
+
+        // Selection
+        card.addEventListener("click", () => {
+          state.selectedCardId = block.id;
+          renderCanvas();
+          renderInspector();
+        });
+
+        // Reordering
+        const btnUp = card.querySelector(".btn-card-move-up");
+        if (btnUp) {
+          btnUp.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const temp = blocks[idx];
+            blocks[idx] = blocks[idx - 1];
+            blocks[idx - 1] = temp;
+            renderCanvas();
+            updateSmartGuide();
+          });
+        }
+        const btnDown = card.querySelector(".btn-card-move-down");
+        if (btnDown) {
+          btnDown.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const temp = blocks[idx];
+            blocks[idx] = blocks[idx + 1];
+            blocks[idx + 1] = temp;
+            renderCanvas();
+            updateSmartGuide();
+          });
+        }
+
+        // Delete
+        const btnRemove = card.querySelector(".btn-card-remove");
+        if (btnRemove) {
+          btnRemove.addEventListener("click", (e) => {
+            e.stopPropagation();
+            blocks.splice(idx, 1);
+            if (state.selectedCardId === block.id) {
+              state.selectedCardId = blocks[0]?.id || null;
+            }
+            renderCanvas();
+            renderInspector();
+            updateSmartGuide();
+          });
+        }
+
+        el.builderCanvas.appendChild(card);
+      });
     }
 
-    state.wizardData.defectTypes.forEach((dt, idx) => {
-      const chip = document.createElement("div");
-      chip.className = "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 border border-zinc-200 text-xs font-medium text-zinc-800";
-      const lblKm = dt.label_km ? `<span class="font-khmer font-medium">${escapeHtml(dt.label_km)}</span> <span class="text-zinc-500 text-[11px]">(${escapeHtml(dt.label)})</span>` : `<span>${escapeHtml(dt.label)}</span>`;
-      chip.innerHTML = `
-        ${lblKm}
-        <span class="text-[10px] font-mono text-zinc-400 uppercase">(${escapeHtml(dt.code)})</span>
-        <button type="button" class="text-zinc-400 hover:text-red-600 font-bold ml-1 cursor-pointer" data-idx="${idx}">&times;</button>
-      `;
+    // Inspector Rendering
+    function renderInspector() {
+      if (!el.inspectorControlsContainer) return;
+      el.inspectorControlsContainer.innerHTML = "";
 
-      chip.querySelector("button").addEventListener("click", () => {
-        state.wizardData.defectTypes.splice(idx, 1);
-        renderDefectTypesList();
-      });
+      const blocks = state.wizardData.ui_config.blocks;
+      const selected = blocks.find(b => b.id === state.selectedCardId);
 
-      el.defectTypesContainer.appendChild(chip);
-    });
-  }
+      if (!selected) {
+        if (el.inspectorSelectedTitle) el.inspectorSelectedTitle.textContent = "Select a card on the canvas";
+        if (el.inspectorBlockBadge) el.inspectorBlockBadge.textContent = "None";
+        el.inspectorControlsContainer.innerHTML = `
+          <div class="text-zinc-400 text-center py-10 italic">
+            Click any component card in the center canvas to customize its settings.
+          </div>
+        `;
+        return;
+      }
 
-  function renderCriteriaList() {
-    el.criteriaListContainer.innerHTML = "";
+      if (el.inspectorSelectedTitle) el.inspectorSelectedTitle.textContent = selected.label || selected.type;
+      if (el.inspectorBlockBadge) el.inspectorBlockBadge.textContent = selected.type;
 
-    if (state.wizardData.criteria.length === 0) {
-      el.criteriaListContainer.innerHTML = `
-        <div class="p-4 text-center text-zinc-400 text-xs border border-dashed border-zinc-200 rounded-xl">
-          No questions added yet. Click "+ Add Custom Question" or select a template above.
-        </div>
-      `;
-      return;
+      if (selected.type === "audio_player") {
+        el.inspectorControlsContainer.innerHTML = `
+          <div class="space-y-3">
+            <div>
+              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Player Label</label>
+              <input type="text" id="insp-audio-label" class="w-full px-2.5 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-900" value="${escapeHtml(selected.label || "")}" />
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Audio Source</label>
+              <select id="insp-audio-source" class="w-full px-2.5 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-800">
+                <option value="candidate" ${selected.source_model === "candidate" ? "selected" : ""}>Evaluated Candidate Model</option>
+                <option value="reference" ${selected.source_model === "reference" ? "selected" : ""}>Ground Truth / Baseline Reference</option>
+              </select>
+            </div>
+
+            <div class="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2">
+              <label class="flex items-center justify-between cursor-pointer">
+                <span class="text-xs font-semibold text-zinc-900">8 kHz Telephone Simulation Filter</span>
+                <input type="checkbox" id="insp-audio-phone" class="w-4 h-4 rounded text-zinc-900" ${selected.phone_filter ? "checked" : ""} />
+              </label>
+              <div class="text-[11px] text-zinc-500">Bandpass 300 Hz to 3,400 Hz simulation for telephony and IVR benchmarks.</div>
+            </div>
+
+            <div class="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2">
+              <label class="flex items-center justify-between cursor-pointer">
+                <span class="text-xs font-semibold text-zinc-900">Show Speed Controls (0.8x / 1.0x / 1.2x)</span>
+                <input type="checkbox" id="insp-audio-speeds" class="w-4 h-4 rounded text-zinc-900" ${selected.speeds ? "checked" : ""} />
+              </label>
+            </div>
+          </div>
+        `;
+
+        document.getElementById("insp-audio-label")?.addEventListener("input", (e) => {
+          selected.label = e.target.value;
+          renderCanvas();
+        });
+        document.getElementById("insp-audio-source")?.addEventListener("change", (e) => {
+          selected.source_model = e.target.value;
+          renderCanvas();
+        });
+        document.getElementById("insp-audio-phone")?.addEventListener("change", (e) => {
+          selected.phone_filter = e.target.checked;
+          state.wizardData.ui_config.dsp.phone_filter_8khz = blocks.some(b => b.phone_filter);
+          renderCanvas();
+          updateSmartGuide();
+        });
+        document.getElementById("insp-audio-speeds")?.addEventListener("change", (e) => {
+          selected.speeds = e.target.checked;
+          renderCanvas();
+        });
+      } else if (selected.type === "text_prompt") {
+        el.inspectorControlsContainer.innerHTML = `
+          <div class="space-y-3">
+            <div>
+              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Presentation Mode</label>
+              <select id="insp-prompt-mode" class="w-full px-2.5 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-800">
+                <option value="open" ${selected.mode === "open" ? "selected" : ""}>Open (Visible continuously)</option>
+                <option value="blind_gated" ${selected.mode === "blind_gated" ? "selected" : ""}>Blind-Gated (Blurred until revealed)</option>
+              </select>
+              <div class="text-[10px] text-zinc-500 mt-1">Blind gating prevents bias when testing pronunciation.</div>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Font Size</label>
+              <select id="insp-prompt-size" class="w-full px-2.5 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-800">
+                <option value="24px" ${selected.font_size === "24px" ? "selected" : ""}>Compact (24px)</option>
+                <option value="32px" ${selected.font_size === "32px" ? "selected" : ""}>Standard (32px)</option>
+                <option value="40px" ${selected.font_size === "40px" ? "selected" : ""}>Hero Large (40px)</option>
+              </select>
+            </div>
+          </div>
+        `;
+
+        document.getElementById("insp-prompt-mode")?.addEventListener("change", (e) => {
+          selected.mode = e.target.value;
+          state.wizardData.ui_config.presentation.blind_gating = selected.mode === "blind_gated";
+          renderCanvas();
+          updateSmartGuide();
+        });
+        document.getElementById("insp-prompt-size")?.addEventListener("change", (e) => {
+          selected.font_size = e.target.value;
+          state.wizardData.ui_config.presentation.font_size = selected.font_size;
+          renderCanvas();
+        });
+      } else if (selected.type === "word_tagger") {
+        el.inspectorControlsContainer.innerHTML = `
+          <div class="space-y-3">
+            <div>
+              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Tagging Interface Mode</label>
+              <select id="insp-tagger-mode" class="w-full px-2.5 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-800">
+                <option value="both" ${selected.mode === "both" ? "selected" : ""}>Both Word Pills &amp; Waveform Regions</option>
+                <option value="words" ${selected.mode === "words" ? "selected" : ""}>Word Pills Only (Click words)</option>
+                <option value="waveform" ${selected.mode === "waveform" ? "selected" : ""}>Waveform Only (Drag slice)</option>
+              </select>
+            </div>
+
+            <div class="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2">
+              <span class="text-xs font-semibold text-zinc-900 block">Active Defect Categories (6 total)</span>
+              <div class="text-[11px] text-zinc-600">
+                Includes Mispronunciation, Noise/Click, Awkward Pause, Robotic Buzz, Unnatural Pitch, Other.
+              </div>
+            </div>
+          </div>
+        `;
+
+        document.getElementById("insp-tagger-mode")?.addEventListener("change", (e) => {
+          selected.mode = e.target.value;
+          renderCanvas();
+        });
+      } else if (selected.type === "scoring_questions") {
+        const criteria = selected.criteria || [];
+        const criteriaListHtml = criteria.map((c, i) => `
+          <div class="flex items-center justify-between p-2 bg-zinc-50 border border-zinc-200 rounded-lg">
+            <span class="text-xs font-semibold text-zinc-800">${escapeHtml(c.name)}</span>
+            <button type="button" class="btn-insp-remove-crit text-red-500 hover:text-red-700 text-xs" data-idx="${i}">&times;</button>
+          </div>
+        `).join("");
+
+        el.inspectorControlsContainer.innerHTML = `
+          <div class="space-y-3">
+            <div>
+              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Point Scale</label>
+              <select id="insp-scoring-scale" class="w-full px-2.5 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-800">
+                <option value="5" ${selected.scale_max === 5 ? "selected" : ""}>1 to 5 Points (Standard ITU-T MOS)</option>
+                <option value="7" ${selected.scale_max === 7 ? "selected" : ""}>1 to 7 Points (Detailed Scale)</option>
+                <option value="2" ${selected.scale_max === 2 ? "selected" : ""}>Pass / Fail Binary</option>
+              </select>
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="block text-[11px] font-semibold text-zinc-700">Questions (${criteria.length})</label>
+              <div class="space-y-1 max-h-40 overflow-y-auto">${criteriaListHtml}</div>
+              <div class="pt-2 flex gap-1.5">
+                <input type="text" id="insp-new-crit-name" placeholder="New question name..." class="flex-1 px-2.5 py-1 text-xs bg-zinc-50 border border-zinc-200 rounded-lg" />
+                <button type="button" id="insp-btn-add-crit" class="px-2.5 py-1 text-xs bg-zinc-900 text-white rounded-lg font-medium cursor-pointer">+</button>
+              </div>
+            </div>
+          </div>
+        `;
+
+        document.getElementById("insp-scoring-scale")?.addEventListener("change", (e) => {
+          selected.scale_max = parseInt(e.target.value, 10);
+          state.wizardData.scaleMax = selected.scale_max;
+          renderCanvas();
+        });
+
+        document.querySelectorAll(".btn-insp-remove-crit").forEach(btn => {
+          btn.addEventListener("click", () => {
+            const idx = parseInt(btn.dataset.idx, 10);
+            selected.criteria.splice(idx, 1);
+            state.wizardData.criteria = selected.criteria;
+            renderInspector();
+            renderCanvas();
+            updateSmartGuide();
+          });
+        });
+
+        document.getElementById("insp-btn-add-crit")?.addEventListener("click", () => {
+          const inp = document.getElementById("insp-new-crit-name");
+          const val = inp?.value.trim();
+          if (val) {
+            selected.criteria.push({
+              id: val.toLowerCase().replace(/[^a-z0-9]/g, "_"),
+              name: val,
+              desc: "Score from 1 to " + (selected.scale_max || 5)
+            });
+            state.wizardData.criteria = selected.criteria;
+            renderInspector();
+            renderCanvas();
+            updateSmartGuide();
+          }
+        });
+      } else if (selected.type === "transcription") {
+        el.inspectorControlsContainer.innerHTML = `
+          <div class="space-y-3">
+            <div class="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2">
+              <label class="flex items-center justify-between cursor-pointer">
+                <span class="text-xs font-semibold text-zinc-900">Show Real-Time Visual Diff</span>
+                <input type="checkbox" id="insp-trans-diff" class="w-4 h-4 rounded text-zinc-900" ${selected.show_diff ? "checked" : ""} />
+              </label>
+              <div class="text-[11px] text-zinc-500">Highlights inserted, deleted, and substituted Khmer words.</div>
+            </div>
+          </div>
+        `;
+
+        document.getElementById("insp-trans-diff")?.addEventListener("change", (e) => {
+          selected.show_diff = e.target.checked;
+          renderCanvas();
+        });
+      }
     }
 
-    state.wizardData.criteria.forEach((crit, idx) => {
-      const row = document.createElement("div");
-      row.className = "flex items-center justify-between p-3.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs";
-      const nameKm = crit.name_km ? `<span class="font-khmer font-bold text-zinc-900">${escapeHtml(crit.name_km)}</span> <span class="font-semibold text-zinc-500 font-sans text-[11px]">(${escapeHtml(crit.name)})</span>` : `<span class="font-bold text-zinc-900">${escapeHtml(crit.name)}</span>`;
-      row.innerHTML = `
-        <div>
-          <div class="leading-tight">${nameKm}</div>
-          <div class="text-zinc-500 text-[11px] mt-0.5">${escapeHtml(crit.desc || "Score from 1 to 5")}</div>
-        </div>
-        <button type="button" class="text-red-500 hover:text-red-700 font-semibold cursor-pointer text-xs" data-idx="${idx}">
-          Remove
-        </button>
-      `;
+    // Task 6: Smart Feedback Bar & Safety Auditor
+    function updateSmartGuide() {
+      if (!el.smartGuideBar) return;
 
-      row.querySelector("button").addEventListener("click", () => {
-        state.wizardData.criteria.splice(idx, 1);
-        state.wizardData.template = "custom";
-        el.tplBtnStandard.classList.remove("border-2", "border-zinc-900");
-        el.tplBtnDetailed.classList.remove("border-2", "border-zinc-900");
-        el.tplBtnCustom.classList.add("border-2", "border-zinc-900");
-        renderCriteriaList();
-      });
+      const blocks = state.wizardData.ui_config.blocks || [];
+      const itemCount = state.wizardData.items.length || 50;
 
-      el.criteriaListContainer.appendChild(row);
-    });
+      const activeAudio = blocks.filter(b => b.type === "audio_player");
+      const activeScoring = blocks.filter(b => b.type === "scoring_questions");
+      const totalQuestions = activeScoring.reduce((sum, b) => sum + (b.criteria?.length || 0), 0);
+      const hasPhoneFilter = activeAudio.some(b => b.phone_filter);
+      const hasIntelligibility = activeScoring.some(b => b.criteria?.some(c => c.id.includes("intelligibility") || c.name.toLowerCase().includes("intelligib") || c.name.toLowerCase().includes("clarity")));
+      const hasTranscription = blocks.some(b => b.type === "transcription");
+
+      // Calculate time estimate: ~6s audio listen + 3s per question + 15s transcription
+      const secPerItem = 6 + (totalQuestions * 3) + (hasTranscription ? 15 : 0);
+      const totalMinutes = Math.max(1, Math.round((itemCount * secPerItem) / 60));
+
+      if (el.guideTimeEstimate) {
+        el.guideTimeEstimate.textContent = `(~${totalMinutes} mins per evaluator for ${itemCount} items)`;
+      }
+
+      // Blockers (Red)
+      if (activeAudio.length === 0) {
+        el.guideStatusIcon.className = "w-2.5 h-2.5 rounded-full bg-red-500 shrink-0";
+        el.guideHeadline.textContent = "Blocker: Missing Audio Player";
+        el.guideHeadline.className = "font-bold text-red-900";
+        el.guideWarningText.textContent = "Every evaluation test requires at least one Audio Player block.";
+        if (el.wizBtnStep3Next) el.wizBtnStep3Next.disabled = true;
+        return;
+      }
+
+      if (activeScoring.length === 0 || totalQuestions === 0) {
+        el.guideStatusIcon.className = "w-2.5 h-2.5 rounded-full bg-red-500 shrink-0";
+        el.guideHeadline.textContent = "Blocker: Missing Scoring Questions";
+        el.guideHeadline.className = "font-bold text-red-900";
+        el.guideWarningText.textContent = "Please add at least one Scoring Question block to collect ratings.";
+        if (el.wizBtnStep3Next) el.wizBtnStep3Next.disabled = true;
+        return;
+      }
+
+      // Warnings (Amber)
+      if (hasPhoneFilter && !hasIntelligibility) {
+        el.guideStatusIcon.className = "w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0";
+        el.guideHeadline.textContent = "Recommendation: Acoustic Filter Active";
+        el.guideHeadline.className = "font-bold text-amber-900";
+        el.guideWarningText.textContent = "You enabled the 8 kHz Phone Filter; consider adding an Intelligibility / Clarity question.";
+        if (el.wizBtnStep3Next) el.wizBtnStep3Next.disabled = false;
+        return;
+      }
+
+      if (itemCount > 100 && hasTranscription) {
+        el.guideStatusIcon.className = "w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0";
+        el.guideHeadline.textContent = "Warning: Rater Fatigue Risk";
+        el.guideHeadline.className = "font-bold text-amber-900";
+        el.guideWarningText.textContent = `Typing on ${itemCount} items will cause evaluator fatigue (~${totalMinutes} mins). Consider reducing batch size.`;
+        if (el.wizBtnStep3Next) el.wizBtnStep3Next.disabled = false;
+        return;
+      }
+
+      // Balanced (Green)
+      el.guideStatusIcon.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0";
+      el.guideHeadline.textContent = "Layout Balanced & Ready";
+      el.guideHeadline.className = "font-bold text-zinc-900";
+      el.guideWarningText.textContent = "All components verified and acoustic balance confirmed.";
+      if (el.wizBtnStep3Next) el.wizBtnStep3Next.disabled = false;
+    }
+
+    // Sync state.wizardData.criteria with active scoring blocks
+    const scoringBlock = state.wizardData.ui_config.blocks.find(b => b.type === "scoring_questions");
+    if (scoringBlock && scoringBlock.criteria) {
+      state.wizardData.criteria = scoringBlock.criteria;
+    }
+
+    renderCanvas();
+    renderInspector();
+    updateSmartGuide();
   }
 
   // Step 4 Summary & Study Launch
@@ -1703,7 +2097,7 @@ Please write a Python script using standard libraries or soundfile to either:
         const suiteJson = await suiteResp.json();
         const actualSuiteId = suiteJson.suite_id || suiteId;
 
-        // 5. Create Campaign with Modality
+        // 5. Create Campaign with Modality & UI Config
         const campaignResp = await adminFetch("/api/campaigns", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1714,7 +2108,8 @@ Please write a Python script using standard libraries or soundfile to either:
             instructions: state.wizardData.instructions,
             defect_types: state.wizardData.defectTypes,
             collect_transcription: state.wizardData.collectTranscription ? 1 : 0,
-            modality: state.wizardData.modality || "TTS"
+            modality: state.wizardData.modality || "TTS",
+            ui_config_json: JSON.stringify(state.wizardData.ui_config)
           })
         });
 

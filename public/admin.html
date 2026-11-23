@@ -584,167 +584,177 @@
         </div>
       </div>
 
-      <!-- Step 3: Rating Questions Matrix -->
+      <!-- Step 3: Dynamic Modular Test Builder & Live Inspector -->
       <div id="wizard-step-3" class="studio-card hidden space-y-6">
-        <div class="pb-3 border-b border-zinc-100">
-          <h2 class="text-base font-bold text-zinc-900 mb-0.5">Rating Criteria & Rubric</h2>
-          <p class="text-xs text-zinc-500">Select what acoustic dimensions listeners will score for each speech sample.</p>
-        </div>
-
-        <!-- 1-Click Templates -->
-        <div class="space-y-2">
-          <label class="block text-xs font-semibold text-zinc-800">Select Question Preset</label>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <button
-              type="button"
-              id="tpl-btn-standard"
-              class="p-3.5 text-left border-2 border-zinc-900 rounded-xl bg-zinc-50 cursor-pointer transition shadow-2xs"
-            >
-              <div class="font-bold text-xs text-zinc-900">Standard Test</div>
-              <div class="text-[11px] text-zinc-600 mt-1">Naturalness & Pronunciation (2 questions)</div>
-            </button>
-            <button
-              type="button"
-              id="tpl-btn-detailed"
-              class="p-3.5 text-left border border-zinc-200 rounded-xl bg-white hover:bg-zinc-50 cursor-pointer transition"
-            >
-              <div class="font-bold text-xs text-zinc-900">Comprehensive MOS</div>
-              <div class="text-[11px] text-zinc-600 mt-1">Naturalness, Accuracy, Clarity & Quality (4 questions)</div>
-            </button>
-            <button
-              type="button"
-              id="tpl-btn-custom"
-              class="p-3.5 text-left border border-zinc-200 rounded-xl bg-white hover:bg-zinc-50 cursor-pointer transition"
-            >
-              <div class="font-bold text-xs text-zinc-900">Custom Questions</div>
-              <div class="text-[11px] text-zinc-600 mt-1">Create custom scoring dimensions</div>
-            </button>
-          </div>
-        </div>
-
-        <!-- Scale Configuration (Clean Inline) -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg p-3.5 rounded-xl border border-zinc-100 bg-zinc-50/70">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-100">
           <div>
-            <label class="block text-xs font-semibold text-zinc-800 mb-1" for="wiz-scale-max">Rating Scale</label>
-            <select id="wiz-scale-max" class="w-full px-3 py-1.5 text-xs border border-zinc-300 rounded-lg bg-white text-zinc-800 font-medium">
-              <option value="5" selected>1 to 5 Points (Standard ITU-T MOS)</option>
-              <option value="7">1 to 7 Points (Detailed Scale)</option>
-            </select>
+            <h2 class="text-base font-bold text-zinc-900 mb-0.5">Modular Test Builder &amp; Canvas</h2>
+            <p class="text-xs text-zinc-500">Assemble evaluation blocks, tune acoustic filters, and customize rater presentation.</p>
           </div>
-          <div class="text-xs text-zinc-600 flex flex-col justify-center">
-            <span class="font-semibold text-zinc-800">Score Range:</span>
-            <span class="text-zinc-500 text-[11px]">1 = Very Poor / Robotic</span>
-            <span class="text-zinc-500 text-[11px]">5 = Excellent / Human Natural</span>
-          </div>
-        </div>
-
-        <!-- Questions List & Inline Add Form -->
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-zinc-900">Active Questions</span>
-            <button type="button" id="btn-add-criterion" class="btn-ghost text-xs cursor-pointer">+ Add Custom Question</button>
-          </div>
-
-          <!-- Inline Add Criterion Form (Replaces prompt) -->
-          <div id="box-add-criterion-form" class="hidden space-y-3 p-4 bg-zinc-50 rounded-xl border border-zinc-200">
-            <div class="text-xs font-bold text-zinc-900">Add New Evaluation Question</div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Question Name</label>
-                <input
-                  type="text"
-                  id="input-new-criterion-name"
-                  placeholder="e.g. Expressiveness, Emotional Tone, Cadence"
-                  class="w-full px-3 py-1.5 text-xs bg-white border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
-                />
-              </div>
-              <div>
-                <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Evaluator Guidance Text</label>
-                <input
-                  type="text"
-                  id="input-new-criterion-desc"
-                  placeholder="e.g. Does the voice reflect natural emotional inflection?"
-                  class="w-full px-3 py-1.5 text-xs bg-white border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
-                />
-              </div>
-            </div>
-            <div class="flex justify-end gap-2 pt-1">
-              <button type="button" id="btn-cancel-new-criterion" class="btn-ghost text-xs py-1.5 px-3">Cancel</button>
-              <button type="button" id="btn-save-new-criterion" class="btn-carbon text-xs py-1.5 px-3">Save Question</button>
-            </div>
-          </div>
-
-          <div id="criteria-list-container" class="space-y-2">
-            <!-- Dynamic Criteria Rows -->
+          <!-- 1-Click Starter Kits -->
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span class="text-[11px] font-semibold text-zinc-500 mr-1">Starter Kits:</span>
+            <button type="button" id="btn-kit-mos" class="px-2.5 py-1 text-xs font-semibold rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-800 transition cursor-pointer shadow-2xs">
+              Conversational MOS
+            </button>
+            <button type="button" id="btn-kit-vocab" class="px-2.5 py-1 text-xs font-semibold rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-800 transition cursor-pointer shadow-2xs">
+              Blind Vocab Gating
+            </button>
+            <button type="button" id="btn-kit-arena" class="px-2.5 py-1 text-xs font-semibold rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-800 transition cursor-pointer shadow-2xs">
+              A/B Arena
+            </button>
+            <button type="button" id="btn-kit-blank" class="px-2 py-1 text-xs text-zinc-500 hover:text-zinc-800 rounded-lg cursor-pointer">
+              Blank
+            </button>
           </div>
         </div>
 
-        <!-- Perceived Speech Transcription Toggle ("What did you hear?") -->
-        <div class="p-3.5 rounded-xl border border-zinc-200 bg-zinc-50/70 space-y-2">
-          <label class="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              id="wiz-collect-transcription"
-              class="w-4 h-4 mt-0.5 rounded text-zinc-900 border-zinc-300 focus:ring-zinc-900 cursor-pointer"
-              checked
-            />
-            <div>
-              <div class="text-xs font-bold text-zinc-900">Enable "What Did You Hear?" Listener Transcription</div>
-              <div class="text-[11px] text-zinc-600 mt-0.5">
-                Allows listeners to transcribe what they heard if spoken words differ from the prompt, with 1-click text copying and live difference highlighting.
+        <!-- 3-ZONE MODULAR WORKSPACE: Left Toolbox, Center Canvas, Right Inspector -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-[520px] items-start">
+
+          <!-- ZONE 1: TOOLBOX (Cols 1-3) -->
+          <div class="lg:col-span-3 bg-zinc-50 border border-zinc-200 rounded-2xl p-3.5 space-y-3">
+            <div class="flex items-center justify-between pb-2 border-b border-zinc-200">
+              <span class="text-xs font-bold text-zinc-900 uppercase tracking-wider">Toolbox</span>
+              <span class="text-[10px] text-zinc-500">Drag or Click [+]</span>
+            </div>
+
+            <div id="builder-toolbox" class="space-y-2">
+              <!-- Tool 1: Audio Player -->
+              <div
+                class="toolbox-item p-2.5 bg-white border border-zinc-200 rounded-xl hover:border-zinc-900 cursor-grab active:cursor-grabbing transition shadow-2xs flex items-center justify-between select-none"
+                draggable="true"
+                data-tool="audio_player"
+              >
+                <div>
+                  <div class="text-xs font-bold text-zinc-900 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    Audio Player &amp; DSP
+                  </div>
+                  <div class="text-[10px] text-zinc-500 mt-0.5">Waveform, speeds, 8kHz phone filter</div>
+                </div>
+                <button type="button" class="btn-tool-add text-xs font-bold text-zinc-400 hover:text-zinc-900 cursor-pointer p-1" title="Add to Canvas">+</button>
+              </div>
+
+              <!-- Tool 2: Text Prompt -->
+              <div
+                class="toolbox-item p-2.5 bg-white border border-zinc-200 rounded-xl hover:border-zinc-900 cursor-grab active:cursor-grabbing transition shadow-2xs flex items-center justify-between select-none"
+                draggable="true"
+                data-tool="text_prompt"
+              >
+                <div>
+                  <div class="text-xs font-bold text-zinc-900 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                    Text Prompt
+                  </div>
+                  <div class="text-[10px] text-zinc-500 mt-0.5">Khmer script with blind-gating blur</div>
+                </div>
+                <button type="button" class="btn-tool-add text-xs font-bold text-zinc-400 hover:text-zinc-900 cursor-pointer p-1" title="Add to Canvas">+</button>
+              </div>
+
+              <!-- Tool 3: Word Pills & Defect Tagger -->
+              <div
+                class="toolbox-item p-2.5 bg-white border border-zinc-200 rounded-xl hover:border-zinc-900 cursor-grab active:cursor-grabbing transition shadow-2xs flex items-center justify-between select-none"
+                draggable="true"
+                data-tool="word_tagger"
+              >
+                <div>
+                  <div class="text-xs font-bold text-zinc-900 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                    Word Pills &amp; Tagger
+                  </div>
+                  <div class="text-[10px] text-zinc-500 mt-0.5">Clickable words &amp; waveform tags</div>
+                </div>
+                <button type="button" class="btn-tool-add text-xs font-bold text-zinc-400 hover:text-zinc-900 cursor-pointer p-1" title="Add to Canvas">+</button>
+              </div>
+
+              <!-- Tool 4: Scoring Questions -->
+              <div
+                class="toolbox-item p-2.5 bg-white border border-zinc-200 rounded-xl hover:border-zinc-900 cursor-grab active:cursor-grabbing transition shadow-2xs flex items-center justify-between select-none"
+                draggable="true"
+                data-tool="scoring_questions"
+              >
+                <div>
+                  <div class="text-xs font-bold text-zinc-900 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                    Scoring Questions
+                  </div>
+                  <div class="text-[10px] text-zinc-500 mt-0.5">1-5 / 1-7 Likert or Pass/Fail sliders</div>
+                </div>
+                <button type="button" class="btn-tool-add text-xs font-bold text-zinc-400 hover:text-zinc-900 cursor-pointer p-1" title="Add to Canvas">+</button>
+              </div>
+
+              <!-- Tool 5: Listener Transcription -->
+              <div
+                class="toolbox-item p-2.5 bg-white border border-zinc-200 rounded-xl hover:border-zinc-900 cursor-grab active:cursor-grabbing transition shadow-2xs flex items-center justify-between select-none"
+                draggable="true"
+                data-tool="transcription"
+              >
+                <div>
+                  <div class="text-xs font-bold text-zinc-900 flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-zinc-600"></span>
+                    Listener Transcription
+                  </div>
+                  <div class="text-[10px] text-zinc-500 mt-0.5">"What did you hear?" with visual diff</div>
+                </div>
+                <button type="button" class="btn-tool-add text-xs font-bold text-zinc-400 hover:text-zinc-900 cursor-pointer p-1" title="Add to Canvas">+</button>
               </div>
             </div>
-          </label>
+          </div>
+
+          <!-- ZONE 2: REORDERABLE CANVAS (Cols 4-8) -->
+          <div class="lg:col-span-5 flex flex-col gap-3">
+            <div class="flex items-center justify-between pb-1">
+              <span class="text-xs font-bold text-zinc-900 uppercase tracking-wider">Evaluation Stage Canvas</span>
+              <span class="text-[10px] text-zinc-400">Click a card to inspect; drag handle to reorder</span>
+            </div>
+
+            <div
+              id="builder-canvas"
+              class="space-y-3 min-h-[460px] p-3 rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50/50 transition"
+            >
+              <!-- Dynamic Canvas Cards Rendered by JS -->
+            </div>
+          </div>
+
+          <!-- ZONE 3: INSPECTOR SIDEBAR (Cols 9-12) -->
+          <div class="lg:col-span-4 bg-white border border-zinc-200 rounded-2xl p-4 space-y-4 shadow-xs sticky top-4">
+            <div class="flex items-center justify-between pb-2.5 border-b border-zinc-100">
+              <div>
+                <span class="text-xs font-bold text-zinc-900 uppercase tracking-wider">Block Inspector</span>
+                <div id="inspector-selected-title" class="text-[11px] text-zinc-500 mt-0.5 font-medium">Select a card on the canvas</div>
+              </div>
+              <span id="inspector-block-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-zinc-100 text-zinc-700">None</span>
+            </div>
+
+            <!-- Dynamic Inspector Settings Form -->
+            <div id="inspector-controls-container" class="space-y-4 text-xs">
+              <div class="text-zinc-400 text-center py-10 italic">
+                Click any component card in the center canvas to customize its settings.
+              </div>
+            </div>
+          </div>
+
         </div>
 
-        <!-- Waveform Defect Tag Categories (Flattened) -->
-        <div class="space-y-3 pt-3 border-t border-zinc-100">
-          <div class="flex items-center justify-between">
-            <div>
-              <div class="text-xs font-bold text-zinc-900">Sound Defect Categories</div>
-              <div class="text-[11px] text-zinc-500">Categories available when listeners drag on the sound wave to tag defects.</div>
-            </div>
-            <button type="button" id="btn-add-defect-type" class="btn-ghost text-xs cursor-pointer">+ Add Defect Category</button>
-          </div>
-
-          <!-- Inline Add Defect Type Form -->
-          <div id="box-add-defect-form" class="hidden space-y-3 p-3 bg-zinc-50 rounded-xl border border-zinc-200">
-            <div class="text-xs font-bold text-zinc-900">New Defect Category</div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Display Label</label>
-                <input
-                  type="text"
-                  id="input-new-defect-label"
-                  placeholder="e.g. Dropped Syllable, Echo, Noise"
-                  class="w-full px-3 py-1.5 text-xs bg-white border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
-                />
+        <!-- STICKY BOTTOM SMART GUIDE BAR -->
+        <div id="smart-guide-bar" class="p-3.5 rounded-xl border border-zinc-200 bg-zinc-50/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span id="guide-status-icon" class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+            <div class="min-w-0">
+              <div class="font-bold text-zinc-900 flex items-center gap-2">
+                <span id="guide-headline">Layout Balanced &amp; Ready</span>
+                <span id="guide-time-estimate" class="text-zinc-500 font-normal text-[11px]">(~12 mins per evaluator)</span>
               </div>
-              <div>
-                <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Tag Code (UPPERCASE)</label>
-                <input
-                  type="text"
-                  id="input-new-defect-code"
-                  placeholder="e.g. DROPPED_SYLLABLE"
-                  class="w-full px-3 py-1.5 text-xs bg-white border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 font-mono"
-                />
+              <div id="guide-warning-text" class="text-[11px] text-zinc-600 truncate">
+                All mandatory components verified.
               </div>
             </div>
-            <div class="flex justify-end gap-2 pt-1">
-              <button type="button" id="btn-cancel-new-defect" class="btn-ghost text-xs py-1.5 px-3">Cancel</button>
-              <button type="button" id="btn-save-new-defect" class="btn-carbon text-xs py-1.5 px-3">Save Category</button>
-            </div>
           </div>
-
-          <!-- Active Defect Chips List -->
-          <div id="defect-types-container" class="flex flex-wrap gap-1.5 pt-1">
-            <!-- Rendered dynamically -->
+          <div class="flex items-center gap-2 shrink-0">
+            <button id="wiz-btn-step3-prev" class="btn-ghost text-xs py-1.5 px-3 cursor-pointer">&larr; Back</button>
+            <button id="wiz-btn-step3-next" class="btn-carbon text-xs py-1.5 px-4 cursor-pointer font-semibold">Review &amp; Launch &rarr;</button>
           </div>
-        </div>
-
-        <div class="flex justify-between pt-3 border-t border-zinc-100">
-          <button id="wiz-btn-step3-prev" class="btn-ghost cursor-pointer">&larr; Back</button>
-          <button id="wiz-btn-step3-next" class="btn-carbon cursor-pointer">Review & Launch &rarr;</button>
         </div>
       </div>
 
