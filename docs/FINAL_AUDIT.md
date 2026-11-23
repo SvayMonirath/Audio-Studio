@@ -1,5 +1,7 @@
 # Final audit of the Universal AI Engineering Operating System package
 
+> **Provenance Note:** This document records the pre-installation verification audit of the upstream Universal AI Engineering OS template package prior to its adoption into Audio Studio on 2026-11-23. For the Audio Studio host repository adoption audit, see [`docs/INITIALIZATION.md`](INITIALIZATION.md).
+
 **Date:** 16 November 2026  
 **Scope:** package design and generated artifacts only. No target application repository was supplied.
 

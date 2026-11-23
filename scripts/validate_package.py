@@ -14,6 +14,7 @@ REQUIRED = [
     "docs/OPERATING_MODEL.md", "docs/MULTI_AGENT_REVIEW.md",
     "docs/QUALITY_MODEL.md", "docs/INITIALIZATION.md",
     "docs/DECISION_GOVERNANCE.md", "docs/VALIDATION_SCENARIOS.md",
+    "docs/FINAL_AUDIT.md",
     "reviewers/architect.md", "reviewers/reliability.md",
     "reviewers/security.md", "reviewers/test-quality.md",
     "reviewers/adversarial.md", "templates/ADR.md",
