@@ -1722,9 +1722,15 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     }
 
     function createDropIndicator() {
-      const line = document.createElement("div");
-      line.className = "drop-indicator h-1 bg-zinc-900 rounded-full transition-all duration-75 shadow-xs my-1";
-      return line;
+      const box = document.createElement("div");
+      box.className = "drop-indicator drop-ghost-placeholder text-xs font-semibold text-zinc-500 my-2 transition-all select-none";
+      box.innerHTML = `
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-zinc-900 animate-ping"></span>
+          <span>Drop Component Here</span>
+        </div>
+      `;
+      return box;
     }
 
     function getDropInsertionIndex(canvasEl, clientY) {
@@ -1914,7 +1920,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
               </div>
 
               <!-- Authentic Client Waveform Deck from eval.html -->
-              <div class="flex items-center gap-3 pt-1">
+              <div class="flex items-center gap-4 pt-1">
                 <button
                   type="button"
                   class="w-12 h-12 flex-shrink-0 rounded-full bg-zinc-900 text-white flex items-center justify-center shadow-sm cursor-default"
@@ -1925,11 +1931,11 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
 
                 <div class="flex-1 min-w-0 flex flex-col gap-1.5">
                   <div class="flex items-center justify-between text-[11px] text-zinc-500">
-                    <span class="font-medium text-xs font-mono">0.00s / 3.42s</span>
-                    <span class="hidden sm:inline text-zinc-400">Audio waveform deck</span>
+                    <span class="font-medium text-xs font-mono">0.00s / 0.01.3</span>
+                    <span class="hidden sm:inline text-zinc-400">Click & drag on waveform to tag defect region • ចុចអូសលើរលកសំឡេងដើម្បីសម្គាល់កំហុស</span>
                   </div>
-                  <div class="waveform-canvas-box rounded-lg overflow-hidden h-[76px] relative bg-zinc-900">
-                    <canvas class="preview-waveform-canvas w-full h-[76px] block" data-card-id="${block.id}"></canvas>
+                  <div class="waveform-canvas-box rounded-lg overflow-hidden h-[76px] relative bg-white border border-zinc-200">
+                    <canvas class="preview-waveform-canvas w-full h-[76px] block cursor-crosshair" data-card-id="${block.id}"></canvas>
                   </div>
                 </div>
               </div>
@@ -1939,17 +1945,18 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           const fontSize = block.font_size || "32px";
           const isGated = block.mode === "blind_gated";
           previewHtml = `
-            <div class="mt-3 p-4 bg-zinc-50 border border-zinc-200/80 rounded-xl relative overflow-hidden">
+            <div class="mt-3 p-4 bg-white border border-zinc-200 rounded-xl relative overflow-hidden">
               <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">Transcript to Evaluate • អត្ថបទសម្រាប់វាយតម្លៃ</div>
-              <div class="font-khmer text-zinc-900 leading-relaxed ${isGated ? "blur-xs select-none" : ""}" style="font-size: ${fontSize};">
+              <div class="font-khmer text-zinc-900 leading-relaxed transition-all duration-300 ${isGated ? "blur-md select-none opacity-50" : ""}" style="font-size: ${fontSize};">
                 ${escapeHtml(sampleText)}
               </div>
               ${isGated ? `
-                <div class="absolute inset-0 bg-white/70 backdrop-blur-xs flex flex-col items-center justify-center gap-1.5 p-3 text-center">
-                  <span class="text-[11px] font-semibold text-zinc-800">Blind Pronunciation Test — Prompt is hidden until revealed</span>
-                  <button type="button" class="px-3 py-1 bg-zinc-900 text-white rounded-lg text-xs font-medium shadow-2xs hover:bg-zinc-800 pointer-events-none">
-                    Reveal Prompt (Space)
-                  </button>
+                <div class="absolute inset-0 bg-white/80 backdrop-blur-md rounded-xl flex flex-col items-center justify-center gap-2 z-10 p-4 shadow-2xs">
+                  <span class="text-xs font-semibold text-zinc-800">Blind Pronunciation Test — Prompt is hidden until revealed</span>
+                  <div class="px-3.5 py-1.5 text-xs bg-zinc-900 text-white rounded-lg font-medium shadow-sm flex items-center gap-1.5 select-none">
+                    <span>Reveal Prompt Transcript</span>
+                    <span class="text-[10px] text-zinc-400 font-mono">(Space)</span>
+                  </div>
                 </div>
               ` : ""}
             </div>
@@ -2151,39 +2158,54 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       const barGap = 2;
       const totalBars = Math.max(10, Math.floor(width / (barWidth + barGap)));
       const midY = height / 2;
-      const maxBarHeight = height - 16;
+      const maxBarHeight = height - 12;
 
-      // Unplayed gradient
+      // Unplayed gradient matching audio_dsp.js
       const unplayedGrad = ctx.createLinearGradient(0, midY - (maxBarHeight / 2), 0, midY + (maxBarHeight / 2));
       unplayedGrad.addColorStop(0, "#D4D4D8");
-      unplayedGrad.addColorStop(0.5, "#A1A1AA");
-      unplayedGrad.addColorStop(1, "#71717A");
+      unplayedGrad.addColorStop(1, "#E4E4E7");
 
-      // Seeded synthetic acoustic waveform pattern
+      // Realistic speech waveform packet synthesis with 4 natural utterances separated by small pauses
+      // Matching real eval.html waveform screenshot exactly
       for (let i = 0; i < totalBars; i++) {
         const x = i * (barWidth + barGap);
         const norm = i / totalBars;
-        // Natural speech acoustic envelope simulation (syllabic bursts)
-        const envelope = Math.sin(norm * Math.PI) * (0.35 + 0.65 * Math.sin(norm * 14) ** 2);
-        const jitter = ((i * 17 + 7) % 19) / 19 * 0.4;
-        const barH = Math.max(4, Math.min(maxBarHeight, (envelope * 0.7 + jitter * 0.3) * maxBarHeight));
 
+        let amp = 0.08; // baseline breath floor
+
+        // 4 speech bursts corresponding to spoken Khmer syllables/words
+        // Utterance 1: 0.32 to 0.48
+        if (norm >= 0.32 && norm <= 0.48) {
+          const sub = (norm - 0.32) / (0.48 - 0.32);
+          amp = Math.sin(sub * Math.PI) * 0.88 + 0.08;
+        }
+        // Utterance 2: 0.58 to 0.68
+        else if (norm >= 0.58 && norm <= 0.68) {
+          const sub = (norm - 0.58) / (0.68 - 0.58);
+          amp = Math.sin(sub * Math.PI) * 0.72 + 0.08;
+        }
+        // Utterance 3: 0.72 to 0.84
+        else if (norm >= 0.72 && norm <= 0.84) {
+          const sub = (norm - 0.72) / (0.84 - 0.72);
+          amp = Math.sin(sub * Math.PI) * 0.82 + 0.08;
+        }
+        // Utterance 4: 0.88 to 0.96
+        else if (norm >= 0.88 && norm <= 0.96) {
+          const sub = (norm - 0.88) / (0.96 - 0.88);
+          amp = Math.sin(sub * Math.PI) * 0.68 + 0.08;
+        }
+
+        const barH = Math.max(4, amp * maxBarHeight);
         const y = midY - (barH / 2);
-        ctx.fillStyle = unplayedGrad;
 
-        // Rounded capsule bar
-        const r = barWidth / 2;
+        ctx.fillStyle = unplayedGrad;
+        const radius = Math.min(barWidth / 2, barH / 2);
         ctx.beginPath();
-        ctx.moveTo(x + r, y);
-        ctx.lineTo(x + barWidth - r, y);
-        ctx.quadraticCurveTo(x + barWidth, y, x + barWidth, y + r);
-        ctx.lineTo(x + barWidth, y + barH - r);
-        ctx.quadraticCurveTo(x + barWidth, y + barH, x + barWidth - r, y + barH);
-        ctx.lineTo(x + r, y + barH);
-        ctx.quadraticCurveTo(x, y + barH, x, y + barH - r);
-        ctx.lineTo(x, y + r);
-        ctx.quadraticCurveTo(x, y, x + r, y);
-        ctx.closePath();
+        if (typeof ctx.roundRect === "function") {
+          ctx.roundRect(x, y, barWidth, barH, radius);
+        } else {
+          ctx.rect(x, y, barWidth, barH);
+        }
         ctx.fill();
       }
 
@@ -2218,32 +2240,33 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         el.inspectorControlsContainer.innerHTML = `
           <div class="space-y-3">
             <div>
-              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Player Label</label>
-              <input type="text" id="insp-audio-label" class="w-full px-2.5 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-900" value="${escapeHtml(selected.label || "")}" />
+              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Player Title</label>
+              <input type="text" id="insp-audio-label" class="w-full px-3 py-2 text-xs bg-white border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 transition" value="${escapeHtml(selected.label || "")}" placeholder="e.g. Speech Audio" />
             </div>
 
             <div>
-              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Audio Source</label>
-              <select id="insp-audio-source" class="w-full px-2.5 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-800">
-                <option value="candidate" ${selected.source_model === "candidate" ? "selected" : ""}>Evaluated Candidate Model</option>
-                <option value="reference" ${selected.source_model === "reference" ? "selected" : ""}>Ground Truth / Baseline Reference</option>
+              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Which audio should this play?</label>
+              <select id="insp-audio-source" class="studio-select w-full px-3 py-2 text-xs">
+                <option value="candidate" ${selected.source_model === "candidate" ? "selected" : ""}>Generated Voice (TTS Model being tested)</option>
+                <option value="reference" ${selected.source_model === "reference" ? "selected" : ""}>Human Reference (Real Speaker recording)</option>
               </select>
+              <div class="text-[10px] text-zinc-500 mt-1">Pick whether this player tests the AI model output or provides a real human recording to compare against.</div>
             </div>
 
-            <div class="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2">
+            <div class="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-1.5 transition">
               <label class="flex items-center justify-between cursor-pointer">
-                <span class="text-xs font-semibold text-zinc-900">Telephone Simulation Filter</span>
+                <span class="text-xs font-semibold text-zinc-900">Phone Call Simulation</span>
                 <input type="checkbox" id="insp-audio-phone" class="w-4 h-4 rounded text-zinc-900" ${selected.phone_filter ? "checked" : ""} />
               </label>
-              <div class="text-[11px] text-zinc-500">Filters audio to 8 kHz telephone quality to test phone call and IVR performance.</div>
+              <div class="text-[11px] text-zinc-500 leading-relaxed">Simulates 8 kHz phone audio to test call center and IVR voice quality.</div>
             </div>
 
-            <div class="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2">
+            <div class="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-1.5 transition">
               <label class="flex items-center justify-between cursor-pointer">
-                <span class="text-xs font-semibold text-zinc-900">Speed Controls (0.8x / 1.0x / 1.2x)</span>
+                <span class="text-xs font-semibold text-zinc-900">Playback Speed Buttons</span>
                 <input type="checkbox" id="insp-audio-speeds" class="w-4 h-4 rounded text-zinc-900" ${selected.speeds ? "checked" : ""} />
               </label>
-              <div class="text-[11px] text-zinc-500">Allow listeners to slow down or speed up playback.</div>
+              <div class="text-[11px] text-zinc-500 leading-relaxed">Adds 0.8x, 1.0x, and 1.2x speed buttons so raters can listen carefully.</div>
             </div>
           </div>
         `;
@@ -2270,20 +2293,20 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         el.inspectorControlsContainer.innerHTML = `
           <div class="space-y-3">
             <div>
-              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Presentation Mode</label>
-              <select id="insp-prompt-mode" class="w-full px-2.5 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-800">
-                <option value="open" ${selected.mode === "open" ? "selected" : ""}>Open (Visible continuously)</option>
-                <option value="blind_gated" ${selected.mode === "blind_gated" ? "selected" : ""}>Blind-Gated (Blurred until revealed)</option>
+              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Text Visibility</label>
+              <select id="insp-prompt-mode" class="studio-select w-full px-3 py-2 text-xs">
+                <option value="open" ${selected.mode === "open" ? "selected" : ""}>Always Visible (Normal Reading)</option>
+                <option value="blind_gated" ${selected.mode === "blind_gated" ? "selected" : ""}>Blurred until Clicked (Blind Hearing Test)</option>
               </select>
-              <div class="text-[10px] text-zinc-500 mt-1">Blind gating blurs the text until revealed to test listening comprehension without bias.</div>
+              <div class="text-[10px] text-zinc-500 mt-1 leading-relaxed">Blurred mode hides the text until the listener presses space or clicks reveal, preventing visual reading bias.</div>
             </div>
 
             <div>
-              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Prompt Size</label>
-              <select id="insp-prompt-size" class="w-full px-2.5 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-800">
+              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Text Size</label>
+              <select id="insp-prompt-size" class="studio-select w-full px-3 py-2 text-xs">
                 <option value="24px" ${selected.font_size === "24px" ? "selected" : ""}>Compact (24px)</option>
                 <option value="32px" ${selected.font_size === "32px" ? "selected" : ""}>Standard (32px)</option>
-                <option value="40px" ${selected.font_size === "40px" ? "selected" : ""}>Hero Large (40px)</option>
+                <option value="40px" ${selected.font_size === "40px" ? "selected" : ""}>Large (40px)</option>
               </select>
             </div>
           </div>
@@ -2304,18 +2327,18 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         el.inspectorControlsContainer.innerHTML = `
           <div class="space-y-3">
             <div>
-              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Tagging Interface Mode</label>
-              <select id="insp-tagger-mode" class="w-full px-2.5 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-800">
-                <option value="both" ${selected.mode === "both" ? "selected" : ""}>Both Word Pills &amp; Waveform Regions</option>
-                <option value="words" ${selected.mode === "words" ? "selected" : ""}>Word Pills Only (Click words)</option>
-                <option value="waveform" ${selected.mode === "waveform" ? "selected" : ""}>Waveform Only (Drag slice)</option>
+              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">How listeners flag errors</label>
+              <select id="insp-tagger-mode" class="studio-select w-full px-3 py-2 text-xs">
+                <option value="both" ${selected.mode === "both" ? "selected" : ""}>Both Click Words &amp; Drag Waveform</option>
+                <option value="words" ${selected.mode === "words" ? "selected" : ""}>Click Words Only</option>
+                <option value="waveform" ${selected.mode === "waveform" ? "selected" : ""}>Drag on Waveform Only</option>
               </select>
             </div>
 
-            <div class="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2">
-              <span class="text-xs font-semibold text-zinc-900 block">Active Defect Categories (6 total)</span>
-              <div class="text-[11px] text-zinc-600">
-                Includes Mispronunciation, Noise/Click, Awkward Pause, Robotic Buzz, Unnatural Pitch, Other.
+            <div class="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-1.5">
+              <span class="text-xs font-semibold text-zinc-900 block">Error Types (6 categories)</span>
+              <div class="text-[11px] text-zinc-600 leading-relaxed">
+                Mispronunciation, Noise/Click, Awkward Pause, Robotic Buzz, Unnatural Pitch, Other.
               </div>
             </div>
           </div>
@@ -2328,29 +2351,32 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       } else if (selected.type === "scoring_questions") {
         const criteria = selected.criteria || [];
         const criteriaListHtml = criteria.map((c, i) => `
-          <div class="flex items-center justify-between p-2 bg-zinc-50 border border-zinc-200 rounded-lg">
+          <div class="flex items-center justify-between p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl">
             <span class="text-xs font-semibold text-zinc-800">${escapeHtml(c.name)}</span>
-            <button type="button" class="btn-insp-remove-crit text-red-500 hover:text-red-700 text-xs" data-idx="${i}">&times;</button>
+            <button type="button" class="btn-insp-remove-crit text-zinc-400 hover:text-red-600 text-xs font-bold p-1 cursor-pointer" data-idx="${i}" title="Remove question">&times;</button>
           </div>
         `).join("");
 
         el.inspectorControlsContainer.innerHTML = `
           <div class="space-y-3">
             <div>
-              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Rating Scale</label>
-              <select id="insp-scoring-scale" class="w-full px-2.5 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-800">
-                <option value="5" ${selected.scale_max === 5 ? "selected" : ""}>1 to 5 Points (Standard MOS)</option>
-                <option value="7" ${selected.scale_max === 7 ? "selected" : ""}>1 to 7 Points (Detailed Scale)</option>
-                <option value="2" ${selected.scale_max === 2 ? "selected" : ""}>Pass / Fail Binary</option>
+              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Score Scale</label>
+              <select id="insp-scoring-scale" class="studio-select w-full px-3 py-2 text-xs">
+                <option value="5" ${selected.scale_max === 5 ? "selected" : ""}>1 to 5 Stars (Standard MOS)</option>
+                <option value="7" ${selected.scale_max === 7 ? "selected" : ""}>1 to 7 Points (High Detail)</option>
+                <option value="2" ${selected.scale_max === 2 ? "selected" : ""}>Pass / Fail</option>
               </select>
             </div>
 
-            <div class="space-y-1.5">
-              <label class="block text-[11px] font-semibold text-zinc-700">Rating Questions (${criteria.length})</label>
-              <div class="space-y-1 max-h-40 overflow-y-auto">${criteriaListHtml}</div>
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <label class="text-[11px] font-semibold text-zinc-700">Questions (${criteria.length})</label>
+                <span class="text-[10px] text-zinc-400">Click &times; to delete</span>
+              </div>
+              <div class="space-y-1.5 max-h-44 overflow-y-auto">${criteriaListHtml}</div>
               <div class="pt-2 flex gap-1.5">
-                <input type="text" id="insp-new-crit-name" placeholder="New question name..." class="flex-1 px-2.5 py-1 text-xs bg-zinc-50 border border-zinc-200 rounded-lg" />
-                <button type="button" id="insp-btn-add-crit" class="px-2.5 py-1 text-xs bg-zinc-900 text-white rounded-lg font-medium cursor-pointer">+</button>
+                <input type="text" id="insp-new-crit-name" placeholder="Add question (e.g. Naturalness)..." class="flex-1 px-3 py-1.5 text-xs bg-white border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900" />
+                <button type="button" id="insp-btn-add-crit" class="px-3 py-1.5 text-xs bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl font-semibold cursor-pointer shadow-2xs transition">+</button>
               </div>
             </div>
           </div>
@@ -2391,12 +2417,12 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       } else if (selected.type === "transcription") {
         el.inspectorControlsContainer.innerHTML = `
           <div class="space-y-3">
-            <div class="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2">
+            <div class="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-1.5">
               <label class="flex items-center justify-between cursor-pointer">
-                <span class="text-xs font-semibold text-zinc-900">Show Real-Time Visual Diff</span>
+                <span class="text-xs font-semibold text-zinc-900">Highlight differences with prompt</span>
                 <input type="checkbox" id="insp-trans-diff" class="w-4 h-4 rounded text-zinc-900" ${selected.show_diff ? "checked" : ""} />
               </label>
-              <div class="text-[11px] text-zinc-500">Highlights inserted, deleted, and substituted Khmer words.</div>
+              <div class="text-[11px] text-zinc-500 leading-relaxed">Colors missing, added, or changed words in green and red to quickly check accuracy.</div>
             </div>
           </div>
         `;
