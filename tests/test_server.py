@@ -808,6 +808,31 @@ class StudioServerTestCase(unittest.TestCase):
             items_data = json.loads(res.read().decode("utf-8"))
             self.assertEqual(items_data["count"], 2)
 
+    def test_decluttered_admin_html_structure(self):
+        """Verify public/admin.html contains the de-cluttered studio creator structure."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        self.assertTrue(os.path.exists(admin_html_path), "public/admin.html must exist")
+
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # 1. Verify unified dropzone and multi-file input
+        self.assertIn('id="dropzone-unified"', content)
+        self.assertIn('id="multi-file-input"', content)
+
+        # 2. Verify expanded viewport width
+        self.assertIn('max-w-6xl', content)
+
+        # 3. Verify no hardcoded default models rendered in the initial HTML template
+        # Check models chips container is clean and empty
+        chips_container_marker = 'id="models-chips-container"'
+        self.assertIn(chips_container_marker, content)
+        chips_section = content.split(chips_container_marker, 1)[1].split('</div>', 1)[0]
+        self.assertNotIn("VoxCPM", chips_section)
+        self.assertNotIn("Meta MMS", chips_section)
+        self.assertNotIn("Kokoro", chips_section)
+        self.assertNotIn("Bark", chips_section)
+
 
 if __name__ == "__main__":
     unittest.main()
