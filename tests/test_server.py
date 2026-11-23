@@ -848,10 +848,11 @@ class StudioServerTestCase(unittest.TestCase):
         with open(admin_html_path, "r", encoding="utf-8") as f:
             content = f.read()
         # Check plain English replacements
-        self.assertIn("Audio Player &amp; Audio Filters", content)
-        self.assertIn("Prompt Text Card", content)
-        self.assertIn("Word Glitch Highlighter", content)
-        self.assertIn("Rating Questions", content)
+        self.assertIn("Audio Player", content)
+        self.assertIn("Prompt Text", content)
+        self.assertIn("Word Highlighter", content)
+        self.assertIn("Rating Scale", content)
+        self.assertIn("Listener Hearing", content)
         # Confirm rainbow dot classes removed from toolbox items
         toolbox_section = content.split('id="builder-toolbox"', 1)[1].split('<!-- ZONE 2', 1)[0]
         self.assertNotIn("bg-emerald-500", toolbox_section)
@@ -864,9 +865,9 @@ class StudioServerTestCase(unittest.TestCase):
         admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
         with open(admin_html_path, "r", encoding="utf-8") as f:
             content = f.read()
-        # Check expanded grid allocation (Canvas gets major width)
+        # Check expanded allocation (Canvas gets flex-1 dominant width)
         self.assertIn('id="builder-canvas"', content)
-        self.assertIn('lg:col-span-6', content)  # Canvas expanded from 5 to at least 6 cols
+        self.assertIn('flex-1', content)
 
 
 
@@ -886,6 +887,15 @@ class StudioServerTestCase(unittest.TestCase):
         self.assertIn("max-w-[1560px]", content)
         self.assertNotIn("Starter Kits:", content)
         self.assertNotIn("btn-kit-mos", content)
+
+
+    def test_step3_customize_drawer_structure(self):
+        """Verify Step 3 contains the collapsible Customize Drawer."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        self.assertIn('id="drawer-customize"', content)
+        self.assertIn("Customize Component", content)
 
 
 if __name__ == "__main__":

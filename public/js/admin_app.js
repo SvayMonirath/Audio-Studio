@@ -212,13 +212,15 @@
     wizBtnStep2Prev: document.getElementById("wiz-btn-step2-prev"),
     wizBtnStep2Next: document.getElementById("wiz-btn-step2-next"),
 
-    // Step 3 (Modular Canvas & Inspector)
+    // Step 3 (Modular Canvas & Customize Drawer)
     btnKitMos: document.getElementById("btn-kit-mos"),
     btnKitVocab: document.getElementById("btn-kit-vocab"),
     btnKitArena: document.getElementById("btn-kit-arena"),
     btnKitBlank: document.getElementById("btn-kit-blank"),
     builderToolbox: document.getElementById("builder-toolbox"),
     builderCanvas: document.getElementById("builder-canvas"),
+    drawerCustomize: document.getElementById("drawer-customize"),
+    btnCloseCustomizeDrawer: document.getElementById("btn-close-customize-drawer"),
     inspectorSelectedTitle: document.getElementById("inspector-selected-title"),
     inspectorBlockBadge: document.getElementById("inspector-block-badge"),
     inspectorControlsContainer: document.getElementById("inspector-controls-container"),
@@ -1700,6 +1702,15 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     if (el.btnKitArena) el.btnKitArena.addEventListener("click", () => applyStarterKit("arena"));
     if (el.btnKitBlank) el.btnKitBlank.addEventListener("click", () => applyStarterKit("blank"));
 
+    // Close Customize Drawer button
+    if (el.btnCloseCustomizeDrawer) {
+      el.btnCloseCustomizeDrawer.addEventListener("click", () => {
+        state.selectedCardId = null;
+        renderCanvas();
+        renderInspector();
+      });
+    }
+
     // Toolbox drag & drop + click add
     if (el.builderToolbox) {
       el.builderToolbox.querySelectorAll(".toolbox-item").forEach(item => {
@@ -1983,9 +1994,13 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           ${previewHtml}
         `;
 
-        // Selection
+        // Selection: toggle selection if clicking the already selected card
         card.addEventListener("click", () => {
-          state.selectedCardId = block.id;
+          if (state.selectedCardId === block.id) {
+            state.selectedCardId = null;
+          } else {
+            state.selectedCardId = block.id;
+          }
           renderCanvas();
           renderInspector();
         });
@@ -2033,7 +2048,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       });
     }
 
-    // Inspector Rendering
+    // Inspector / Customize Drawer Rendering
     function renderInspector() {
       if (!el.inspectorControlsContainer) return;
       el.inspectorControlsContainer.innerHTML = "";
@@ -2042,16 +2057,18 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       const selected = blocks.find(b => b.id === state.selectedCardId);
 
       if (!selected) {
-        if (el.inspectorSelectedTitle) el.inspectorSelectedTitle.textContent = "Select a card on the canvas";
+        if (el.drawerCustomize) el.drawerCustomize.classList.add("hidden");
+        if (el.inspectorSelectedTitle) el.inspectorSelectedTitle.textContent = "-";
         if (el.inspectorBlockBadge) el.inspectorBlockBadge.textContent = "None";
         el.inspectorControlsContainer.innerHTML = `
           <div class="text-zinc-400 text-center py-10 italic">
-            Click any component card in the center canvas to customize its settings.
+            Click any component card in the playground to customize its settings.
           </div>
         `;
         return;
       }
 
+      if (el.drawerCustomize) el.drawerCustomize.classList.remove("hidden");
       if (el.inspectorSelectedTitle) el.inspectorSelectedTitle.textContent = selected.label || selected.type;
       if (el.inspectorBlockBadge) el.inspectorBlockBadge.textContent = selected.type;
 

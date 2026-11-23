@@ -540,13 +540,13 @@
           </div>
         </div>
 
-        <!-- 3-ZONE MODULAR WORKSPACE: Left Toolbox, Center Canvas, Right Inspector -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 min-h-[520px] items-start">
+        <!-- 2-ZONE EXPANSIVE WORKSPACE: Left Toolbox, Dominant Playground Canvas + Collapsible Customize Drawer -->
+        <div class="flex flex-col lg:flex-row gap-5 min-h-[560px] items-start relative">
 
-          <!-- ZONE 1: TOOLBOX (Cols 1-3) -->
-          <div class="lg:col-span-3 bg-zinc-50/60 rounded-2xl p-3 space-y-3">
+          <!-- ZONE 1: TOOLBOX (Compact 64) -->
+          <div class="w-full lg:w-64 shrink-0 bg-zinc-50/60 rounded-2xl p-3 space-y-3">
             <div class="flex items-center justify-between pb-2 border-b border-zinc-200">
-              <span class="text-xs font-bold text-zinc-900 uppercase tracking-wider">Toolbox</span>
+              <span class="text-xs font-bold text-zinc-900 uppercase tracking-wider">Components</span>
               <span class="text-[10px] text-zinc-500">Drag or Click [+]</span>
             </div>
 
@@ -565,9 +565,9 @@
                   </div>
                   <div>
                     <div class="text-xs font-bold text-zinc-900">
-                      Audio Player &amp; Audio Filters
+                      Audio Player
                     </div>
-                    <div class="text-[10px] text-zinc-500 mt-0.5">Play bar, speed controls, phone simulation</div>
+                    <div class="text-[10px] text-zinc-500 mt-0.5">Play bar, speeds, phone filter</div>
                   </div>
                 </div>
                 <button type="button" class="btn-tool-add text-xs font-bold text-zinc-400 hover:text-zinc-900 cursor-pointer p-1" title="Add to Canvas">+</button>
@@ -589,9 +589,9 @@
                   </div>
                   <div>
                     <div class="text-xs font-bold text-zinc-900">
-                      Prompt Text Card
+                      Prompt Text
                     </div>
-                    <div class="text-[10px] text-zinc-500 mt-0.5">Khmer prompt text with optional hidden blur</div>
+                    <div class="text-[10px] text-zinc-500 mt-0.5">Transcript with optional blur</div>
                   </div>
                 </div>
                 <button type="button" class="btn-tool-add text-xs font-bold text-zinc-400 hover:text-zinc-900 cursor-pointer p-1" title="Add to Canvas">+</button>
@@ -611,9 +611,9 @@
                   </div>
                   <div>
                     <div class="text-xs font-bold text-zinc-900">
-                      Word Glitch Highlighter
+                      Word Highlighter
                     </div>
-                    <div class="text-[10px] text-zinc-500 mt-0.5">Clickable words to flag pronunciation errors</div>
+                    <div class="text-[10px] text-zinc-500 mt-0.5">Clickable words to flag glitches</div>
                   </div>
                 </div>
                 <button type="button" class="btn-tool-add text-xs font-bold text-zinc-400 hover:text-zinc-900 cursor-pointer p-1" title="Add to Canvas">+</button>
@@ -633,9 +633,9 @@
                   </div>
                   <div>
                     <div class="text-xs font-bold text-zinc-900">
-                      Rating Questions
+                      Rating Scale
                     </div>
-                    <div class="text-[10px] text-zinc-500 mt-0.5">1–5 Star scores or Pass/Fail questions</div>
+                    <div class="text-[10px] text-zinc-500 mt-0.5">1–5 Stars or Pass/Fail</div>
                   </div>
                 </div>
                 <button type="button" class="btn-tool-add text-xs font-bold text-zinc-400 hover:text-zinc-900 cursor-pointer p-1" title="Add to Canvas">+</button>
@@ -655,9 +655,9 @@
                   </div>
                   <div>
                     <div class="text-xs font-bold text-zinc-900">
-                      Heard Speech Comparison
+                      Listener Hearing
                     </div>
-                    <div class="text-[10px] text-zinc-500 mt-0.5">What did the listener hear? with visual text diff</div>
+                    <div class="text-[10px] text-zinc-500 mt-0.5">"What did you hear?" diff comparison</div>
                   </div>
                 </div>
                 <button type="button" class="btn-tool-add text-xs font-bold text-zinc-400 hover:text-zinc-900 cursor-pointer p-1" title="Add to Canvas">+</button>
@@ -665,36 +665,37 @@
             </div>
           </div>
 
-          <!-- ZONE 2: REORDERABLE CANVAS (Cols 4-9) -->
-          <div class="lg:col-span-6 flex flex-col gap-3">
+          <!-- ZONE 2: EXPANSIVE PLAYGROUND CANVAS -->
+          <div class="flex-1 min-w-0 flex flex-col gap-3">
             <div class="flex items-center justify-between pb-1">
-              <span class="text-xs font-bold text-zinc-900 uppercase tracking-wider">Evaluation Stage Canvas</span>
-              <span class="text-[10px] text-zinc-400">Click a card to inspect; drag handle to reorder</span>
+              <span class="text-xs font-bold text-zinc-900 uppercase tracking-wider">Evaluation Stage</span>
+              <span class="text-[10px] text-zinc-400">Click a card to customize; drag to reorder</span>
             </div>
 
             <div
               id="builder-canvas"
-              class="space-y-3 min-h-[460px] p-3 rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50/50 transition"
+              class="space-y-3 min-h-[460px] p-4 rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50/50 transition"
             >
               <!-- Dynamic Canvas Cards Rendered by JS -->
             </div>
           </div>
 
-          <!-- ZONE 3: INSPECTOR SIDEBAR (Cols 10-12) -->
-          <div class="lg:col-span-3 bg-zinc-50/60 rounded-2xl p-4 space-y-4 sticky top-4">
-            <div class="flex items-center justify-between pb-2.5 border-b border-zinc-200">
+          <!-- ZONE 3: COLLAPSIBLE CUSTOMIZE DRAWER (Hidden by default until card selected) -->
+          <div id="drawer-customize" class="hidden w-full lg:w-80 shrink-0 bg-white border border-zinc-200 rounded-2xl p-4 space-y-4 shadow-sm lg:sticky lg:top-4 transition-all">
+            <div class="flex items-center justify-between pb-2.5 border-b border-zinc-100">
               <div>
-                <span class="text-xs font-bold text-zinc-900 uppercase tracking-wider">Block Inspector</span>
-                <div id="inspector-selected-title" class="text-[11px] text-zinc-500 mt-0.5 font-medium">Select a card on the canvas</div>
+                <span class="text-xs font-bold text-zinc-900 uppercase tracking-wider">Customize Component</span>
+                <div id="inspector-selected-title" class="text-[11px] text-zinc-500 mt-0.5 font-medium">-</div>
               </div>
-              <span id="inspector-block-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-zinc-100 text-zinc-700">None</span>
+              <div class="flex items-center gap-1.5">
+                <span id="inspector-block-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-zinc-100 text-zinc-700">None</span>
+                <button type="button" id="btn-close-customize-drawer" class="text-zinc-400 hover:text-zinc-700 text-sm font-bold p-1 cursor-pointer" title="Close Customize Panel">&times;</button>
+              </div>
             </div>
 
-            <!-- Dynamic Inspector Settings Form -->
+            <!-- Dynamic Customize Settings Form -->
             <div id="inspector-controls-container" class="space-y-4 text-xs">
-              <div class="text-zinc-400 text-center py-10 italic">
-                Click any component card in the center canvas to customize its settings.
-              </div>
+              <!-- Rendered dynamically -->
             </div>
           </div>
 
