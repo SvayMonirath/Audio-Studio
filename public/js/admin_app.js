@@ -1160,17 +1160,25 @@
     async function processCsvFile(file) {
       if (!file) return;
 
+      setDropzoneLoading(true, "Reading and parsing CSV transcript...");
       return new Promise((resolve) => {
         const reader = new FileReader();
         reader.onload = (evt) => {
-          const content = evt.target.result;
-          const parsedRows = parseCsvSmart(content);
-          if (parsedRows) {
-            reconcileAudioAndText(parsedRows);
+          try {
+            const content = evt.target.result;
+            const parsedRows = parseCsvSmart(content);
+            if (parsedRows) {
+              reconcileAudioAndText(parsedRows);
+            }
+          } finally {
+            setDropzoneLoading(false);
+            resolve();
           }
+        };
+        reader.onerror = () => {
+          setDropzoneLoading(false);
           resolve();
         };
-        reader.onerror = () => resolve();
         reader.readAsText(file);
       });
     }

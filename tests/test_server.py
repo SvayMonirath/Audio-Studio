@@ -874,5 +874,13 @@ class StudioServerTestCase(unittest.TestCase):
 
 
 
+    def test_csv_upload_loading_state_wiring(self):
+        """Verify admin_app.js wraps processCsvFile calls with setDropzoneLoading."""
+        admin_js_path = os.path.join(TOOL_DIR, "public", "js", "admin_app.js")
+        with open(admin_js_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        self.assertIn('setDropzoneLoading(true, "Reading and parsing CSV transcript...")', content)
+
+
 if __name__ == "__main__":
     unittest.main()
