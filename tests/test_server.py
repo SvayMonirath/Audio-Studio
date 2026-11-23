@@ -669,5 +669,93 @@ class StudioServerTestCase(unittest.TestCase):
             stored_cfg = json.loads(target["ui_config_json"])
             self.assertTrue(stored_cfg["dsp"]["phone_filter_8khz"])
 
+    def test_modular_campaign_end_to_end(self):
+        """Task 8: End-to-end integration test of modular builder, ui_config, and evaluator rating."""
+        # 1. Create a suite with 5 items
+        suite_id = f"suite-modular-e2e-{int(time.time())}"
+        items_payload = [
+            {
+                "item_key": f"E2E-{i}",
+                "source_text": f"ឃ្លាគំរូទី {i}",
+                "text": f"ឃ្លាគំរូទី {i}",
+                "audio_url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH01.wav"
+            }
+            for i in range(1, 6)
+        ]
+        req_suite = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/suites",
+            data=json.dumps({"id": suite_id, "name": "E2E Modular Suite", "items": items_payload}).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(req_suite) as res:
+            self.assertIn(res.status, [200, 201])
+
+        # 2. Post campaign with modular ui_config (phone filter + blind gating)
+        ui_config = {
+            "dsp": {"phone_filter_8khz": True, "speeds": [0.8, 1.0, 1.2]},
+            "presentation": {"blind_gating": True, "font_size": "32px"},
+            "blocks": [
+                {"id": "blk-prompt-1", "type": "text_prompt", "mode": "blind_gated"},
+                {"id": "blk-audio-1", "type": "audio_player", "phone_filter": True},
+                {"id": "blk-scoring-1", "type": "scoring_questions", "scale_max": 5}
+            ]
+        }
+        camp_req = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/campaigns",
+            data=json.dumps({
+                "name": "E2E Modular Builder Study",
+                "suite_id": suite_id,
+                "rubric_id": "rubric-veaja-p85",
+                "instructions": "E2E evaluation instructions",
+                "ui_config_json": json.dumps(ui_config)
+            }).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(camp_req) as res:
+            self.assertEqual(res.status, 201)
+            camp_data = json.loads(res.read().decode("utf-8"))
+            camp_id = camp_data["campaign_id"]
+
+        # 3. Fetch items for this campaign
+        with urlopen(f"http://127.0.0.1:{TEST_PORT}/api/items?campaign_id={camp_id}") as res:
+            items_data = json.loads(res.read().decode("utf-8"))
+            self.assertEqual(items_data["count"], 5)
+            first_item = items_data["items"][0]
+
+        # 4. Register evaluator and submit evaluation
+        req_rater = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/raters",
+            data=json.dumps({"name": "Modular Evaluator Sokha"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        with urlopen(req_rater) as res:
+            rater_id = json.loads(res.read().decode("utf-8"))["rater"]["id"]
+
+        eval_req = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/evaluations",
+            data=json.dumps({
+                "campaign_id": camp_id,
+                "rater_id": rater_id,
+                "item_id": first_item["id"],
+                "model_id": "model-voxcpm2",
+                "scores": {"naturalness": 5, "pronunciation": 4},
+                "comments": "Auditioned with 8kHz telephone bandpass filter."
+            }).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        with urlopen(eval_req) as res:
+            self.assertEqual(res.status, 201)
+
+        # 5. Check admin summary consensus
+        req_summary = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/admin/summary?campaign_id={camp_id}",
+            headers={"X-Admin-PIN": "2026"}
+        )
+        with urlopen(req_summary) as res:
+            self.assertEqual(res.status, 200)
+            summary = json.loads(res.read().decode("utf-8"))
+            self.assertEqual(summary["total_evaluations"], 1)
+            self.assertEqual(summary["total_raters"], 1)
+
 if __name__ == "__main__":
     unittest.main()
