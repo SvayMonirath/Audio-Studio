@@ -184,6 +184,12 @@
             <span id="audio-model-badge" class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200/80">Khmer-TTS (VITS)</span>
           </div>
           <div class="flex items-center gap-2">
+            <div id="phone-filter-wrapper" class="hidden flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-amber-300 bg-amber-50 text-[11px] font-medium text-amber-900">
+              <label class="flex items-center gap-1 cursor-pointer">
+                <input type="checkbox" id="btn-phone-filter-toggle" class="w-3.5 h-3.5 text-amber-600 rounded cursor-pointer" />
+                <span>8 kHz Telephone Simulation</span>
+              </label>
+            </div>
             <!-- Waveform Mode Toggle (Fish Audio Fluid Scrub vs Defect Tag) -->
             <div class="flex items-center p-0.5 bg-zinc-100 rounded-lg text-[11px] font-medium" id="waveform-mode-toggle">
               <button type="button" id="mode-btn-scrub" class="px-2.5 py-0.5 rounded-md bg-white text-zinc-900 shadow-2xs font-semibold cursor-pointer">Scrub</button>
@@ -206,10 +212,18 @@
         </div>
 
         <!-- Middle: Verbatim Khmer Transcript (TTS Mode) -->
-        <div id="tts-transcript-container" class="py-1">
+        <div id="tts-transcript-container" class="py-1 relative">
           <div class="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-1">Transcript to Evaluate • អត្ថបទសម្រាប់វាយតម្លៃ</div>
-          <div id="raw-khmer-content" class="raw-khmer-text text-xl font-khmer text-zinc-900 select-text leading-relaxed">
+          <div id="raw-khmer-content" class="raw-khmer-text text-xl font-khmer text-zinc-900 select-text leading-relaxed transition-all duration-200">
             Loading transcript...
+          </div>
+          <!-- Blind-Gating Reveal Overlay -->
+          <div id="prompt-gating-overlay" class="hidden absolute inset-0 bg-white/70 backdrop-blur-md rounded-xl flex flex-col items-center justify-center gap-2 z-10 p-4">
+            <span class="text-xs font-semibold text-zinc-800">Blind Pronunciation Test — Prompt is hidden until revealed</span>
+            <button type="button" id="btn-reveal-prompt" class="px-3.5 py-1.5 text-xs bg-zinc-900 text-white rounded-lg font-medium hover:bg-zinc-800 transition cursor-pointer shadow-sm flex items-center gap-1.5">
+              <span>Reveal Prompt Transcript</span>
+              <span class="text-[10px] text-zinc-400 font-mono">(Space)</span>
+            </button>
           </div>
         </div>
 
@@ -356,6 +370,11 @@
         <!-- Tagged Defect Regions List -->
         <div id="defect-tags-list" class="flex flex-wrap gap-1.5 items-center min-h-[22px]">
           <!-- Dynamic defect badges appear here -->
+        </div>
+
+        <!-- Word Pills Container Hook for Word-Level Tagging -->
+        <div id="word-pills-container" class="hidden flex flex-wrap gap-1.5 pt-2 border-t border-zinc-100">
+          <!-- Dynamic word pill tokens mounted here -->
         </div>
 
         <!-- Floating Region Defect Tag Popover -->

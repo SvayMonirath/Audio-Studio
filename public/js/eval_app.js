@@ -145,6 +145,12 @@
     tryoutAsrDiffContent: document.getElementById("tryout-asr-diff-content"),
 
     // Instructions Modal
+    phoneFilterWrapper: document.getElementById("phone-filter-wrapper"),
+    btnPhoneFilterToggle: document.getElementById("btn-phone-filter-toggle"),
+    promptGatingOverlay: document.getElementById("prompt-gating-overlay"),
+    btnRevealPrompt: document.getElementById("btn-reveal-prompt"),
+    wordPillsContainer: document.getElementById("word-pills-container"),
+    rawKhmerContent: document.getElementById("raw-khmer-content"),
     btnShowInstructions: document.getElementById("btn-show-instructions"),
     modalInstructions: document.getElementById("modal-instructions"),
     btnCloseInstructions: document.getElementById("btn-close-instructions"),
@@ -1127,6 +1133,71 @@
 
       const rawText = item.source_text || item.text || item.prompt_text || "No transcript available.";
       el.rawKhmerContent.textContent = rawText;
+    }
+
+    // Parse ui_config_json if present on campaign
+    let uiConfig = null;
+    if (state.campaign?.ui_config_json) {
+      try {
+        uiConfig = typeof state.campaign.ui_config_json === "string" ? JSON.parse(state.campaign.ui_config_json) : state.campaign.ui_config_json;
+      } catch (e) {}
+    }
+
+    // 1. DSP 8 kHz Phone Filter Toggle
+    if (uiConfig?.dsp?.phone_filter_8khz) {
+      if (el.phoneFilterWrapper) el.phoneFilterWrapper.classList.remove("hidden");
+      if (el.btnPhoneFilterToggle) {
+        el.btnPhoneFilterToggle.onchange = (e) => {
+          window.dspEngine.setPhoneFilter(e.target.checked);
+          showToast(e.target.checked ? "8 kHz Telephone Bandpass Filter active." : "8 kHz Telephone Filter bypassed.", "info");
+        };
+      }
+    } else {
+      if (el.phoneFilterWrapper) el.phoneFilterWrapper.classList.add("hidden");
+    }
+
+    // 2. Blind-Gated Presentation (Blur Prompt until revealed)
+    const isBlindGated = uiConfig?.presentation?.blind_gating || false;
+    if (isBlindGated && !isAsr) {
+      if (el.rawKhmerContent) el.rawKhmerContent.classList.add("filter", "blur-md", "select-none");
+      if (el.promptGatingOverlay) el.promptGatingOverlay.classList.remove("hidden");
+      if (el.btnRevealPrompt) {
+        el.btnRevealPrompt.onclick = () => {
+          if (el.rawKhmerContent) el.rawKhmerContent.classList.remove("filter", "blur-md", "select-none");
+          if (el.promptGatingOverlay) el.promptGatingOverlay.classList.add("hidden");
+        };
+      }
+    } else {
+      if (el.rawKhmerContent) el.rawKhmerContent.classList.remove("filter", "blur-md", "select-none");
+      if (el.promptGatingOverlay) el.promptGatingOverlay.classList.add("hidden");
+    }
+
+    // 3. Word-Level Tagging Pills (if word_tagger active)
+    const taggerBlock = uiConfig?.blocks?.find(b => b.type === "word_tagger");
+    if (taggerBlock && el.wordPillsContainer && !isAsr) {
+      const rawText = item.source_text || item.text || item.prompt_text || "";
+      const words = rawText.split(/\s+/).filter(Boolean);
+      if (words.length > 0) {
+        el.wordPillsContainer.classList.remove("hidden");
+        el.wordPillsContainer.innerHTML = words.map((w, wIdx) => `
+          <button type="button" class="px-2 py-0.5 rounded-lg border border-zinc-200 bg-white hover:bg-amber-50 hover:border-amber-400 text-xs font-khmer text-zinc-800 transition cursor-pointer word-pill-btn" data-word="${escapeHtml(w)}" data-widx="${wIdx}">
+            ${escapeHtml(w)}
+          </button>
+        `).join("");
+
+        el.wordPillsContainer.querySelectorAll(".word-pill-btn").forEach(pBtn => {
+          pBtn.onclick = () => {
+            pBtn.classList.toggle("bg-amber-100");
+            pBtn.classList.toggle("border-amber-500");
+            pBtn.classList.toggle("text-amber-900");
+            showToast(`Marked word "${pBtn.dataset.word}"`, "info");
+          };
+        });
+      } else {
+        el.wordPillsContainer.classList.add("hidden");
+      }
+    } else {
+      if (el.wordPillsContainer) el.wordPillsContainer.classList.add("hidden");
     }
 
     // 2. Resolve Audio URL
