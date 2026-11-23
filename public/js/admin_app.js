@@ -2065,17 +2065,18 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
 
             <div class="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2">
               <label class="flex items-center justify-between cursor-pointer">
-                <span class="text-xs font-semibold text-zinc-900">8 kHz Telephone Simulation Filter</span>
+                <span class="text-xs font-semibold text-zinc-900">Telephone Simulation Filter</span>
                 <input type="checkbox" id="insp-audio-phone" class="w-4 h-4 rounded text-zinc-900" ${selected.phone_filter ? "checked" : ""} />
               </label>
-              <div class="text-[11px] text-zinc-500">Bandpass 300 Hz to 3,400 Hz simulation for telephony and IVR benchmarks.</div>
+              <div class="text-[11px] text-zinc-500">Filters audio to 8 kHz telephone quality to test phone call and IVR performance.</div>
             </div>
 
             <div class="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2">
               <label class="flex items-center justify-between cursor-pointer">
-                <span class="text-xs font-semibold text-zinc-900">Show Speed Controls (0.8x / 1.0x / 1.2x)</span>
+                <span class="text-xs font-semibold text-zinc-900">Speed Controls (0.8x / 1.0x / 1.2x)</span>
                 <input type="checkbox" id="insp-audio-speeds" class="w-4 h-4 rounded text-zinc-900" ${selected.speeds ? "checked" : ""} />
               </label>
+              <div class="text-[11px] text-zinc-500">Allow listeners to slow down or speed up playback.</div>
             </div>
           </div>
         `;
@@ -2107,11 +2108,11 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
                 <option value="open" ${selected.mode === "open" ? "selected" : ""}>Open (Visible continuously)</option>
                 <option value="blind_gated" ${selected.mode === "blind_gated" ? "selected" : ""}>Blind-Gated (Blurred until revealed)</option>
               </select>
-              <div class="text-[10px] text-zinc-500 mt-1">Blind gating prevents bias when testing pronunciation.</div>
+              <div class="text-[10px] text-zinc-500 mt-1">Blind gating blurs the text until revealed to test listening comprehension without bias.</div>
             </div>
 
             <div>
-              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Font Size</label>
+              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Prompt Size</label>
               <select id="insp-prompt-size" class="w-full px-2.5 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-800">
                 <option value="24px" ${selected.font_size === "24px" ? "selected" : ""}>Compact (24px)</option>
                 <option value="32px" ${selected.font_size === "32px" ? "selected" : ""}>Standard (32px)</option>
@@ -2169,16 +2170,16 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         el.inspectorControlsContainer.innerHTML = `
           <div class="space-y-3">
             <div>
-              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Point Scale</label>
+              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Rating Scale</label>
               <select id="insp-scoring-scale" class="w-full px-2.5 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-800">
-                <option value="5" ${selected.scale_max === 5 ? "selected" : ""}>1 to 5 Points (Standard ITU-T MOS)</option>
+                <option value="5" ${selected.scale_max === 5 ? "selected" : ""}>1 to 5 Points (Standard MOS)</option>
                 <option value="7" ${selected.scale_max === 7 ? "selected" : ""}>1 to 7 Points (Detailed Scale)</option>
                 <option value="2" ${selected.scale_max === 2 ? "selected" : ""}>Pass / Fail Binary</option>
               </select>
             </div>
 
             <div class="space-y-1.5">
-              <label class="block text-[11px] font-semibold text-zinc-700">Questions (${criteria.length})</label>
+              <label class="block text-[11px] font-semibold text-zinc-700">Rating Questions (${criteria.length})</label>
               <div class="space-y-1 max-h-40 overflow-y-auto">${criteriaListHtml}</div>
               <div class="pt-2 flex gap-1.5">
                 <input type="text" id="insp-new-crit-name" placeholder="New question name..." class="flex-1 px-2.5 py-1 text-xs bg-zinc-50 border border-zinc-200 rounded-lg" />
