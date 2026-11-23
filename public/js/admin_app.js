@@ -1777,12 +1777,23 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       if (blocks.length === 0) {
         el.builderCanvas.innerHTML = `
           <div class="text-center py-16 text-zinc-400">
-            <div class="text-xs font-semibold text-zinc-600">Canvas is Empty</div>
-            <div class="text-[11px] mt-1">Drag components from the Toolbox or pick a Starter Kit above.</div>
+            <div class="text-xs font-semibold text-zinc-600">Playground is Empty</div>
+            <div class="text-[11px] mt-1">Add components from the left menu to build your test.</div>
           </div>
         `;
         return;
       }
+
+      // Sample item for real preview binding
+      const sampleItem = state.wizardData.items && state.wizardData.items.length > 0
+        ? state.wizardData.items[0]
+        : null;
+      const sampleText = sampleItem && sampleItem.text
+        ? sampleItem.text
+        : "អត្ថបទគំរូសម្រាប់វាយតម្លៃ (Sample Transcript Text)";
+      const sampleAudioName = sampleItem && sampleItem.filename
+        ? sampleItem.filename
+        : "KH01_sample.wav";
 
       blocks.forEach((block, idx) => {
         const isSelected = block.id === state.selectedCardId;
@@ -1796,19 +1807,20 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         let sub = "";
 
         if (block.type === "audio_player") {
-          title = block.label || "Audio Player & DSP";
-          sub = `Speeds: ${block.speeds ? "Yes" : "No"} • 8kHz Filter: ${block.phone_filter ? "Enabled" : "Off"}`;
+          title = block.label || "Audio Player";
+          sub = `Speeds: ${block.speeds !== false ? "Yes" : "No"} • 8kHz Filter: ${block.phone_filter ? "Enabled" : "Off"}`;
         } else if (block.type === "text_prompt") {
-          title = "Prompt Text Card";
+          title = "Prompt Text";
           sub = `Mode: ${block.mode === "blind_gated" ? "Blind-Gated (Blurred)" : "Open Verbatim"} • Size: ${block.font_size || "32px"}`;
         } else if (block.type === "word_tagger") {
-          title = "Word Glitch Highlighter";
+          title = "Word Highlighter";
           sub = `Tagging: ${block.mode} • Taxonomies: ${block.active_taxonomies || "all"}`;
         } else if (block.type === "scoring_questions") {
-          title = `Rating Questions (${block.criteria?.length || 0} questions)`;
+          const count = block.criteria ? block.criteria.length : 0;
+          title = `Rating Scale (${count} question${count === 1 ? "" : "s"})`;
           sub = `Scale: 1 to ${block.scale_max || 5} Points`;
         } else if (block.type === "transcription") {
-          title = "Heard Speech Comparison";
+          title = "Listener Hearing";
           sub = `Visual Diff: ${block.show_diff ? "Active" : "Off"}`;
         }
 
@@ -1818,76 +1830,38 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           const showSpeeds = block.speeds !== false;
           const showFilter = Boolean(block.phone_filter);
           previewHtml = `
-            <div class="mt-3 p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl space-y-2.5">
-              <div class="flex items-center justify-between">
+            <div class="mt-3 p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl space-y-2">
+              <div class="flex items-center justify-between text-xs text-zinc-600">
                 <div class="flex items-center gap-2">
-                  <div class="w-8 h-8 rounded-full bg-zinc-900 text-white flex items-center justify-center shrink-0 shadow-2xs">
-                    <svg class="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                  </div>
-                  <div>
-                    <span class="text-xs font-mono font-semibold text-zinc-900">0:00 / 0:04</span>
-                    <span class="text-[10px] text-zinc-400 block font-sans">${escapeHtml(block.source_model || "Candidate Model")}</span>
-                  </div>
+                  <span class="font-bold text-zinc-900">${escapeHtml(block.label || "Audio Player")}</span>
+                  <span class="text-zinc-400">•</span>
+                  <span class="font-mono text-zinc-500">${escapeHtml(sampleAudioName)}</span>
                 </div>
                 <div class="flex items-center gap-1.5">
                   ${showFilter ? `<span class="px-2 py-0.5 rounded-md text-[10px] font-medium bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>8 kHz Phone</span>` : ""}
-                  ${showSpeeds ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-white border border-zinc-200 text-zinc-700">0.8x</span><span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-zinc-900 text-white">1.0x</span>` : ""}
+                  ${showSpeeds ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-white border border-zinc-200 text-zinc-700">0.8x</span><span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-zinc-900 text-white">1.0x</span><span class="px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-white border border-zinc-200 text-zinc-700">1.2x</span>` : ""}
                 </div>
               </div>
-              <!-- Simulated Waveform SVG -->
-              <div class="h-12 w-full bg-zinc-900 rounded-lg p-2 flex items-center gap-1 overflow-hidden">
-                <svg class="w-full h-8 text-emerald-400/80" viewBox="0 0 300 32" preserveAspectRatio="none">
-                  <rect x="0" y="10" width="3" height="12" rx="1.5" fill="currentColor" opacity="0.4"/>
-                  <rect x="6" y="7" width="3" height="18" rx="1.5" fill="currentColor" opacity="0.6"/>
-                  <rect x="12" y="12" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.5"/>
-                  <rect x="18" y="4" width="3" height="24" rx="1.5" fill="currentColor" opacity="0.8"/>
-                  <rect x="24" y="2" width="3" height="28" rx="1.5" fill="currentColor"/>
-                  <rect x="30" y="6" width="3" height="20" rx="1.5" fill="currentColor" opacity="0.9"/>
-                  <rect x="36" y="9" width="3" height="14" rx="1.5" fill="currentColor" opacity="0.7"/>
-                  <rect x="42" y="13" width="3" height="6" rx="1.5" fill="currentColor" opacity="0.4"/>
-                  <rect x="48" y="5" width="3" height="22" rx="1.5" fill="currentColor" opacity="0.85"/>
-                  <rect x="54" y="8" width="3" height="16" rx="1.5" fill="currentColor" opacity="0.7"/>
-                  <rect x="60" y="11" width="3" height="10" rx="1.5" fill="currentColor" opacity="0.5"/>
-                  <rect x="66" y="3" width="3" height="26" rx="1.5" fill="currentColor" opacity="0.95"/>
-                  <rect x="72" y="7" width="3" height="18" rx="1.5" fill="currentColor" opacity="0.7"/>
-                  <rect x="78" y="12" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.4"/>
-                  <rect x="84" y="6" width="3" height="20" rx="1.5" fill="currentColor" opacity="0.8"/>
-                  <rect x="90" y="1" width="3" height="30" rx="1.5" fill="currentColor"/>
-                  <rect x="96" y="4" width="3" height="24" rx="1.5" fill="currentColor" opacity="0.85"/>
-                  <rect x="102" y="10" width="3" height="12" rx="1.5" fill="currentColor" opacity="0.6"/>
-                  <rect x="108" y="14" width="3" height="4" rx="1.5" fill="currentColor" opacity="0.3"/>
-                  <rect x="114" y="5" width="3" height="22" rx="1.5" fill="currentColor" opacity="0.8"/>
-                  <rect x="120" y="8" width="3" height="16" rx="1.5" fill="currentColor" opacity="0.7"/>
-                  <rect x="126" y="2" width="3" height="28" rx="1.5" fill="currentColor"/>
-                  <rect x="132" y="7" width="3" height="18" rx="1.5" fill="currentColor" opacity="0.7"/>
-                  <rect x="138" y="11" width="3" height="10" rx="1.5" fill="currentColor" opacity="0.5"/>
-                  <rect x="144" y="6" width="3" height="20" rx="1.5" fill="currentColor" opacity="0.8"/>
-                  <rect x="150" y="12" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.4"/>
-                  <rect x="156" y="4" width="3" height="24" rx="1.5" fill="currentColor" opacity="0.85"/>
-                  <rect x="162" y="8" width="3" height="16" rx="1.5" fill="currentColor" opacity="0.6"/>
-                  <rect x="168" y="3" width="3" height="26" rx="1.5" fill="currentColor" opacity="0.9"/>
-                  <rect x="174" y="7" width="3" height="18" rx="1.5" fill="currentColor" opacity="0.7"/>
-                  <rect x="180" y="13" width="3" height="6" rx="1.5" fill="currentColor" opacity="0.4"/>
-                  <rect x="186" y="5" width="3" height="22" rx="1.5" fill="currentColor" opacity="0.8"/>
-                  <rect x="192" y="10" width="3" height="12" rx="1.5" fill="currentColor" opacity="0.5"/>
-                  <rect x="198" y="2" width="3" height="28" rx="1.5" fill="currentColor"/>
-                  <rect x="204" y="6" width="3" height="20" rx="1.5" fill="currentColor" opacity="0.8"/>
-                  <rect x="210" y="9" width="3" height="14" rx="1.5" fill="currentColor" opacity="0.6"/>
-                  <rect x="216" y="4" width="3" height="24" rx="1.5" fill="currentColor" opacity="0.85"/>
-                  <rect x="222" y="11" width="3" height="10" rx="1.5" fill="currentColor" opacity="0.5"/>
-                  <rect x="228" y="7" width="3" height="18" rx="1.5" fill="currentColor" opacity="0.7"/>
-                  <rect x="234" y="1" width="3" height="30" rx="1.5" fill="currentColor"/>
-                  <rect x="240" y="8" width="3" height="16" rx="1.5" fill="currentColor" opacity="0.65"/>
-                  <rect x="246" y="12" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.4"/>
-                  <rect x="252" y="5" width="3" height="22" rx="1.5" fill="currentColor" opacity="0.8"/>
-                  <rect x="258" y="9" width="3" height="14" rx="1.5" fill="currentColor" opacity="0.6"/>
-                  <rect x="264" y="3" width="3" height="26" rx="1.5" fill="currentColor" opacity="0.9"/>
-                  <rect x="270" y="7" width="3" height="18" rx="1.5" fill="currentColor" opacity="0.7"/>
-                  <rect x="276" y="12" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.4"/>
-                  <rect x="282" y="6" width="3" height="20" rx="1.5" fill="currentColor" opacity="0.75"/>
-                  <rect x="288" y="10" width="3" height="12" rx="1.5" fill="currentColor" opacity="0.5"/>
-                  <rect x="294" y="14" width="3" height="4" rx="1.5" fill="currentColor" opacity="0.3"/>
-                </svg>
+
+              <!-- Authentic Client Waveform Deck from eval.html -->
+              <div class="flex items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  class="w-12 h-12 flex-shrink-0 rounded-full bg-zinc-900 text-white flex items-center justify-center shadow-sm cursor-default"
+                  title="Audio Playback Preview"
+                >
+                  <svg class="w-5 h-5 ml-0.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                </button>
+
+                <div class="flex-1 min-w-0 flex flex-col gap-1.5">
+                  <div class="flex items-center justify-between text-[11px] text-zinc-500">
+                    <span class="font-medium text-xs font-mono">0.00s / 3.42s</span>
+                    <span class="hidden sm:inline text-zinc-400">Audio waveform deck</span>
+                  </div>
+                  <div class="waveform-canvas-box rounded-lg overflow-hidden h-[76px] relative bg-zinc-900">
+                    <canvas class="preview-waveform-canvas w-full h-[76px] block" data-card-id="${block.id}"></canvas>
+                  </div>
+                </div>
               </div>
             </div>
           `;
@@ -1898,7 +1872,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
             <div class="mt-3 p-4 bg-zinc-50 border border-zinc-200/80 rounded-xl relative overflow-hidden">
               <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">Transcript to Evaluate • អត្ថបទសម្រាប់វាយតម្លៃ</div>
               <div class="font-khmer text-zinc-900 leading-relaxed ${isGated ? "blur-xs select-none" : ""}" style="font-size: ${fontSize};">
-                អាឡូ សួស្តីបង! មានអីឲ្យខ្ញុំជួយបានខ្លះ?
+                ${escapeHtml(sampleText)}
               </div>
               ${isGated ? `
                 <div class="absolute inset-0 bg-white/70 backdrop-blur-xs flex flex-col items-center justify-center gap-1.5 p-3 text-center">
@@ -1911,16 +1885,23 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
             </div>
           `;
         } else if (block.type === "word_tagger") {
+          const words = sampleText.split(/\s+/).filter(Boolean);
+          const displayWords = words.length > 0 ? words.slice(0, 7) : ["ពាក្យទីមួយ", "ពាក្យទីពីរ", "ពាក្យទីបី"];
           previewHtml = `
             <div class="mt-3 p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl space-y-2">
               <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Clickable Word Tokens • សម្គាល់ពាក្យខុស</div>
               <div class="flex flex-wrap gap-2 items-center">
-                <span class="px-2.5 py-1 bg-white border border-zinc-200 rounded-lg text-sm font-khmer text-zinc-800 shadow-2xs">អាឡូ</span>
-                <span class="px-2.5 py-1 bg-amber-50 border-2 border-amber-400 rounded-lg text-sm font-khmer text-amber-900 font-semibold shadow-2xs relative">
-                  សួស្តីបង!
-                  <span class="absolute -top-2.5 -right-2 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-amber-500 text-white font-sans uppercase shadow-xs">Glitch</span>
-                </span>
-                <span class="px-2.5 py-1 bg-white border border-zinc-200 rounded-lg text-sm font-khmer text-zinc-800 shadow-2xs">មានអីឲ្យខ្ញុំជួយបានខ្លះ?</span>
+                ${displayWords.map((w, wIdx) => {
+                  if (wIdx === 1) {
+                    return `
+                      <span class="px-2.5 py-1 bg-amber-50 border-2 border-amber-400 rounded-lg text-sm font-khmer text-amber-900 font-semibold shadow-2xs relative">
+                        ${escapeHtml(w)}
+                        <span class="absolute -top-2.5 -right-2 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-amber-500 text-white font-sans uppercase shadow-xs">Glitch</span>
+                      </span>
+                    `;
+                  }
+                  return `<span class="px-2.5 py-1 bg-white border border-zinc-200 rounded-lg text-sm font-khmer text-zinc-800 shadow-2xs">${escapeHtml(w)}</span>`;
+                }).join("")}
               </div>
               <div class="flex items-center gap-1.5 pt-1 text-[10px] text-zinc-500">
                 <span class="inline-block w-2 h-2 rounded-full bg-amber-500"></span>
@@ -1929,49 +1910,60 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
             </div>
           `;
         } else if (block.type === "scoring_questions") {
-          const criteria = block.criteria && block.criteria.length > 0 ? block.criteria : [
-            { name: "Naturalness", desc: "Does it sound like a real human speaking?" },
-            { name: "Pronunciation Accuracy", desc: "Are vowels and consonants clear?" }
-          ];
+          const criteria = block.criteria || [];
           const scaleMax = block.scale_max || 5;
-          const criteriaColsHtml = criteria.map(c => `
-            <div class="p-2.5 bg-white border border-zinc-200 rounded-lg space-y-1.5">
-              <div class="flex items-baseline justify-between">
-                <div class="text-xs font-bold text-zinc-900">${escapeHtml(c.name)}</div>
-                <span class="text-[9px] text-zinc-400">1 to ${scaleMax}</span>
-              </div>
-              <div class="text-[10px] text-zinc-500 truncate" title="${escapeHtml(c.desc || "")}">${escapeHtml(c.desc || "")}</div>
-              <div class="flex gap-1 pt-1">
-                ${Array.from({ length: scaleMax }, (_, i) => i + 1).map(num => `
-                  <div class="flex-1 h-7 rounded border ${num === 4 ? "bg-zinc-900 border-zinc-900 text-white" : "bg-zinc-50 border-zinc-200 text-zinc-700"} flex items-center justify-center text-xs font-semibold">
-                    ${num}
-                  </div>
-                `).join("")}
-              </div>
-            </div>
-          `).join("");
 
-          previewHtml = `
-            <div class="mt-3 p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl space-y-2">
-              <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Evaluator Rubric • លក្ខណៈវិនិច្ឆ័យ</div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                ${criteriaColsHtml}
+          if (criteria.length === 0) {
+            previewHtml = `
+              <div class="mt-3 p-4 bg-zinc-50 border border-dashed border-zinc-300 rounded-xl text-center">
+                <div class="text-xs font-medium text-zinc-500">No rating questions added yet.</div>
+                <div class="text-[11px] text-zinc-400 mt-0.5">Click to select this card and add rating questions in the right panel.</div>
               </div>
-            </div>
-          `;
+            `;
+          } else {
+            const criteriaColsHtml = criteria.map(c => `
+              <div class="p-2.5 bg-white border border-zinc-200 rounded-lg space-y-1.5">
+                <div class="flex items-baseline justify-between">
+                  <div class="text-xs font-bold text-zinc-900">${escapeHtml(c.name)}</div>
+                  <span class="text-[9px] text-zinc-400">1 to ${scaleMax}</span>
+                </div>
+                <div class="text-[10px] text-zinc-500 truncate" title="${escapeHtml(c.desc || "")}">${escapeHtml(c.desc || "")}</div>
+                <div class="flex gap-1 pt-1">
+                  ${Array.from({ length: scaleMax }, (_, i) => i + 1).map(num => `
+                    <div class="flex-1 h-7 rounded border ${num === 4 ? "bg-zinc-900 border-zinc-900 text-white" : "bg-zinc-50 border-zinc-200 text-zinc-700"} flex items-center justify-center text-xs font-semibold">
+                      ${num}
+                    </div>
+                  `).join("")}
+                </div>
+              </div>
+            `).join("");
+
+            previewHtml = `
+              <div class="mt-3 p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl space-y-2">
+                <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Evaluator Rubric • លក្ខណៈវិនិច្ឆ័យ</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  ${criteriaColsHtml}
+                </div>
+              </div>
+            `;
+          }
         } else if (block.type === "transcription") {
+          const showDiff = Boolean(block.show_diff);
           previewHtml = `
             <div class="mt-3 p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl space-y-2">
               <div class="flex items-center justify-between">
                 <span class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Listener Transcription • តើអ្នកឮអ្វី?</span>
-                <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">Visual Diff Active</span>
+                ${showDiff ? `<span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">Visual Diff Active</span>` : `<span class="text-[10px] font-medium px-2 py-0.5 rounded bg-zinc-100 text-zinc-600">Standard Text Input</span>`}
               </div>
               <div class="p-2 bg-white border border-zinc-300 rounded-lg text-xs font-khmer text-zinc-700">
-                អាឡូ សួស្តីបង! មានអីឲ្យខ្ញុំជួយបានខ្លះ?
+                ${escapeHtml(sampleText)}
               </div>
-              <div class="p-2 bg-zinc-100 rounded-lg text-xs font-khmer leading-relaxed">
-                <span>អាឡូ</span> <span class="bg-red-100 text-red-700 line-through px-1 rounded">សួស្ដី</span> <span class="bg-emerald-100 text-emerald-800 font-bold px-1 rounded">សួស្តីបង!</span> <span>មានអីឲ្យខ្ញុំជួយបានខ្លះ?</span>
-              </div>
+              ${showDiff ? `
+                <div class="p-2 bg-zinc-100 rounded-lg text-xs font-khmer leading-relaxed">
+                  <span class="text-zinc-500 text-[10px] block font-sans mb-0.5">Real-time diff comparison vs prompt:</span>
+                  <span>${escapeHtml(sampleText)}</span>
+                </div>
+              ` : ""}
             </div>
           `;
         }
@@ -2046,6 +2038,70 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
 
         el.builderCanvas.appendChild(card);
       });
+
+      // Draw authentic waveform bars on preview canvases
+      el.builderCanvas.querySelectorAll(".preview-waveform-canvas").forEach((canvas) => {
+        drawPreviewWaveform(canvas);
+      });
+    }
+
+    function drawPreviewWaveform(canvas) {
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const width = canvas.parentElement?.clientWidth || 400;
+      const height = 76;
+
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, width, height);
+
+      const barWidth = 3;
+      const barGap = 2;
+      const totalBars = Math.max(10, Math.floor(width / (barWidth + barGap)));
+      const midY = height / 2;
+      const maxBarHeight = height - 16;
+
+      // Unplayed gradient
+      const unplayedGrad = ctx.createLinearGradient(0, midY - (maxBarHeight / 2), 0, midY + (maxBarHeight / 2));
+      unplayedGrad.addColorStop(0, "#D4D4D8");
+      unplayedGrad.addColorStop(0.5, "#A1A1AA");
+      unplayedGrad.addColorStop(1, "#71717A");
+
+      // Seeded synthetic acoustic waveform pattern
+      for (let i = 0; i < totalBars; i++) {
+        const x = i * (barWidth + barGap);
+        const norm = i / totalBars;
+        // Natural speech acoustic envelope simulation (syllabic bursts)
+        const envelope = Math.sin(norm * Math.PI) * (0.35 + 0.65 * Math.sin(norm * 14) ** 2);
+        const jitter = ((i * 17 + 7) % 19) / 19 * 0.4;
+        const barH = Math.max(4, Math.min(maxBarHeight, (envelope * 0.7 + jitter * 0.3) * maxBarHeight));
+
+        const y = midY - (barH / 2);
+        ctx.fillStyle = unplayedGrad;
+
+        // Rounded capsule bar
+        const r = barWidth / 2;
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + barWidth - r, y);
+        ctx.quadraticCurveTo(x + barWidth, y, x + barWidth, y + r);
+        ctx.lineTo(x + barWidth, y + barH - r);
+        ctx.quadraticCurveTo(x + barWidth, y + barH, x + barWidth - r, y + barH);
+        ctx.lineTo(x + r, y + barH);
+        ctx.quadraticCurveTo(x, y + barH, x, y + barH - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      ctx.restore();
     }
 
     // Inspector / Customize Drawer Rendering

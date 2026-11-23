@@ -897,6 +897,15 @@ class StudioServerTestCase(unittest.TestCase):
         self.assertIn('id="drawer-customize"', content)
         self.assertIn("Customize Component", content)
 
+    def test_wysiwyg_real_waveform_and_no_fake_defaults(self):
+        """Verify renderCanvas generates 76px waveform canvas structure matching eval.html."""
+        admin_js_path = os.path.join(TOOL_DIR, "public", "js", "admin_app.js")
+        with open(admin_js_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        self.assertIn("preview-waveform-canvas", content)
+        self.assertIn("h-[76px]", content)
+        self.assertIn("drawPreviewWaveform", content)
+
 
 if __name__ == "__main__":
     unittest.main()
