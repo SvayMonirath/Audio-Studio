@@ -750,6 +750,13 @@ class StudioHandler(BaseHTTPRequestHandler):
                 else:
                     defect_types_json = None
                 collect_transcription = 1 if payload.get("collect_transcription") else 0
+                ui_config = payload.get("ui_config") or payload.get("ui_config_json")
+                if isinstance(ui_config, (dict, list)):
+                    ui_config_json = json.dumps(ui_config)
+                elif isinstance(ui_config, str):
+                    ui_config_json = ui_config
+                else:
+                    ui_config_json = None
 
                 if not name:
                     self.send_json_response({"error": "Campaign name is required."}, status=400)
@@ -759,11 +766,31 @@ class StudioHandler(BaseHTTPRequestHandler):
                 if modality not in ("TTS", "ASR"):
                     modality = "TTS"
                 cur.execute("""
-                INSERT INTO campaigns (id, project_id, name, suite_id, rubric_id, instructions, defect_types_json, collect_transcription, modality, is_active)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-                """, (c_id, p_id, name, suite_id, rubric_id, instructions, defect_types_json, collect_transcription, modality))
+                INSERT INTO campaigns (id, project_id, name, suite_id, rubric_id, instructions, defect_types_json, collect_transcription, modality, ui_config_json, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                """, (c_id, p_id, name, suite_id, rubric_id, instructions, defect_types_json, collect_transcription, modality, ui_config_json))
                 conn.commit()
                 self.send_json_response({"success": True, "campaign_id": c_id}, status=201)
+                return
+
+            if path == "/api/link-folder":
+                folder_path = payload.get("folder_path", "").strip()
+                if not folder_path:
+                    self.send_json_response({"error": "folder_path is required."}, status=400)
+                    return
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                resolved_path = folder_path if os.path.isabs(folder_path) else os.path.join(base_dir, folder_path)
+                if not os.path.exists(resolved_path) or not os.path.isdir(resolved_path):
+                    self.send_json_response({"error": f"Folder not found: {folder_path}"}, status=404)
+                    return
+                files = []
+                for f in sorted(os.listdir(resolved_path)):
+                    if f.lower().endswith((".wav", ".mp3", ".ogg", ".flac")):
+                        files.append({
+                            "filename": f,
+                            "audio_url": f"/audio/{folder_path.lstrip('/')}/{f}" if not folder_path.startswith("/") else f"/audio/{f}"
+                        })
+                self.send_json_response({"success": True, "folder": folder_path, "files": files, "count": len(files)})
                 return
 
             if path == "/api/suites":

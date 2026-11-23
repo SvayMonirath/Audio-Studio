@@ -609,5 +609,65 @@ class StudioServerTestCase(unittest.TestCase):
             self.assertEqual(asr_stats["critical_errors"], 1)
             self.assertAlmostEqual(asr_stats["acceptable_rate"], 50.0)
 
+    def test_ui_config_and_folder_linking(self):
+        """Test persisting ui_config_json in campaigns and linking local audio folder."""
+        # 1. Test POST /api/link-folder with existing audio directory
+        req_folder = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/link-folder",
+            data=json.dumps({"folder_path": "audio"}).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(req_folder) as res:
+            self.assertEqual(res.status, 200)
+            data = json.loads(res.read().decode("utf-8"))
+            self.assertTrue(data.get("success"))
+            self.assertIn("files", data)
+            self.assertIsInstance(data["files"], list)
+
+        # 2. Test creating campaign with ui_config
+        suite_payload = {
+            "name": "Modular Suite",
+            "items": [{"item_key": "M01", "text": "តេស្ត", "audio_url": "/audio/test.wav"}]
+        }
+        req_suite = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/suites",
+            data=json.dumps(suite_payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(req_suite) as res:
+            suite_id = json.loads(res.read().decode("utf-8"))["suite_id"]
+
+        test_ui_config = {
+            "archetype": "conversational_telephone_mos",
+            "dsp": {"phone_filter_8khz": True, "speed_controls": True},
+            "presentation": {"blind_gating": False, "word_pills": True}
+        }
+        camp_payload = {
+            "name": "Modular UI Campaign",
+            "suite_id": suite_id,
+            "rubric_id": "rubric-veaja-p85",
+            "instructions": "Modular instructions",
+            "ui_config": test_ui_config
+        }
+        req_camp = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/campaigns",
+            data=json.dumps(camp_payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(req_camp) as res:
+            self.assertEqual(res.status, 201)
+            camp_id = json.loads(res.read().decode("utf-8"))["campaign_id"]
+
+        # 3. Retrieve campaign and verify ui_config_json is returned and matches
+        url_camps = f"http://127.0.0.1:{TEST_PORT}/api/campaigns"
+        with urlopen(url_camps) as res:
+            self.assertEqual(res.status, 200)
+            camps = json.loads(res.read().decode("utf-8"))["campaigns"]
+            target = next((c for c in camps if c["id"] == camp_id), None)
+            self.assertIsNotNone(target)
+            self.assertIn("ui_config_json", target)
+            stored_cfg = json.loads(target["ui_config_json"])
+            self.assertTrue(stored_cfg["dsp"]["phone_filter_8khz"])
+
 if __name__ == "__main__":
     unittest.main()

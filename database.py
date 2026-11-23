@@ -109,6 +109,7 @@ def init_db(db_path=None):
             suite_id TEXT NOT NULL REFERENCES test_suites(id) ON DELETE CASCADE,
             rubric_id TEXT NOT NULL REFERENCES rubrics(id) ON DELETE CASCADE,
             instructions TEXT,
+            ui_config_json TEXT,
             is_active INTEGER DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
@@ -200,6 +201,10 @@ def init_db(db_path=None):
             pass
         try:
             conn.execute("ALTER TABLE evaluations ADD COLUMN asr_adjudication TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE campaigns ADD COLUMN ui_config_json TEXT")
         except sqlite3.OperationalError:
             pass
     conn.close()
