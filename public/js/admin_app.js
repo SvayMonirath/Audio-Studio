@@ -1650,7 +1650,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           { id: "blk-scoring-1", type: "scoring_questions", scale_max: 5, criteria: JSON.parse(JSON.stringify(QUESTION_PRESETS.standard)) },
           { id: "blk-trans-1", type: "transcription", enabled: true, show_diff: true }
         ];
-        showToast("Applied Conversational MOS Starter Kit.", "success");
+        showToast("Applied Standard Voice Rating (1–5) Starter Kit.", "success");
       } else if (kitName === "vocab") {
         state.wizardData.ui_config.dsp.phone_filter_8khz = false;
         state.wizardData.ui_config.presentation.blind_gating = true;
@@ -1663,7 +1663,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           ]},
           { id: "blk-tagger-1", type: "word_tagger", mode: "words", active_taxonomies: "all" }
         ];
-        showToast("Applied Blind Vocab Gating Starter Kit.", "success");
+        showToast("Applied Hidden Prompt Test Starter Kit.", "success");
       } else if (kitName === "arena") {
         state.wizardData.ui_config.dsp.phone_filter_8khz = false;
         state.wizardData.ui_config.presentation.blind_gating = false;
@@ -1675,7 +1675,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
             { id: "preference", name: "Overall Preference", name_km: "ចំណូលចិត្តរួម", desc: "Which model produced more natural speech?" }
           ]}
         ];
-        showToast("Applied A/B Arena Starter Kit.", "success");
+        showToast("Applied Model Comparison Starter Kit.", "success");
       } else if (kitName === "blank") {
         state.wizardData.ui_config.blocks = [];
         showToast("Cleared canvas to Blank.", "info");

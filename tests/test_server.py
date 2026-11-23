@@ -842,6 +842,27 @@ class StudioServerTestCase(unittest.TestCase):
         self.assertIn('id="dropzone-loading-text"', content)
         self.assertIn('id="dropzone-spinner"', content)
 
+    def test_step3_plain_english_toolbox(self):
+        """Verify Step 3 toolbox uses plain-English labels and clean icons without rainbow dots."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        # Check plain English replacements
+        self.assertIn("Audio Player &amp; Audio Filters", content)
+        self.assertIn("Prompt Text Card", content)
+        self.assertIn("Word Glitch Highlighter", content)
+        self.assertIn("Rating Questions", content)
+        # Check starter kits plain English
+        self.assertIn("Standard Voice Rating", content)
+        self.assertIn("Hidden Prompt Test", content)
+        self.assertIn("Model Comparison", content)
+        # Confirm rainbow dot classes removed from toolbox items
+        toolbox_section = content.split('id="builder-toolbox"', 1)[1].split('<!-- ZONE 2', 1)[0]
+        self.assertNotIn("bg-emerald-500", toolbox_section)
+        self.assertNotIn("bg-blue-500", toolbox_section)
+        self.assertNotIn("bg-amber-500", toolbox_section)
+        self.assertNotIn("bg-purple-500", toolbox_section)
+
 
 if __name__ == "__main__":
     unittest.main()
