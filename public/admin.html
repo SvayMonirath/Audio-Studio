@@ -300,6 +300,15 @@
           <div class="flex items-center gap-2">
             <button
               type="button"
+              id="btn-copy-ai-gen-prompt"
+              class="px-3 py-1.5 text-xs border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-800 rounded-lg cursor-pointer font-medium transition shadow-xs flex items-center gap-1.5"
+              title="Copy an optimized generation prompt to give to your AI agent or Colab script"
+            >
+              <svg class="w-3.5 h-3.5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+              Copy AI Agent Prompt
+            </button>
+            <button
+              type="button"
               id="btn-load-demo-data"
               class="px-3 py-1.5 text-xs border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-800 rounded-lg cursor-pointer font-medium transition shadow-xs"
             >
@@ -386,6 +395,29 @@
               </p>
             </div>
           </div>
+
+          <!-- Direct Local Server Folder Binding -->
+          <div class="p-3 bg-zinc-50 border border-zinc-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div class="min-w-0">
+              <div class="text-xs font-semibold text-zinc-900">Link Local Folder on Server (Zero-Copy)</div>
+              <div class="text-[11px] text-zinc-500">Fast path for pre-generated batches (e.g. audio or outputs/voxcpm2_steps_6).</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <input
+                type="text"
+                id="input-local-folder-path"
+                placeholder="e.g. audio"
+                class="px-3 py-1.5 text-xs bg-white border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 w-44 font-mono"
+              />
+              <button
+                type="button"
+                id="btn-link-local-folder"
+                class="px-3 py-1.5 text-xs bg-zinc-900 text-white rounded-lg font-medium hover:bg-zinc-800 transition shrink-0 cursor-pointer"
+              >
+                Link Folder
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- 3. Clean Transcript Pairing (Segmented Switcher) -->
@@ -460,9 +492,56 @@
                   Click to select CSV file, or drag & drop here
                 </div>
                 <div class="text-[11px] text-zinc-500">
-                  Required columns: <span class="font-mono text-zinc-800 font-semibold">audio_filename, transcript_text, model_name</span>
+                  Smart CSV Parser: auto-detects column names, matches filenames with or without <span class="font-mono text-zinc-800 font-semibold">.wav</span>.
                 </div>
               </div>
+            </div>
+
+            <!-- Manual Column Mapping Fallback (Appears if auto-detection fails) -->
+            <div id="box-column-fallback" class="hidden p-3.5 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+              <div class="text-xs font-semibold text-amber-900">Custom Columns Detected — Select Matching Fields:</div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Text / Transcript Column</label>
+                  <select id="sel-col-text" class="w-full px-2.5 py-1.5 text-xs bg-white border border-zinc-300 rounded-lg text-zinc-800"></select>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Audio Filename / ID Column</label>
+                  <select id="sel-col-audio" class="w-full px-2.5 py-1.5 text-xs bg-white border border-zinc-300 rounded-lg text-zinc-800"></select>
+                </div>
+              </div>
+              <button type="button" id="btn-apply-custom-columns" class="px-3 py-1 text-xs bg-zinc-900 text-white rounded-lg font-medium cursor-pointer">Apply Column Mapping</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Smart Reconciliation Summary Card -->
+        <div id="reconciliation-card" class="hidden studio-card p-4 rounded-xl border border-zinc-200 bg-zinc-50/70 space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-200 pb-2.5">
+            <div class="text-xs font-bold text-zinc-900 uppercase tracking-wide">Audio &amp; Text Reconciliation Summary</div>
+            <div class="flex items-center gap-2">
+              <span id="badge-matched-count" class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">0 Matched</span>
+              <span id="badge-missing-count" class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 hidden">0 Missing Audio</span>
+              <span id="badge-orphan-count" class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-zinc-200 text-zinc-700 hidden">0 Unpaired Files</span>
+            </div>
+          </div>
+
+          <!-- Missing Files Detail Box -->
+          <div id="box-missing-details" class="hidden p-3 bg-amber-50/80 border border-amber-200 rounded-xl space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="text-xs font-semibold text-amber-900">Missing Audio Files Detected in CSV:</div>
+              <button type="button" id="btn-copy-ai-fix-prompt" class="px-2.5 py-1 text-[11px] bg-zinc-900 text-white rounded-md font-medium hover:bg-zinc-800 transition cursor-pointer">
+                Copy Fix Prompt for AI
+              </button>
+            </div>
+            <ul id="missing-files-list" class="text-[11px] text-amber-800 space-y-1 font-mono max-h-24 overflow-y-auto pl-2"></ul>
+            <div class="flex items-center gap-2 pt-1 border-t border-amber-200/60">
+              <button type="button" id="btn-skip-missing-rows" class="px-2.5 py-1 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-md font-medium cursor-pointer transition">
+                Skip Missing Rows &amp; Proceed
+              </button>
+              <button type="button" id="btn-discard-orphans" class="hidden px-2.5 py-1 text-xs border border-zinc-300 bg-white text-zinc-700 rounded-md font-medium hover:bg-zinc-50 cursor-pointer transition">
+                Discard Unpaired Audio
+              </button>
             </div>
           </div>
         </div>

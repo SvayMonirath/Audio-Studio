@@ -91,8 +91,27 @@ class AudioDSPEngine {
   }
 
   setPhoneFilter(enabled) {
-    // Unaltered audio policy: Filters disabled to preserve genuine acoustic signal
-    this.isPhoneFilterEnabled = false;
+    this.isPhoneFilterEnabled = !!enabled;
+    if (!this.audioCtx) return;
+
+    try {
+      this.gainNode.disconnect();
+      this.highpassFilter.disconnect();
+      this.lowpassFilter.disconnect();
+      this.analyserNode.disconnect();
+    } catch (e) {}
+
+    if (this.isPhoneFilterEnabled) {
+      // Bandpass 300Hz - 3400Hz telephone simulation
+      this.gainNode.connect(this.highpassFilter);
+      this.highpassFilter.connect(this.lowpassFilter);
+      this.lowpassFilter.connect(this.analyserNode);
+      this.analyserNode.connect(this.audioCtx.destination);
+    } else {
+      // Pure, unaltered audio playback: Gain -> Analyser -> Destination
+      this.gainNode.connect(this.analyserNode);
+      this.analyserNode.connect(this.audioCtx.destination);
+    }
   }
 
   setVolume(vol) {

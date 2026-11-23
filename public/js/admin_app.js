@@ -40,8 +40,30 @@
       criteria: [
         { id: "naturalness", name: "Naturalness", name_km: "លក្ខណៈធម្មជាតិនៃសំឡេង", desc: "Does it sound like a real human speaking?" },
         { id: "pronunciation", name: "Pronunciation Accuracy", name_km: "ភាពត្រឹមត្រូវនៃការបញ្ចេញសំឡេង", desc: "Are vowels and consonants pronounced correctly?" }
-      ]
+      ],
+      ui_config: {
+        dsp: { phone_filter_8khz: false, speeds: [0.8, 1.0, 1.2] },
+        presentation: { blind_gating: false, font_size: "32px", show_badges: true },
+        tagger: { mode: "both", active_taxonomies: "all", require_note: false },
+        blocks: [
+          { id: "blk-prompt-1", type: "text_prompt", mode: "open", font_size: "32px", show_badges: true },
+          { id: "blk-audio-1", type: "audio_player", label: "Speech Audio", source_model: "candidate", phone_filter: false, speeds: true },
+          { id: "blk-tagger-1", type: "word_tagger", mode: "both", active_taxonomies: "all" },
+          { id: "blk-scoring-1", type: "scoring_questions", scale_max: 5, criteria: [
+            { id: "naturalness", name: "Naturalness", name_km: "លក្ខណៈធម្មជាតិនៃសំឡេង", desc: "Does it sound like a real human speaking?" },
+            { id: "pronunciation", name: "Pronunciation Accuracy", name_km: "ភាពត្រឹមត្រូវនៃការបញ្ចេញសំឡេង", desc: "Are vowels and consonants pronounced correctly?" }
+          ]},
+          { id: "blk-transcription-1", type: "transcription", enabled: true, show_diff: true }
+        ]
+      }
     },
+    reconciliation: {
+      matched: [],
+      missingAudio: [],
+      orphanAudio: [],
+      pendingCsvRows: []
+    },
+    selectedCardId: "blk-audio-1",
     createdCampaignId: null,
     campaignsList: []
   };
@@ -136,6 +158,22 @@
     wizBtnStep1Next: document.getElementById("wiz-btn-step1-next"),
 
     // Step 2
+    btnCopyAiGenPrompt: document.getElementById("btn-copy-ai-gen-prompt"),
+    inputLocalFolderPath: document.getElementById("input-local-folder-path"),
+    btnLinkLocalFolder: document.getElementById("btn-link-local-folder"),
+    boxColumnFallback: document.getElementById("box-column-fallback"),
+    selColText: document.getElementById("sel-col-text"),
+    selColAudio: document.getElementById("sel-col-audio"),
+    btnApplyCustomColumns: document.getElementById("btn-apply-custom-columns"),
+    reconciliationCard: document.getElementById("reconciliation-card"),
+    badgeMatchedCount: document.getElementById("badge-matched-count"),
+    badgeMissingCount: document.getElementById("badge-missing-count"),
+    badgeOrphanCount: document.getElementById("badge-orphan-count"),
+    boxMissingDetails: document.getElementById("box-missing-details"),
+    missingFilesList: document.getElementById("missing-files-list"),
+    btnCopyAiFixPrompt: document.getElementById("btn-copy-ai-fix-prompt"),
+    btnSkipMissingRows: document.getElementById("btn-skip-missing-rows"),
+    btnDiscardOrphans: document.getElementById("btn-discard-orphans"),
     btnLoadDemoData: document.getElementById("btn-load-demo-data"),
     btnDownloadCsvTemplate: document.getElementById("btn-download-csv-template"),
     modelsChipsContainer: document.getElementById("models-chips-container"),
@@ -849,6 +887,212 @@
       showToast(`Applied transcripts to ${matchCount} audio files.`, "success");
     });
 
+    // Smart CSV parsing and line splitting
+    function parseCsvLine(line) {
+      const parts = [];
+      let current = "";
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"' || char === "'") {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          parts.push(current.trim());
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+      parts.push(current.trim());
+      return parts.map(p => p.replace(/^["']|["']$/g, "").trim());
+    }
+
+    function parseCsvSmart(content) {
+      // 1. Strip UTF-8 BOM
+      if (content.charCodeAt(0) === 0xFEFF) {
+        content = content.slice(1);
+      }
+
+      // Check for UTF-8 encoding failure (replacement character U+FFFD)
+      if (content.includes("\uFFFD")) {
+        showToast("Warning: Non-UTF8 characters detected. Please ensure CSV is saved in UTF-8 format.", "error");
+      }
+
+      const rawLines = content.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      if (rawLines.length < 2) {
+        showToast("CSV file must have a header row and at least 1 data row.", "error");
+        return null;
+      }
+
+      const headers = parseCsvLine(rawLines[0]);
+      const headerLower = headers.map(h => h.toLowerCase().replace(/[^a-z0-9_]/g, "_"));
+
+      // Candidates
+      const textCandidates = ["text", "tts_input", "prompt", "sentence", "transcript", "khmer_text", "transcript_text"];
+      const audioCandidates = ["audio_file", "filename", "file", "audio", "wav", "item_id", "id", "audio_filename"];
+      const modelCandidates = ["model", "model_name", "system", "engine"];
+
+      let textColIdx = headerLower.findIndex(h => textCandidates.includes(h));
+      let audioColIdx = headerLower.findIndex(h => audioCandidates.includes(h));
+      let modelColIdx = headerLower.findIndex(h => modelCandidates.includes(h));
+
+      const rows = [];
+      for (let i = 1; i < rawLines.length; i++) {
+        const parts = parseCsvLine(rawLines[i]);
+        if (parts.length > 0) {
+          const rowObj = {};
+          headers.forEach((h, idx) => {
+            rowObj[h] = parts[idx] !== undefined ? parts[idx] : "";
+          });
+          rows.push({ parts, rowObj });
+        }
+      }
+
+      // If cannot auto-detect text or audio column, show fallback selector
+      if (textColIdx === -1 || audioColIdx === -1) {
+        state.reconciliation.rawParsedRows = rows;
+        if (el.boxColumnFallback && el.selColText && el.selColAudio) {
+          el.selColText.innerHTML = headers.map(h => `<option value="${escapeHtml(h)}">${escapeHtml(h)}</option>`).join("");
+          el.selColAudio.innerHTML = headers.map(h => `<option value="${escapeHtml(h)}">${escapeHtml(h)}</option>`).join("");
+          el.boxColumnFallback.classList.remove("hidden");
+          showToast("Custom CSV headers detected. Please select matching columns below.", "info");
+        }
+        return null;
+      }
+
+      const textColName = headers[textColIdx];
+      const audioColName = headers[audioColIdx];
+      const modelColName = modelColIdx !== -1 ? headers[modelColIdx] : null;
+
+      return rows.map(r => ({
+        audioFilename: r.rowObj[audioColName] || "",
+        text: r.rowObj[textColName] || "",
+        model: modelColName ? (r.rowObj[modelColName] || "") : ""
+      }));
+    }
+
+    function applyParsedCsvRows(parsedRows, textColName, audioColName) {
+      const standardized = parsedRows.map(r => ({
+        audioFilename: r.rowObj[audioColName] || "",
+        text: r.rowObj[textColName] || "",
+        model: r.rowObj["model"] || r.rowObj["model_name"] || ""
+      }));
+      reconcileAudioAndText(standardized);
+    }
+
+    function normalizeStem(name) {
+      if (!name) return "";
+      // Strip folder path, extension, and lowercase
+      const base = name.split("/").pop().split("\\").pop();
+      return base.replace(/\.(wav|mp3|ogg|flac|m4a)$/i, "").toLowerCase().trim();
+    }
+
+    function reconcileAudioAndText(csvRows) {
+      state.reconciliation.pendingCsvRows = csvRows;
+      const matched = [];
+      const missingAudio = [];
+      const orphanAudio = [];
+
+      const currentItems = state.wizardData.items;
+      const usedItemIndices = new Set();
+
+      csvRows.forEach(row => {
+        const rawName = row.audioFilename.trim();
+        const stem = normalizeStem(rawName);
+
+        // Find match in current items
+        let matchedIdx = -1;
+        for (let i = 0; i < currentItems.length; i++) {
+          if (usedItemIndices.has(i)) continue;
+          const itName = currentItems[i].filename;
+          const itStem = normalizeStem(itName);
+
+          // 1. Exact filename match
+          if (itName.toLowerCase() === rawName.toLowerCase() || itName.toLowerCase() === `${rawName.toLowerCase()}.wav`) {
+            matchedIdx = i;
+            break;
+          }
+          // 2. Stem match
+          if (itStem === stem) {
+            matchedIdx = i;
+            break;
+          }
+          // 3. Prefix match (e.g. S01 matches S01_Greeting.wav)
+          if (itStem.startsWith(stem + "_") || itStem.startsWith(stem + "-")) {
+            matchedIdx = i;
+            break;
+          }
+        }
+
+        if (matchedIdx !== -1) {
+          usedItemIndices.add(matchedIdx);
+          const it = currentItems[matchedIdx];
+          it.text = row.text || it.text;
+          if (row.model) {
+            let foundModel = state.wizardData.models.find(m => m.name.toLowerCase() === row.model.toLowerCase());
+            if (!foundModel) {
+              foundModel = { id: `model-${Date.now()}-${Math.floor(Math.random() * 100)}`, name: row.model };
+              state.wizardData.models.push(foundModel);
+              renderModelsChips();
+            }
+            it.model_id = foundModel.id;
+            it.model_name = foundModel.name;
+          }
+          matched.push(it);
+        } else {
+          missingAudio.push({
+            expectedFilename: rawName,
+            text: row.text,
+            model: row.model
+          });
+        }
+      });
+
+      // Find orphans: items in wizardData that were never matched with a CSV row
+      currentItems.forEach((it, idx) => {
+        if (!usedItemIndices.has(idx)) {
+          orphanAudio.push(it);
+        }
+      });
+
+      state.reconciliation.matched = matched;
+      state.reconciliation.missingAudio = missingAudio;
+      state.reconciliation.orphanAudio = orphanAudio;
+
+      updateReconciliationCard();
+      renderItemsTable();
+      showToast(`Reconciliation: ${matched.length} paired, ${missingAudio.length} missing audio.`, missingAudio.length > 0 ? "info" : "success");
+    }
+
+    function updateReconciliationCard() {
+      if (!el.reconciliationCard) return;
+
+      const { matched, missingAudio, orphanAudio } = state.reconciliation;
+      const totalPaired = matched.length;
+
+      el.reconciliationCard.classList.remove("hidden");
+      el.badgeMatchedCount.textContent = `${totalPaired} Matched`;
+
+      if (missingAudio.length > 0) {
+        el.badgeMissingCount.textContent = `${missingAudio.length} Missing Audio`;
+        el.badgeMissingCount.classList.remove("hidden");
+        el.boxMissingDetails.classList.remove("hidden");
+        el.missingFilesList.innerHTML = missingAudio.map(m => `<li>- Missing: <span class="text-zinc-900 font-semibold">${escapeHtml(m.expectedFilename)}</span> ("${escapeHtml(m.text || "").substring(0, 30)}...")</li>`).join("");
+      } else {
+        el.badgeMissingCount.classList.add("hidden");
+        el.boxMissingDetails.classList.add("hidden");
+      }
+
+      if (orphanAudio.length > 0) {
+        el.badgeOrphanCount.textContent = `${orphanAudio.length} Unpaired Files`;
+        el.badgeOrphanCount.classList.remove("hidden");
+        if (el.btnDiscardOrphans) el.btnDiscardOrphans.classList.remove("hidden");
+      } else {
+        el.badgeOrphanCount.classList.add("hidden");
+        if (el.btnDiscardOrphans) el.btnDiscardOrphans.classList.add("hidden");
+      }
+    }
+
     // CSV File Processing Helper
     function processCsvFile(file) {
       if (!file) return;
@@ -856,45 +1100,10 @@
       const reader = new FileReader();
       reader.onload = (evt) => {
         const content = evt.target.result;
-        const lines = content.split("\n").map(l => l.trim()).filter(Boolean);
-        if (lines.length < 2) {
-          showToast("CSV file must have a header row and at least 1 data row.", "error");
-          return;
+        const parsedRows = parseCsvSmart(content);
+        if (parsedRows) {
+          reconcileAudioAndText(parsedRows);
         }
-
-        const map = {};
-        for (let i = 1; i < lines.length; i++) {
-          const row = lines[i];
-          const parts = row.split(",");
-          if (parts.length >= 2) {
-            const fName = parts[0].trim();
-            const fText = parts[1].replace(/^["']|["']$/g, "").trim();
-            const fModel = parts[2] ? parts[2].replace(/^["']|["']$/g, "").trim() : "";
-            map[fName] = { text: fText, model: fModel };
-          }
-        }
-
-        let applied = 0;
-        state.wizardData.items.forEach(item => {
-          if (map[item.filename]) {
-            item.text = map[item.filename].text;
-            if (map[item.filename].model) {
-              const mName = map[item.filename].model;
-              let foundModel = state.wizardData.models.find(m => m.name.toLowerCase() === mName.toLowerCase());
-              if (!foundModel) {
-                foundModel = { id: `model-${Date.now()}-${Math.floor(Math.random() * 100)}`, name: mName };
-                state.wizardData.models.push(foundModel);
-                renderModelsChips();
-              }
-              item.model_id = foundModel.id;
-              item.model_name = foundModel.name;
-            }
-            applied++;
-          }
-        });
-
-        renderItemsTable();
-        showToast(`Matched transcripts for ${applied} audio files using CSV.`, "success");
       };
       reader.readAsText(file);
     }
@@ -928,10 +1137,169 @@
     el.btnClearItems.addEventListener("click", () => {
       if (confirm("Remove all audio files from this study?")) {
         state.wizardData.items = [];
+        state.reconciliation = { matched: [], missingAudio: [], orphanAudio: [], pendingCsvRows: [] };
+        if (el.reconciliationCard) el.reconciliationCard.classList.add("hidden");
         renderItemsTable();
         showToast("Cleared all audio samples.");
       }
     });
+
+    // Smart Local Folder Linking
+    if (el.btnLinkLocalFolder && el.inputLocalFolderPath) {
+      el.btnLinkLocalFolder.addEventListener("click", async () => {
+        const folderPath = el.inputLocalFolderPath.value.trim();
+        if (!folderPath) {
+          showToast("Please enter a relative folder path on the server (e.g. audio).", "error");
+          el.inputLocalFolderPath.focus();
+          return;
+        }
+
+        try {
+          el.btnLinkLocalFolder.disabled = true;
+          el.btnLinkLocalFolder.textContent = "Scanning...";
+
+          const resp = await adminFetch("/api/link-folder", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ folder_path: folderPath })
+          });
+          const res = await resp.json();
+
+          if (resp.ok && res.success) {
+            const files = res.files || [];
+            if (files.length === 0) {
+              showToast(`No audio files found in "${folderPath}".`, "error");
+              return;
+            }
+
+            const targetModelId = el.selUploadTargetModel ? el.selUploadTargetModel.value : state.wizardData.models[0]?.id;
+            const targetModelObj = state.wizardData.models.find(m => m.id === targetModelId) || state.wizardData.models[0];
+
+            let added = 0;
+            files.forEach((f, idx) => {
+              // Avoid duplicates
+              const exists = state.wizardData.items.some(it => it.filename === f.filename);
+              if (!exists) {
+                state.wizardData.items.push({
+                  id: `item-link-${Date.now()}-${idx}`,
+                  filename: f.filename,
+                  audio_url: f.url,
+                  model_id: targetModelObj?.id || "model-veaja",
+                  model_name: targetModelObj?.name || "Veaja AI (Ours)",
+                  text: ""
+                });
+                added++;
+              }
+            });
+
+            if (state.reconciliation.pendingCsvRows.length > 0) {
+              reconcileAudioAndText(state.reconciliation.pendingCsvRows);
+            } else {
+              renderItemsTable();
+            }
+            showToast(`Linked ${added} audio files from "${folderPath}".`, "success");
+          } else {
+            showToast(res.error || "Failed to link folder.", "error");
+          }
+        } catch (e) {
+          showToast("Network error linking folder: " + e.message, "error");
+        } finally {
+          el.btnLinkLocalFolder.disabled = false;
+          el.btnLinkLocalFolder.textContent = "Link Folder";
+        }
+      });
+    }
+
+    // AI Helper Prompt 1: Audio Generation Template
+    if (el.btnCopyAiGenPrompt) {
+      el.btnCopyAiGenPrompt.addEventListener("click", async () => {
+        const promptText = `I am preparing an audio speech evaluation dataset for TTS model testing.
+Please generate audio clips with the following specifications:
+1. Audio format: WAV (16,000 Hz sample rate, single channel mono, 16-bit PCM).
+2. Clean naming convention: [ITEM_ID]_[MODEL_NAME].wav (e.g. S01_Veaja.wav, S02_MMS.wav).
+3. Transcripts pairing CSV formatted in UTF-8 (no BOM):
+audio_filename,transcript_text,model_name
+S01_Veaja.wav,"អត្ថបទខ្មែរគំរូ",Veaja AI (Ours)
+S01_MMS.wav,"អត្ថបទខ្មែរគំរូ",Meta MMS-TTS
+
+Please return the generation code or script to synthesize these audio files.`;
+
+        try {
+          await navigator.clipboard.writeText(promptText);
+          showToast("AI Generation Prompt copied to clipboard!", "success");
+        } catch (e) {
+          showToast("Clipboard copy failed. See console.", "error");
+          console.log("AI Generation Prompt:\n", promptText);
+        }
+      });
+    }
+
+    // AI Helper Prompt 2: Missing Audio Fix Prompt
+    if (el.btnCopyAiFixPrompt) {
+      el.btnCopyAiFixPrompt.addEventListener("click", async () => {
+        const missing = state.reconciliation.missingAudio || [];
+        if (missing.length === 0) {
+          showToast("No missing audio files detected.", "info");
+          return;
+        }
+
+        const missingListText = missing.slice(0, 30).map(m => `- File: ${m.expectedFilename} | Prompt: "${m.text || ""}" | Model: ${m.model || "TTS"}`).join("\n");
+        const promptText = `I ran a reconciliation check on my Speech Evaluation Studio dataset, and the following ${missing.length} audio files referenced in my CSV are missing from the audio directory:
+
+${missingListText}
+${missing.length > 30 ? `...and ${missing.length - 30} more missing items.` : ""}
+
+Please write a Python script using standard libraries or soundfile to either:
+1. Generate the missing WAV files at 16kHz mono, OR
+2. Filter my CSV file to exclude rows where the audio file does not exist on disk, producing a clean, aligned CSV.`;
+
+        try {
+          await navigator.clipboard.writeText(promptText);
+          showToast("AI Fix Prompt copied to clipboard!", "success");
+        } catch (e) {
+          showToast("Clipboard copy failed. See console.", "error");
+          console.log("AI Fix Prompt:\n", promptText);
+        }
+      });
+    }
+
+    // Skip missing rows button
+    if (el.btnSkipMissingRows) {
+      el.btnSkipMissingRows.addEventListener("click", () => {
+        // Missing rows are merely CSV rows that didn't match existing audio
+        state.reconciliation.missingAudio = [];
+        updateReconciliationCard();
+        showToast("Missing rows skipped. Ready to proceed.", "success");
+      });
+    }
+
+    // Discard orphans button
+    if (el.btnDiscardOrphans) {
+      el.btnDiscardOrphans.addEventListener("click", () => {
+        const orphans = new Set(state.reconciliation.orphanAudio.map(o => o.filename));
+        state.wizardData.items = state.wizardData.items.filter(it => !orphans.has(it.filename));
+        state.reconciliation.orphanAudio = [];
+        updateReconciliationCard();
+        renderItemsTable();
+        showToast("Unpaired audio files removed.", "success");
+      });
+    }
+
+    // Manual Column Mapping Application
+    if (el.btnApplyCustomColumns && el.selColText && el.selColAudio) {
+      el.btnApplyCustomColumns.addEventListener("click", () => {
+        const textCol = el.selColText.value;
+        const audioCol = el.selColAudio.value;
+        if (!textCol || !audioCol) {
+          showToast("Please select both a text and audio column.", "error");
+          return;
+        }
+        if (state.reconciliation.rawParsedRows) {
+          applyParsedCsvRows(state.reconciliation.rawParsedRows, textCol, audioCol);
+          if (el.boxColumnFallback) el.boxColumnFallback.classList.add("hidden");
+        }
+      });
+    }
   }
 
   function renderItemsTable() {
