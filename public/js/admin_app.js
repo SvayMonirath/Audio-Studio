@@ -1659,7 +1659,7 @@ Please write a Python script using standard libraries or soundfile to either:
         const isSelected = block.id === state.selectedCardId;
         const card = document.createElement("div");
         card.className = `p-3.5 bg-white border rounded-xl transition cursor-pointer relative shadow-2xs ${
-          isSelected ? "border-zinc-900 ring-2 ring-zinc-900/10 shadow-sm" : "border-zinc-200 hover:border-zinc-300"
+          isSelected ? "border-zinc-900 ring-2 ring-zinc-900 shadow-sm" : "border-zinc-200 hover:border-zinc-300"
         }`;
         card.dataset.id = block.id;
 

@@ -163,6 +163,13 @@ h3 {
   border-color: var(--border-hover);
 }
 
+/* Prevent redundant nested card borders inside studio cards */
+.studio-card .studio-card {
+  border: none;
+  box-shadow: none;
+  padding: 16px;
+}
+
 /* Carbon primary button */
 .btn-carbon {
   background-color: var(--carbon-btn);
