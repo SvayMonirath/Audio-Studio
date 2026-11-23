@@ -182,6 +182,10 @@
     selUploadTargetModel: document.getElementById("sel-upload-target-model"),
     dropzoneAudio: document.getElementById("dropzone-audio"),
     multiAudioInput: document.getElementById("multi-audio-input"),
+    dropzoneUnified: document.getElementById("dropzone-unified"),
+    multiFileInput: document.getElementById("multi-file-input"),
+    btnToggleLocalFolder: document.getElementById("btn-toggle-local-folder"),
+    boxLinkFolder: document.getElementById("box-link-folder"),
     modeBtnTable: document.getElementById("mode-btn-table"),
     modeBtnPaste: document.getElementById("mode-btn-paste"),
     modeBtnCsv: document.getElementById("mode-btn-csv"),
@@ -1118,18 +1122,82 @@
     }
 
     // CSV File Processing Helper
-    function processCsvFile(file) {
+    async function processCsvFile(file) {
       if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        const content = evt.target.result;
-        const parsedRows = parseCsvSmart(content);
-        if (parsedRows) {
-          reconcileAudioAndText(parsedRows);
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          const content = evt.target.result;
+          const parsedRows = parseCsvSmart(content);
+          if (parsedRows) {
+            reconcileAudioAndText(parsedRows);
+          }
+          resolve();
+        };
+        reader.onerror = () => resolve();
+        reader.readAsText(file);
+      });
+    }
+
+    // Unified File Handler for Audio and CSV
+    async function handleUnifiedFiles(files) {
+      if (!files || files.length === 0) return;
+
+      const audioFiles = [];
+      const csvFiles = [];
+
+      for (const f of files) {
+        if (f.name.match(/\.(wav|mp3|ogg|flac|m4a)$/i)) {
+          audioFiles.push(f);
+        } else if (f.name.match(/\.(csv|txt)$/i)) {
+          csvFiles.push(f);
         }
-      };
-      reader.readAsText(file);
+      }
+
+      if (audioFiles.length > 0) {
+        await processAudioFiles(audioFiles);
+      }
+
+      if (csvFiles.length > 0) {
+        await processCsvFile(csvFiles[0]);
+      }
+    }
+
+    // Unified Dropzone and File Input Wiring
+    if (el.dropzoneUnified) {
+      el.dropzoneUnified.addEventListener("click", () => {
+        if (el.multiFileInput) el.multiFileInput.click();
+      });
+      el.dropzoneUnified.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        el.dropzoneUnified.classList.add("border-zinc-900", "bg-zinc-100/70");
+      });
+      el.dropzoneUnified.addEventListener("dragleave", () => {
+        el.dropzoneUnified.classList.remove("border-zinc-900", "bg-zinc-100/70");
+      });
+      el.dropzoneUnified.addEventListener("drop", async (e) => {
+        e.preventDefault();
+        el.dropzoneUnified.classList.remove("border-zinc-900", "bg-zinc-100/70");
+        if (e.dataTransfer && e.dataTransfer.files) {
+          await handleUnifiedFiles(Array.from(e.dataTransfer.files));
+        }
+      });
+    }
+
+    if (el.multiFileInput) {
+      el.multiFileInput.addEventListener("change", async (e) => {
+        const files = Array.from(e.target.files);
+        await handleUnifiedFiles(files);
+        el.multiFileInput.value = "";
+      });
+    }
+
+    // Toggle Local Folder Linking Disclosure
+    if (el.btnToggleLocalFolder && el.boxLinkFolder) {
+      el.btnToggleLocalFolder.addEventListener("click", () => {
+        el.boxLinkFolder.classList.toggle("hidden");
+      });
     }
 
     // CSV Dropzone & Input wiring
