@@ -12,10 +12,34 @@
 (function () {
   "use strict";
 
+  // 19 Standardized Clinical Speech Error Taxonomies (Strictly English without Khmer descriptions)
+  const CLINICAL_ERROR_CODES_19 = [
+    { code: "C_DEL", label: "Consonant Deletion", category: "phonetic", dot: "#EF4444" },
+    { code: "C_SUB", label: "Consonant Substitution", category: "phonetic", dot: "#F97316" },
+    { code: "V_DEL_INS", label: "Vowel Error", category: "phonetic", dot: "#DC2626" },
+    { code: "CLIP_TRUNC", label: "Word Truncation", category: "acoustic", dot: "#EA580C" },
+    { code: "CODE", label: "Code-Switching Failure", category: "multilingual", dot: "#B91C1C" },
+    { code: "GLITCH", label: "Digital Glitch", category: "acoustic", dot: "#E11D48" },
+    { code: "ELONG", label: "Syllable Elongation", category: "prosody", dot: "#F59E0B" },
+    { code: "PROM", label: "Inappropriate Loudness", category: "acoustic", dot: "#D97706" },
+    { code: "PROS", label: "Bad Prosody / Cadence", category: "prosody", dot: "#84CC16" },
+    { code: "SILENCE", label: "Dead Silence", category: "acoustic", dot: "#64748B" },
+    { code: "SEG", label: "Awkward Pause", category: "prosody", dot: "#06B6D4" },
+    { code: "INCONSIST", label: "Voice Inconsistency", category: "acoustic", dot: "#8B5CF6" },
+    { code: "LEX_SUB", label: "Lexical Substitution", category: "lexical", dot: "#A855F7" },
+    { code: "REPETITION", label: "Stutter / Repetition", category: "fluency", dot: "#EC4899" },
+    { code: "REG_FAIL", label: "Register Error", category: "phonetic", dot: "#6366F1" },
+    { code: "SUB_FAIL", label: "Subscript Error", category: "phonetic", dot: "#3B82F6" },
+    { code: "NASAL_FAIL", label: "Nasal Error", category: "phonetic", dot: "#0EA5E9" },
+    { code: "DIALECT", label: "Non-Standard Accent", category: "phonetic", dot: "#10B981" },
+    { code: "NONE", label: "Clean Audio", category: "quality", dot: "#059669" }
+  ];
+
   // State
   const state = {
     currentTab: "wizard",
     wizardStep: 1,
+    maxUnlockedStep: 1,
     wizardData: {
       name: "",
       desc: "",
@@ -26,14 +50,7 @@
       scaleMax: 5,
       template: "standard",
       collectTranscription: true,
-      defectTypes: [
-        { code: "MISPRON", label: "Mispronunciation", label_km: "បញ្ចេញសំឡេងខុស" },
-        { code: "NOISE", label: "Noise / Click", label_km: "សំឡេងរំខាន" },
-        { code: "UNNAT_PAUSE", label: "Awkward Pause", label_km: "ផ្អាកខុសប្រក្រតី" },
-        { code: "ROBOTIC", label: "Robotic Buzz", label_km: "សំឡេងរ៉ូបូត" },
-        { code: "PITCH", label: "Unnatural Pitch", label_km: "កម្ពស់សំឡេងខុស" },
-        { code: "OTHER", label: "Other Defect", label_km: "បញ្ហាផ្សេងទៀត" }
-      ],
+      defectTypes: [...CLINICAL_ERROR_CODES_19],
       criteria: [
         { id: "naturalness", name: "Naturalness", name_km: "លក្ខណៈធម្មជាតិនៃសំឡេង", desc: "Does it sound like a real human speaking?" },
         { id: "pronunciation", name: "Pronunciation Accuracy", name_km: "ភាពត្រឹមត្រូវនៃការបញ្ចេញសំឡេង", desc: "Are vowels and consonants pronounced correctly?" }
@@ -42,16 +59,7 @@
         dsp: { phone_filter_8khz: false, speeds: [0.8, 1.0, 1.2] },
         presentation: { blind_gating: false, font_size: "32px", show_badges: true },
         tagger: { mode: "both", active_taxonomies: "all", require_note: false },
-        blocks: [
-          { id: "blk-prompt-1", type: "text_prompt", mode: "open", font_size: "32px", show_badges: true },
-          { id: "blk-audio-1", type: "audio_player", label: "Speech Audio", source_model: "candidate", phone_filter: false, speeds: true },
-          { id: "blk-tagger-1", type: "word_tagger", mode: "both", active_taxonomies: "all" },
-          { id: "blk-scoring-1", type: "scoring_questions", scale_max: 5, criteria: [
-            { id: "naturalness", name: "Naturalness", name_km: "លក្ខណៈធម្មជាតិនៃសំឡេង", desc: "Does it sound like a real human speaking?" },
-            { id: "pronunciation", name: "Pronunciation Accuracy", name_km: "ភាពត្រឹមត្រូវនៃការបញ្ចេញសំឡេង", desc: "Are vowels and consonants pronounced correctly?" }
-          ]},
-          { id: "blk-transcription-1", type: "transcription", enabled: true, show_diff: true }
-        ]
+        blocks: []
       }
     },
     reconciliation: {
@@ -60,10 +68,140 @@
       orphanAudio: [],
       pendingCsvRows: []
     },
-    selectedCardId: "blk-audio-1",
+    selectedCardId: null,
     createdCampaignId: null,
     campaignsList: []
   };
+
+  // Module-scoped cross-closure hooks
+  let updateWizardNav = () => {};
+  let goToStep = () => {};
+  let renderModelsChips = () => {};
+  let renderCanvas = () => {};
+  let renderInspector = () => {};
+  let updateSmartGuide = () => {};
+
+  // LocalStorage Key for Draft Persistence
+  const DRAFT_STORAGE_KEY = "audio_studio_creator_draft_v1";
+
+  function saveWizardDraft() {
+    try {
+      if (state.createdCampaignId) return;
+      const draft = {
+        timestamp: Date.now(),
+        wizardStep: state.wizardStep || 1,
+        maxUnlockedStep: state.maxUnlockedStep || 1,
+        wizardData: {
+          name: state.wizardData.name || "",
+          desc: state.wizardData.desc || "",
+          instructions: state.wizardData.instructions || "",
+          modality: state.wizardData.modality || "TTS",
+          models: state.wizardData.models || [],
+          // Strip large base64 strings so localStorage stays within browser 5MB quota
+          items: (state.wizardData.items || []).map(it => ({
+            id: it.id,
+            filename: it.filename,
+            audio_url: it.audio_url && !it.audio_url.startsWith("blob:") ? it.audio_url : "",
+            model_id: it.model_id,
+            model_name: it.model_name,
+            text: it.text || ""
+          })),
+          scaleMax: state.wizardData.scaleMax || 5,
+          criteria: state.wizardData.criteria || [],
+          defectTypes: state.wizardData.defectTypes || [],
+          ui_config: state.wizardData.ui_config || { blocks: [] }
+        }
+      };
+      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+      updateDraftIndicator();
+    } catch (err) {
+      console.warn("Could not save study draft to localStorage:", err);
+    }
+  }
+
+  function restoreWizardDraft() {
+    try {
+      const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
+      if (!raw) return false;
+      const draft = JSON.parse(raw);
+      if (!draft || !draft.wizardData) return false;
+
+      const currentName = (el.wizStudyName && el.wizStudyName.value.trim()) || state.wizardData.name;
+      if (currentName && !draft.wizardData.name) return false;
+
+      state.wizardStep = draft.wizardStep || 1;
+      state.maxUnlockedStep = draft.maxUnlockedStep || 1;
+      Object.assign(state.wizardData, draft.wizardData);
+
+      // Populate DOM elements for Step 1
+      if (el.wizStudyName && state.wizardData.name) el.wizStudyName.value = state.wizardData.name;
+      if (el.wizStudyDesc && state.wizardData.desc) el.wizStudyDesc.value = state.wizardData.desc;
+      if (el.wizStudyInstructions && state.wizardData.instructions) el.wizStudyInstructions.value = state.wizardData.instructions;
+
+      // Modality selector DOM sync
+      if (el.wizModalityRadios) {
+        el.wizModalityRadios.forEach(radio => {
+          radio.checked = radio.value === (state.wizardData.modality || "TTS");
+        });
+        if (state.wizardData.modality === "ASR") {
+          if (el.optModalityAsr) {
+            el.optModalityAsr.classList.add("border-2", "border-zinc-900", "bg-zinc-50");
+            el.optModalityAsr.classList.remove("border-zinc-200", "bg-white");
+          }
+          if (el.optModalityTts) {
+            el.optModalityTts.classList.remove("border-2", "border-zinc-900", "bg-zinc-50");
+            el.optModalityTts.classList.add("border-zinc-200", "bg-white");
+          }
+        }
+      }
+
+      // Re-render Step 2 items table
+      if (typeof renderItemsTable === "function") renderItemsTable();
+      if (typeof renderModelsChips === "function") renderModelsChips();
+
+      // Re-render Step 3 canvas
+      if (typeof renderCanvas === "function") renderCanvas();
+      if (typeof updateSmartGuide === "function") updateSmartGuide();
+
+      if (typeof goToStep === "function") {
+        goToStep(state.wizardStep);
+      }
+      updateDraftIndicator();
+      return true;
+    } catch (err) {
+      console.warn("Failed to restore study draft:", err);
+      return false;
+    }
+  }
+
+  function clearWizardDraft() {
+    try {
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+      updateDraftIndicator();
+    } catch (e) {}
+  }
+
+  function updateDraftIndicator() {
+    const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
+    const hasDraft = Boolean(raw && !state.createdCampaignId && (state.wizardData.name || (state.wizardData.items && state.wizardData.items.length > 0)));
+    if (el.btnDiscardDraft) el.btnDiscardDraft.classList.toggle("hidden", !hasDraft);
+    if (el.draftStatusIndicator) el.draftStatusIndicator.classList.toggle("hidden", !hasDraft);
+    updateSmartTabLabel();
+  }
+
+  function updateSmartTabLabel() {
+    const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
+    const hasDraft = Boolean(raw && !state.createdCampaignId && (state.wizardData.name || (state.wizardData.items && state.wizardData.items.length > 0)));
+    if (el.tabBtnWizardText) {
+      if (hasDraft) {
+        el.tabBtnWizardText.textContent = `Resume Draft (Step ${state.wizardStep || 1}/4)`;
+        if (el.tabWizardIndicatorDot) el.tabWizardIndicatorDot.classList.remove("hidden");
+      } else {
+        el.tabBtnWizardText.textContent = "Create New Study";
+        if (el.tabWizardIndicatorDot) el.tabWizardIndicatorDot.classList.add("hidden");
+      }
+    }
+  }
 
   // Presets definition
   const QUESTION_PRESETS = {
@@ -135,6 +273,8 @@
 
     // Tabs
     tabBtnWizard: document.getElementById("tab-btn-wizard"),
+    tabBtnWizardText: document.getElementById("tab-btn-wizard-text"),
+    tabWizardIndicatorDot: document.getElementById("tab-wizard-indicator-dot"),
     tabBtnResults: document.getElementById("tab-btn-results"),
     tabBtnStudies: document.getElementById("tab-btn-studies"),
     viewWizard: document.getElementById("view-wizard"),
@@ -143,6 +283,8 @@
 
     // Wizard Nav
     wizardNavItems: document.querySelectorAll(".wizard-nav-item"),
+    btnDiscardDraft: document.getElementById("btn-discard-draft"),
+    draftStatusIndicator: document.getElementById("draft-status-indicator"),
     step1: document.getElementById("wizard-step-1"),
     step2: document.getElementById("wizard-step-2"),
     step3: document.getElementById("wizard-step-3"),
@@ -245,6 +387,7 @@
     shareLinkUrl: document.getElementById("share-link-url"),
     btnCopyShareLink: document.getElementById("btn-copy-share-link"),
     btnOpenAsRater: document.getElementById("btn-open-as-rater"),
+    btnCreateAnotherStudy: document.getElementById("btn-create-another-study"),
     devQuickShortcuts: document.getElementById("dev-quick-shortcuts"),
     btnViewStudyResults: document.getElementById("btn-view-study-results"),
     wizBtnStep4Prev: document.getElementById("wiz-btn-step4-prev"),
@@ -281,6 +424,9 @@
     setupAnalytics();
     setupStudiesManagement();
 
+    // Restore any existing unfinished study draft
+    restoreWizardDraft();
+
     // Load active campaigns if authenticated
     if (adminPin) {
       await refreshCampaignsList();
@@ -295,6 +441,22 @@
     if (appRoot) appRoot.classList.add("is-locked");
     if (modal) modal.classList.remove("hidden");
     if (el.devQuickShortcuts) el.devQuickShortcuts.classList.add("hidden");
+
+    // Reset tabs back to login view
+    const tabLogin = document.getElementById("tab-pin-login");
+    const tabCreate = document.getElementById("tab-pin-create");
+    const boxLogin = document.getElementById("box-pin-login");
+    const boxCreate = document.getElementById("box-pin-create");
+    const err = document.getElementById("admin-pin-error");
+    if (err) err.classList.add("hidden");
+    if (tabLogin && tabCreate) {
+      tabLogin.classList.add("bg-white", "text-zinc-900", "shadow-xs");
+      tabLogin.classList.remove("text-zinc-500");
+      tabCreate.classList.remove("bg-white", "text-zinc-900", "shadow-xs");
+      tabCreate.classList.add("text-zinc-500");
+    }
+    if (boxLogin) boxLogin.classList.remove("hidden");
+    if (boxCreate) boxCreate.classList.add("hidden");
     
     // Clear PIN boxes and focus first
     const boxes = document.querySelectorAll(".pin-digit-box");
@@ -463,9 +625,9 @@
         if (regErr) regErr.classList.add("hidden");
         if (regSuccess) regSuccess.classList.add("hidden");
 
-        if (!newPin || !newPin.match(/^\d{4,6}$/)) {
+        if (!newPin || !newPin.match(/^\d{4}$/)) {
           if (regErr) {
-            regErr.textContent = "New PIN must be exactly 4 or 6 numeric digits.";
+            regErr.textContent = "New PIN must be exactly 4 numeric digits.";
             regErr.classList.remove("hidden");
           }
           return;
@@ -523,6 +685,31 @@
       el.wizModalityRadios.forEach(radio => {
         radio.addEventListener("change", (e) => {
           const mod = e.target.value;
+          if (mod === state.wizardData.modality) return;
+
+          // Safety guardrail: Changing study type resets uploaded audio items
+          if (state.wizardData.items && state.wizardData.items.length > 0) {
+            const confirmed = window.confirm(
+              "Changing the study type will clear the audio samples and pairing configured in Step 2. Do you want to proceed?"
+            );
+            if (!confirmed) {
+              // Revert selection back to active modality
+              el.wizModalityRadios.forEach(r => {
+                r.checked = r.value === state.wizardData.modality;
+              });
+              return;
+            }
+            // User confirmed: clear downstream audio data
+            state.wizardData.items = [];
+            state.wizardData.models = [];
+            state.maxUnlockedStep = 1;
+            renderItemsTable();
+            renderModelsChips();
+            updateWizardNav();
+            saveWizardDraft();
+            showToast("Cleared audio samples for new study type.", "info");
+          }
+
           state.wizardData.modality = mod;
           if (mod === "ASR") {
             if (el.optModalityAsr) {
@@ -543,6 +730,7 @@
               el.optModalityAsr.classList.add("border-zinc-200", "bg-white");
             }
           }
+          saveWizardDraft();
         });
       });
     }
@@ -583,23 +771,129 @@
 
   // Wizard Step Navigation
   function setupWizardFlow() {
-    function goToStep(stepNumber) {
-      state.wizardStep = stepNumber;
+    updateWizardNav = function() {
+      const stepNumber = state.wizardStep || 1;
+      const isStep1Done = Boolean(state.wizardData.name && state.wizardData.name.trim());
+      const isStep2Done = isStep1Done && Boolean(state.wizardData.items && state.wizardData.items.length > 0);
+      
+      const blocks = state.wizardData.ui_config?.blocks || [];
+      const activeAudio = blocks.filter(b => b.type === "audio_player");
+      const activeScoring = blocks.filter(b => b.type === "scoring_questions");
+      const totalQuestions = activeScoring.reduce((sum, b) => sum + (b.criteria?.length || 0), 0);
+      const isStep3Done = isStep1Done && isStep2Done && activeAudio.length > 0 && totalQuestions > 0;
+      const isStep4Done = Boolean(state.createdCampaignId);
+
+      // High-water mark calculation: dynamically unlock next step when current step completes
+      if (isStep3Done) {
+        state.maxUnlockedStep = Math.max(state.maxUnlockedStep || 1, 4);
+      } else if (isStep2Done) {
+        state.maxUnlockedStep = Math.max(state.maxUnlockedStep || 1, 3);
+      } else if (isStep1Done) {
+        state.maxUnlockedStep = Math.max(state.maxUnlockedStep || 1, 2);
+      } else {
+        state.maxUnlockedStep = Math.max(state.maxUnlockedStep || 1, 1);
+      }
+
+      const completionMap = {
+        1: isStep1Done,
+        2: isStep2Done,
+        3: isStep3Done,
+        4: isStep4Done
+      };
 
       el.wizardNavItems.forEach(item => {
         const itemStep = parseInt(item.dataset.step, 10);
-        item.classList.toggle("active", itemStep === stepNumber);
-        item.classList.toggle("completed", itemStep < stepNumber);
+        const isActive = itemStep === stepNumber;
+        const isCompleted = Boolean(completionMap[itemStep]);
+        const isUnlocked = itemStep <= state.maxUnlockedStep;
+
+        item.classList.toggle("active", isActive);
+        item.classList.toggle("completed", isCompleted && !isActive);
+        item.classList.toggle("is-locked", !isUnlocked && !isActive);
+
+        const subEl = item.querySelector(".wizard-step-subtitle");
+        if (subEl) {
+          if (itemStep === 4) {
+            subEl.textContent = isStep3Done || isCompleted ? "Deploy & rater link" : "Requires Steps 1–3";
+          } else if (itemStep === 3) {
+            subEl.textContent = isStep2Done ? "Layout & questions" : "Requires audio in Step 2";
+          } else if (itemStep === 2) {
+            subEl.textContent = isStep1Done ? "Samples & models" : "Requires study name in Step 1";
+          }
+        }
+
+        const badge = item.querySelector(".wizard-step-badge");
+        if (badge) {
+          if (isCompleted && !isActive) {
+            badge.innerHTML = `<svg class="w-3.5 h-3.5 text-white" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>`;
+          } else {
+            badge.textContent = itemStep;
+          }
+        }
       });
+
+      updateDraftIndicator();
+    };
+
+    goToStep = function(stepNumber) {
+      // Auto-save form inputs from Step 1 if filled
+      if (el.wizStudyName && el.wizStudyName.value.trim()) {
+        state.wizardData.name = el.wizStudyName.value.trim();
+        state.wizardData.desc = el.wizStudyDesc ? el.wizStudyDesc.value.trim() : "";
+        state.wizardData.instructions = el.wizStudyInstructions ? el.wizStudyInstructions.value.trim() : "";
+      }
+
+      state.wizardStep = stepNumber;
+      state.maxUnlockedStep = Math.max(state.maxUnlockedStep || 1, stepNumber);
+      updateWizardNav();
 
       el.step1.classList.toggle("hidden", stepNumber !== 1);
       el.step2.classList.toggle("hidden", stepNumber !== 2);
       el.step3.classList.toggle("hidden", stepNumber !== 3);
       el.step4.classList.toggle("hidden", stepNumber !== 4);
 
-      if (stepNumber === 4) {
+      if (stepNumber === 3) {
+        renderCanvas();
+        renderInspector();
+        updateSmartGuide();
+      } else if (stepNumber === 4) {
         populateSummaryStep();
       }
+
+      saveWizardDraft();
+    }
+
+    // Live auto-save input listeners for Step 1 fields
+    if (el.wizStudyName) {
+      el.wizStudyName.addEventListener("input", (e) => {
+        state.wizardData.name = e.target.value.trim();
+        updateWizardNav();
+        saveWizardDraft();
+      });
+    }
+    if (el.wizStudyDesc) {
+      el.wizStudyDesc.addEventListener("input", (e) => {
+        state.wizardData.desc = e.target.value.trim();
+        saveWizardDraft();
+      });
+    }
+    if (el.wizStudyInstructions) {
+      el.wizStudyInstructions.addEventListener("input", (e) => {
+        state.wizardData.instructions = e.target.value.trim();
+        saveWizardDraft();
+      });
+    }
+
+    // Discard Draft & Start Fresh Button
+    if (el.btnDiscardDraft) {
+      el.btnDiscardDraft.addEventListener("click", () => {
+        const confirmed = window.confirm(
+          "Are you sure you want to discard your draft and start over? All entered study details, audio files, and test designs will be cleared."
+        );
+        if (!confirmed) return;
+        resetWizardToStep1();
+        showToast("Draft cleared. Starting fresh.", "info");
+      });
     }
 
     // Step 1 -> 2
@@ -613,6 +907,7 @@
       state.wizardData.name = name;
       state.wizardData.desc = el.wizStudyDesc.value.trim();
       state.wizardData.instructions = el.wizStudyInstructions.value.trim();
+      state.maxUnlockedStep = Math.max(state.maxUnlockedStep, 2);
       goToStep(2);
     });
 
@@ -623,6 +918,7 @@
         showToast("Please add at least one audio file to evaluate.", "error");
         return;
       }
+      state.maxUnlockedStep = Math.max(state.maxUnlockedStep, 3);
       goToStep(3);
     });
 
@@ -650,27 +946,96 @@
       });
       state.wizardData.criteria = allCriteria;
       state.wizardData.scaleMax = activeScoring[0]?.scale_max || 5;
+      state.maxUnlockedStep = Math.max(state.maxUnlockedStep, 4);
       goToStep(4);
     });
 
     // Step 4 Nav
     el.wizBtnStep4Prev.addEventListener("click", () => goToStep(3));
 
-    // Direct header step clicks
+    // Direct header step clicks: High-water mark navigation
     el.wizardNavItems.forEach(item => {
       item.addEventListener("click", () => {
         const targetStep = parseInt(item.dataset.step, 10);
-        if (targetStep < state.wizardStep) {
-          goToStep(targetStep);
+        if (targetStep === state.wizardStep) return;
+
+        // Auto-save form inputs from Step 1 if filled
+        if (el.wizStudyName && el.wizStudyName.value.trim()) {
+          state.wizardData.name = el.wizStudyName.value.trim();
+          state.wizardData.desc = el.wizStudyDesc ? el.wizStudyDesc.value.trim() : "";
+          state.wizardData.instructions = el.wizStudyInstructions ? el.wizStudyInstructions.value.trim() : "";
+          saveWizardDraft();
         }
+
+        // Strict forward progression: Cannot skip forward past highest reached & unlocked step
+        if (targetStep > state.maxUnlockedStep) {
+          if (targetStep === 2) {
+            showToast("Please complete Step 1 (Study Name) before moving to Step 2.", "info");
+            if (el.wizStudyName) el.wizStudyName.focus();
+          } else if (targetStep === 3) {
+            showToast("Please complete Step 2 (Upload audio samples) before designing the test stage.", "info");
+          } else if (targetStep === 4) {
+            showToast("Please complete Step 3 (Add Audio Player & Rating Scale) before launching.", "info");
+          }
+          return;
+        }
+
+        // Within high-water mark: Jump freely back or forward
+        goToStep(targetStep);
       });
     });
+
+    // Initial state calculation for wizard nav
+    updateWizardNav();
+    updateDraftIndicator();
+  }
+
+  function resetWizardToStep1() {
+    clearWizardDraft();
+    state.createdCampaignId = null;
+    state.wizardStep = 1;
+    state.maxUnlockedStep = 1;
+    state.wizardData.name = "";
+    state.wizardData.desc = "";
+    state.wizardData.instructions = "";
+    state.wizardData.modality = "TTS";
+    state.wizardData.models = [];
+    state.wizardData.items = [];
+    state.wizardData.ui_config.blocks = [];
+    state.selectedCardId = null;
+
+    if (el.wizStudyName) el.wizStudyName.value = "";
+    if (el.wizStudyDesc) el.wizStudyDesc.value = "";
+    if (el.wizStudyInstructions) el.wizStudyInstructions.value = "";
+
+    if (el.shareableLinkContainer) el.shareableLinkContainer.classList.add("hidden");
+    if (el.launchActionBox) el.launchActionBox.classList.remove("hidden");
+
+    if (el.wizModalityRadios) {
+      el.wizModalityRadios.forEach(r => { r.checked = r.value === "TTS"; });
+      if (el.optModalityTts) {
+        el.optModalityTts.classList.add("border-2", "border-zinc-900", "bg-zinc-50");
+        el.optModalityTts.classList.remove("border-zinc-200", "bg-white");
+      }
+      if (el.optModalityAsr) {
+        el.optModalityAsr.classList.remove("border-2", "border-zinc-900", "bg-zinc-50");
+        el.optModalityAsr.classList.add("border-zinc-200", "bg-white");
+      }
+    }
+
+    if (typeof renderItemsTable === "function") renderItemsTable();
+    if (typeof renderModelsChips === "function") renderModelsChips();
+    if (typeof renderCanvas === "function") renderCanvas();
+    if (typeof renderInspector === "function") renderInspector();
+    if (typeof updateSmartGuide === "function") updateSmartGuide();
+    updateDraftIndicator();
+    if (typeof goToStep === "function") goToStep(1);
   }
 
   // Audio Uploads, Model Management & Transcript Pairing Engine
   function setupAudioUploads() {
     // Model Management
-    function renderModelsChips() {
+    renderModelsChips = function() {
       if (!el.modelsChipsContainer || !el.selUploadTargetModel) return;
       el.modelsChipsContainer.innerHTML = "";
       el.selUploadTargetModel.innerHTML = "";
@@ -812,6 +1177,11 @@
 
         renderItemsTable();
         showToast(`Loaded ${added} audio samples.`, "success");
+
+        // Automatically reconcile if user uploaded transcripts first
+        if (state.reconciliation.pendingCsvRows && state.reconciliation.pendingCsvRows.length > 0) {
+          reconcileAudioAndText(state.reconciliation.pendingCsvRows);
+        }
       } finally {
         setDropzoneLoading(false);
       }
@@ -1059,6 +1429,13 @@
       const orphanAudio = [];
 
       const currentItems = state.wizardData.items;
+
+      // If user uploaded CSV before audio files, keep rows pending without showing false error
+      if (!currentItems || currentItems.length === 0) {
+        showToast(`Transcripts loaded (${csvRows.length} lines). Drop audio files (.wav) now to pair them.`, "info");
+        return;
+      }
+
       const usedItemIndices = new Set();
 
       csvRows.forEach(row => {
@@ -1330,7 +1707,7 @@
                 state.wizardData.items.push({
                   id: `item-link-${Date.now()}-${idx}`,
                   filename: f.filename,
-                  audio_url: f.url,
+                  audio_url: f.audio_url || f.url || "",
                   model_id: targetModelObj?.id || "model-candidate",
                   model_name: targetModelObj?.name || "Candidate Voice",
                   text: ""
@@ -1517,8 +1894,11 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
   }
 
   function renderItemsTable() {
+    if (!el.itemsCountBadge || !el.itemsPreviewTbody) return;
     el.itemsCountBadge.textContent = state.wizardData.items.length;
     el.itemsPreviewTbody.innerHTML = "";
+    if (typeof updateWizardNav === "function") updateWizardNav();
+    saveWizardDraft();
 
     if (state.wizardData.items.length === 0) {
       el.itemsPreviewTbody.innerHTML = `
@@ -1531,6 +1911,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       return;
     }
 
+    const fragment = document.createDocumentFragment();
     state.wizardData.items.forEach((item, idx) => {
       const tr = document.createElement("tr");
 
@@ -1579,12 +1960,14 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         item.model_id = e.target.value;
         const found = state.wizardData.models.find(m => m.id === item.model_id);
         if (found) item.model_name = found.name;
+        saveWizardDraft();
       });
 
       // Live update text on input
       const textInput = tr.querySelector(".item-text-input");
       textInput.addEventListener("input", (e) => {
         item.text = e.target.value;
+        saveWizardDraft();
       });
 
       // Remove item
@@ -1593,8 +1976,9 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         renderItemsTable();
       });
 
-      el.itemsPreviewTbody.appendChild(tr);
+      fragment.appendChild(tr);
     });
+    el.itemsPreviewTbody.appendChild(fragment);
   }
 
   // Step 3: Dynamic Modular Test Builder & Live Inspector
@@ -1611,7 +1995,10 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
             source_model: "candidate",
             phone_filter: false,
             speeds: true,
-            auto_play: false
+            auto_play: false,
+            defect_tagging: true,
+            allowed_defect_codes: CLINICAL_ERROR_CODES_19.map(c => c.code),
+            default_defect_code: "C_DEL"
           };
         case "text_prompt":
           return {
@@ -1691,7 +2078,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         showToast("Cleared canvas to Blank.", "info");
       }
 
-      state.selectedCardId = state.wizardData.ui_config.blocks[0]?.id || null;
+      state.selectedCardId = null;
       renderCanvas();
       renderInspector();
       updateSmartGuide();
@@ -1713,6 +2100,9 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
 
     // Toolbox drag & drop + click add
     let activeDropIndicator = null;
+    let currentDraggingBlockId = null;
+    let currentDraggingToolType = null;
+    let draggedCardHeight = 110;
 
     function removeDropIndicator() {
       if (activeDropIndicator && activeDropIndicator.parentNode) {
@@ -1721,20 +2111,25 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       activeDropIndicator = null;
     }
 
-    function createDropIndicator() {
+    function createDropIndicator(height) {
       const box = document.createElement("div");
-      box.className = "drop-indicator drop-ghost-placeholder text-xs font-semibold text-zinc-500 my-2 transition-all select-none";
+      box.className = "drop-indicator drop-ghost-placeholder pointer-events-none select-none my-3 rounded-2xl flex items-center justify-center";
+      const h = Math.max(84, height || 110);
+      box.style.minHeight = `${h}px`;
+      box.style.height = `${h}px`;
       box.innerHTML = `
-        <div class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-zinc-900 animate-ping"></span>
-          <span>Drop Component Here</span>
+        <div class="drop-ghost-badge pointer-events-none">
+          <svg class="w-4 h-4 text-indigo-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+          <span>Insert Component Here</span>
         </div>
       `;
       return box;
     }
 
-    function getDropInsertionIndex(canvasEl, clientY) {
-      const cards = Array.from(canvasEl.querySelectorAll(".canvas-block-card"));
+    function getDropInsertionIndex(canvasEl, clientY, excludeBlockId = null) {
+      const cards = Array.from(canvasEl.querySelectorAll(".canvas-block-card")).filter(
+        c => !excludeBlockId || c.dataset.id !== excludeBlockId
+      );
       if (cards.length === 0) return 0;
 
       for (let i = 0; i < cards.length; i++) {
@@ -1752,12 +2147,17 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         const toolType = item.dataset.tool;
 
         item.addEventListener("dragstart", (e) => {
+          currentDraggingBlockId = null;
+          currentDraggingToolType = toolType;
+          draggedCardHeight = 110;
+          e.dataTransfer.setData("tool-type", toolType);
           e.dataTransfer.setData("text/plain", toolType);
           e.dataTransfer.setData("source", "toolbox");
           item.classList.add("opacity-50");
         });
         item.addEventListener("dragend", () => {
           item.classList.remove("opacity-50");
+          currentDraggingToolType = null;
           removeDropIndicator();
         });
 
@@ -1772,6 +2172,8 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
               renderCanvas();
               renderInspector();
               updateSmartGuide();
+              updateWizardNav();
+              saveWizardDraft();
               showToast(`Added ${toolType.replace("_", " ")} to playground.`, "success");
             }
           });
@@ -1781,22 +2183,29 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
 
     // Canvas Drop Zone
     if (el.builderCanvas) {
+      let lastInsertionIndex = -1;
+
       el.builderCanvas.addEventListener("dragover", (e) => {
         e.preventDefault();
+        e.dataTransfer.dropEffect = currentDraggingBlockId ? "move" : "copy";
         el.builderCanvas.classList.add("border-zinc-900", "bg-zinc-100/60");
 
-        const cards = Array.from(el.builderCanvas.querySelectorAll(".canvas-block-card"));
-        const idx = getDropInsertionIndex(el.builderCanvas, e.clientY);
+        const cards = Array.from(el.builderCanvas.querySelectorAll(".canvas-block-card")).filter(
+          c => !currentDraggingBlockId || c.dataset.id !== currentDraggingBlockId
+        );
+        const idx = getDropInsertionIndex(el.builderCanvas, e.clientY, currentDraggingBlockId);
 
-        removeDropIndicator();
-        activeDropIndicator = createDropIndicator();
+        if (!activeDropIndicator) {
+          activeDropIndicator = createDropIndicator(draggedCardHeight);
+        }
 
-        if (cards.length === 0) {
-          el.builderCanvas.appendChild(activeDropIndicator);
-        } else if (idx < cards.length) {
-          el.builderCanvas.insertBefore(activeDropIndicator, cards[idx]);
-        } else {
-          el.builderCanvas.appendChild(activeDropIndicator);
+        if (idx !== lastInsertionIndex || !activeDropIndicator.parentNode) {
+          lastInsertionIndex = idx;
+          if (cards.length === 0 || idx >= cards.length) {
+            el.builderCanvas.appendChild(activeDropIndicator);
+          } else {
+            el.builderCanvas.insertBefore(activeDropIndicator, cards[idx]);
+          }
         }
       });
 
@@ -1805,71 +2214,90 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         if (!el.builderCanvas.contains(e.relatedTarget)) {
           el.builderCanvas.classList.remove("border-zinc-900", "bg-zinc-100/60");
           removeDropIndicator();
+          lastInsertionIndex = -1;
         }
       });
 
       el.builderCanvas.addEventListener("drop", (e) => {
         e.preventDefault();
         el.builderCanvas.classList.remove("border-zinc-900", "bg-zinc-100/60");
-        const idx = getDropInsertionIndex(el.builderCanvas, e.clientY);
+        const sourceBlockId = currentDraggingBlockId || e.dataTransfer.getData("block-id");
+        const toolType = currentDraggingToolType || e.dataTransfer.getData("tool-type") || e.dataTransfer.getData("text/plain");
+        const idx = getDropInsertionIndex(el.builderCanvas, e.clientY, sourceBlockId);
         removeDropIndicator();
-
-        const toolType = e.dataTransfer.getData("text/plain");
-        const sourceBlockId = e.dataTransfer.getData("block-id");
+        lastInsertionIndex = -1;
 
         if (sourceBlockId) {
-          // Reordering existing canvas block via drag handle
+          // Reordering existing canvas block
           const blocks = state.wizardData.ui_config.blocks;
           const oldIdx = blocks.findIndex(b => b.id === sourceBlockId);
           if (oldIdx !== -1) {
             const [movedBlock] = blocks.splice(oldIdx, 1);
-            const targetIdx = oldIdx < idx ? Math.max(0, idx - 1) : idx;
+            const targetIdx = Math.max(0, Math.min(blocks.length, idx));
             blocks.splice(targetIdx, 0, movedBlock);
             state.selectedCardId = movedBlock.id;
             renderCanvas();
             renderInspector();
             updateSmartGuide();
+            saveWizardDraft();
           }
         } else if (toolType) {
           // Inserting new block from toolbox at calculated index
           const newBlock = createBlock(toolType);
           if (newBlock) {
-            state.wizardData.ui_config.blocks.splice(idx, 0, newBlock);
+            const blocks = state.wizardData.ui_config.blocks;
+            const targetIdx = Math.max(0, Math.min(blocks.length, idx));
+            blocks.splice(targetIdx, 0, newBlock);
             state.selectedCardId = newBlock.id;
             renderCanvas();
             renderInspector();
             updateSmartGuide();
+            updateWizardNav();
+            saveWizardDraft();
+            showToast(`Added ${toolType.replace("_", " ")} to playground.`, "success");
           }
         }
+        currentDraggingBlockId = null;
+        currentDraggingToolType = null;
       });
     }
 
     // Canvas Rendering
-    function renderCanvas() {
+    renderCanvas = function() {
       if (!el.builderCanvas) return;
       el.builderCanvas.innerHTML = "";
 
       const blocks = state.wizardData.ui_config.blocks;
       if (blocks.length === 0) {
         el.builderCanvas.innerHTML = `
-          <div class="text-center py-16 text-zinc-400">
-            <div class="text-xs font-semibold text-zinc-600">Playground is Empty</div>
-            <div class="text-[11px] mt-1">Add components from the left menu to build your test.</div>
+          <div class="flex flex-col items-center justify-center py-20 px-4 text-center border-2 border-dashed border-zinc-200 rounded-2xl bg-zinc-50/50">
+            <div class="w-12 h-12 rounded-2xl bg-white border border-zinc-200 flex items-center justify-center text-zinc-400 shadow-2xs mb-3">
+              <svg class="w-6 h-6 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            </div>
+            <div class="text-xs font-bold text-zinc-800">Evaluation Stage is Empty</div>
+            <p class="text-[11px] text-zinc-500 max-w-sm mt-1 mb-4 leading-normal">
+              Drag components from the left menu or click [+] to build what raters will see and hear during testing.
+            </p>
+            <div class="flex items-center gap-2 text-[11px] text-zinc-400">
+              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white border border-zinc-200 text-zinc-700 font-medium">1. Audio Player</span>
+              <span>&rarr;</span>
+              <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white border border-zinc-200 text-zinc-700 font-medium">2. Rating Scale</span>
+            </div>
           </div>
         `;
         return;
       }
 
-      // Sample item for real preview binding
+      // Sample item for real preview binding directly from Step 2
       const sampleItem = state.wizardData.items && state.wizardData.items.length > 0
         ? state.wizardData.items[0]
         : null;
       const sampleText = sampleItem && sampleItem.text
         ? sampleItem.text
-        : "អត្ថបទគំរូសម្រាប់វាយតម្លៃ (Sample Transcript Text)";
+        : "(No transcript text provided for this audio sample)";
       const sampleAudioName = sampleItem && sampleItem.filename
         ? sampleItem.filename
-        : "KH01_sample.wav";
+        : "Audio Sample 1";
 
       blocks.forEach((block, idx) => {
         const isSelected = block.id === state.selectedCardId;
@@ -2063,8 +2491,30 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           ${previewHtml}
         `;
 
+        // Dragging whole card to reorder in playground
+        card.setAttribute("draggable", "true");
+        card.addEventListener("dragstart", (e) => {
+          if (e.target.closest("button, input, select, textarea, canvas, .custom-dropdown-container")) {
+            e.preventDefault();
+            return;
+          }
+          currentDraggingBlockId = block.id;
+          currentDraggingToolType = null;
+          draggedCardHeight = card.offsetHeight || 130;
+          e.dataTransfer.setData("block-id", block.id);
+          e.dataTransfer.setData("text/plain", block.id);
+          card.classList.add("opacity-40");
+        });
+        card.addEventListener("dragend", () => {
+          card.classList.remove("opacity-40");
+          currentDraggingBlockId = null;
+          currentDraggingToolType = null;
+          removeDropIndicator();
+        });
+
         // Selection: toggle selection if clicking the already selected card
-        card.addEventListener("click", () => {
+        card.addEventListener("click", (e) => {
+          if (e.target.closest("button, input, select, textarea")) return;
           if (state.selectedCardId === block.id) {
             state.selectedCardId = null;
           } else {
@@ -2073,22 +2523,6 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           renderCanvas();
           renderInspector();
         });
-
-        // Drag handle for reordering card
-        const dragHandle = card.querySelector(".card-drag-handle");
-        if (dragHandle) {
-          dragHandle.setAttribute("draggable", "true");
-          dragHandle.addEventListener("dragstart", (e) => {
-            e.stopPropagation();
-            e.dataTransfer.setData("block-id", block.id);
-            card.classList.add("opacity-50");
-          });
-          dragHandle.addEventListener("dragend", (e) => {
-            e.stopPropagation();
-            card.classList.remove("opacity-50");
-            removeDropIndicator();
-          });
-        }
 
         // Reordering
         const btnUp = card.querySelector(".btn-card-move-up");
@@ -2100,6 +2534,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
             blocks[idx - 1] = temp;
             renderCanvas();
             updateSmartGuide();
+            saveWizardDraft();
           });
         }
         const btnDown = card.querySelector(".btn-card-move-down");
@@ -2111,6 +2546,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
             blocks[idx + 1] = temp;
             renderCanvas();
             updateSmartGuide();
+            saveWizardDraft();
           });
         }
 
@@ -2126,6 +2562,8 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
             renderCanvas();
             renderInspector();
             updateSmartGuide();
+            updateWizardNav();
+            saveWizardDraft();
           });
         }
 
@@ -2212,8 +2650,169 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       ctx.restore();
     }
 
+    // Reusable Custom Dropdown Component (Replaces native Apple OS select popups)
+    function createCustomDropdown({ id, value, options, onChange, label, helpText }) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "custom-dropdown-container space-y-1";
+
+      if (label) {
+        const lbl = document.createElement("label");
+        lbl.className = "block text-[11px] font-semibold text-zinc-700";
+        lbl.htmlFor = id;
+        lbl.textContent = label;
+        wrapper.appendChild(lbl);
+      }
+
+      const selectedOpt = options.find(o => String(o.value) === String(value)) || options[0] || { label: "Select...", value: "" };
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.id = id;
+      btn.className = "custom-dropdown-trigger";
+      btn.setAttribute("aria-haspopup", "listbox");
+      btn.setAttribute("aria-expanded", "false");
+      btn.innerHTML = `
+        <span class="custom-dropdown-label truncate">${escapeHtml(selectedOpt.label || selectedOpt.text || String(selectedOpt.value))}</span>
+        <svg class="custom-dropdown-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      `;
+
+      const menu = document.createElement("div");
+      menu.className = "custom-dropdown-menu hidden shadow-xl";
+      menu.setAttribute("role", "listbox");
+
+      options.forEach(opt => {
+        const item = document.createElement("div");
+        const isSelected = String(opt.value) === String(value);
+        item.className = `custom-dropdown-item ${isSelected ? "selected" : ""}`;
+        item.setAttribute("role", "option");
+        item.setAttribute("aria-selected", isSelected ? "true" : "false");
+        item.dataset.value = opt.value;
+
+        const descHtml = opt.desc ? `<div class="custom-dropdown-item-desc text-[10px] text-zinc-400 mt-0.5 leading-snug">${escapeHtml(opt.desc)}</div>` : "";
+
+        item.innerHTML = `
+          <div class="flex-1 min-w-0 pr-2">
+            <div class="truncate text-xs">${escapeHtml(opt.label || opt.text || opt.value)}</div>
+            ${descHtml}
+          </div>
+          ${isSelected ? `
+            <svg class="w-3.5 h-3.5 text-current shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+          ` : ""}
+        `;
+
+        item.addEventListener("click", (e) => {
+          e.stopPropagation();
+          menu.classList.add("hidden");
+          btn.classList.remove("open");
+          btn.setAttribute("aria-expanded", "false");
+          btn.querySelector(".custom-dropdown-label").textContent = opt.label || opt.text || opt.value;
+          menu.querySelectorAll(".custom-dropdown-item").forEach(i => {
+            const sel = i.dataset.value === String(opt.value);
+            i.classList.toggle("selected", sel);
+            i.setAttribute("aria-selected", sel ? "true" : "false");
+          });
+          if (typeof onChange === "function") {
+            onChange(opt.value);
+          }
+        });
+
+        menu.appendChild(item);
+      });
+
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const isOpen = !menu.classList.contains("hidden");
+        document.querySelectorAll(".custom-dropdown-menu").forEach(m => m.classList.add("hidden"));
+        document.querySelectorAll(".custom-dropdown-trigger").forEach(b => {
+          b.classList.remove("open");
+          b.setAttribute("aria-expanded", "false");
+        });
+        if (!isOpen) {
+          // Dynamic viewport boundary check: auto-flip upward if space below is cramped
+          const rect = btn.getBoundingClientRect();
+          const viewportH = window.innerHeight || document.documentElement.clientHeight;
+          const spaceBelow = viewportH - rect.bottom;
+          const spaceAbove = rect.top;
+
+          if (spaceBelow < 220 && spaceAbove > spaceBelow) {
+            menu.classList.add("drop-up");
+            const maxH = Math.min(220, Math.max(120, spaceAbove - 24));
+            menu.style.maxHeight = `${maxH}px`;
+          } else {
+            menu.classList.remove("drop-up");
+            const maxH = Math.min(220, Math.max(120, spaceBelow - 24));
+            menu.style.maxHeight = `${maxH}px`;
+          }
+
+          menu.classList.remove("hidden");
+          btn.classList.add("open");
+          btn.setAttribute("aria-expanded", "true");
+
+          // Ensure selected item is scrolled into view immediately
+          const selectedItem = menu.querySelector(".custom-dropdown-item.selected");
+          if (selectedItem) {
+            selectedItem.scrollIntoView({ block: "nearest" });
+          }
+        }
+      });
+
+      const outsideClickListener = (e) => {
+        if (!wrapper.contains(e.target)) {
+          menu.classList.add("hidden");
+          btn.classList.remove("open");
+          btn.setAttribute("aria-expanded", "false");
+        }
+      };
+      document.addEventListener("click", outsideClickListener);
+
+      wrapper.appendChild(btn);
+      wrapper.appendChild(menu);
+
+      if (helpText) {
+        const hint = document.createElement("div");
+        hint.className = "text-[10px] text-zinc-500 mt-1 leading-relaxed";
+        hint.textContent = helpText;
+        wrapper.appendChild(hint);
+      }
+
+      return wrapper;
+    }
+
+    // Reusable Modern iOS/Linear Spring Switch Toggle
+    function createCustomSwitch({ id, checked, onChange, label, description }) {
+      const wrap = document.createElement("div");
+      wrap.className = "p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl transition hover:border-zinc-300";
+
+      wrap.innerHTML = `
+        <div class="flex items-center justify-between cursor-pointer" id="${id}-toggle-area">
+          <span class="text-xs font-semibold text-zinc-900">${escapeHtml(label)}</span>
+          <button type="button" id="${id}" role="switch" aria-checked="${checked ? "true" : "false"}" class="studio-switch ${checked ? "checked" : ""}">
+            <span class="studio-switch-thumb"></span>
+          </button>
+        </div>
+        ${description ? `<div class="text-[11px] text-zinc-500 leading-relaxed mt-1">${escapeHtml(description)}</div>` : ""}
+      `;
+
+      const switchBtn = wrap.querySelector(`#${id}`);
+      const toggle = (e) => {
+        if (e) e.preventDefault();
+        const isChecked = !switchBtn.classList.contains("checked");
+        switchBtn.classList.toggle("checked", isChecked);
+        switchBtn.setAttribute("aria-checked", isChecked ? "true" : "false");
+        if (typeof onChange === "function") onChange(isChecked);
+      };
+
+      switchBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggle(e);
+      });
+      wrap.querySelector(`#${id}-toggle-area`).addEventListener("click", toggle);
+
+      return wrap;
+    }
+
     // Inspector / Customize Drawer Rendering
-    function renderInspector() {
+    renderInspector = function() {
       if (!el.inspectorControlsContainer) return;
       el.inspectorControlsContainer.innerHTML = "";
 
@@ -2236,159 +2835,348 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       if (el.inspectorSelectedTitle) el.inspectorSelectedTitle.textContent = selected.label || selected.type;
       if (el.inspectorBlockBadge) el.inspectorBlockBadge.textContent = selected.type;
 
+      // Dynamic header type icon
+      const typeIconEl = document.getElementById("inspector-type-icon");
+      if (typeIconEl) {
+        if (selected.type === "audio_player") {
+          typeIconEl.innerHTML = `<svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>`;
+        } else if (selected.type === "text_prompt") {
+          typeIconEl.innerHTML = `<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>`;
+        } else if (selected.type === "word_tagger") {
+          typeIconEl.innerHTML = `<svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>`;
+        } else if (selected.type === "scoring_questions") {
+          typeIconEl.innerHTML = `<svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>`;
+        } else {
+          typeIconEl.innerHTML = `<svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>`;
+        }
+      }
+
+      const allDefectCategories = CLINICAL_ERROR_CODES_19;
+
       if (selected.type === "audio_player") {
-        el.inspectorControlsContainer.innerHTML = `
-          <div class="space-y-3">
-            <div>
-              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Player Title</label>
-              <input type="text" id="insp-audio-label" class="w-full px-3 py-2 text-xs bg-white border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 transition" value="${escapeHtml(selected.label || "")}" placeholder="e.g. Speech Audio" />
-            </div>
+        if (selected.defect_tagging === undefined) selected.defect_tagging = true;
+        if (!selected.allowed_defect_codes || selected.allowed_defect_codes.length === 0) {
+          selected.allowed_defect_codes = CLINICAL_ERROR_CODES_19.map(c => c.code);
+        }
+        if (!selected.default_defect_code) {
+          selected.default_defect_code = "C_DEL";
+        }
 
-            <div>
-              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Which audio should this play?</label>
-              <select id="insp-audio-source" class="studio-select w-full px-3 py-2 text-xs">
-                <option value="candidate" ${selected.source_model === "candidate" ? "selected" : ""}>Generated Voice (TTS Model being tested)</option>
-                <option value="reference" ${selected.source_model === "reference" ? "selected" : ""}>Human Reference (Real Speaker recording)</option>
-              </select>
-              <div class="text-[10px] text-zinc-500 mt-1">Pick whether this player tests the AI model output or provides a real human recording to compare against.</div>
-            </div>
+        const container = document.createElement("div");
+        container.className = "space-y-4";
 
-            <div class="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-1.5 transition">
-              <label class="flex items-center justify-between cursor-pointer">
-                <span class="text-xs font-semibold text-zinc-900">Phone Call Simulation</span>
-                <input type="checkbox" id="insp-audio-phone" class="w-4 h-4 rounded text-zinc-900" ${selected.phone_filter ? "checked" : ""} />
-              </label>
-              <div class="text-[11px] text-zinc-500 leading-relaxed">Simulates 8 kHz phone audio to test call center and IVR voice quality.</div>
-            </div>
-
-            <div class="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-1.5 transition">
-              <label class="flex items-center justify-between cursor-pointer">
-                <span class="text-xs font-semibold text-zinc-900">Playback Speed Buttons</span>
-                <input type="checkbox" id="insp-audio-speeds" class="w-4 h-4 rounded text-zinc-900" ${selected.speeds ? "checked" : ""} />
-              </label>
-              <div class="text-[11px] text-zinc-500 leading-relaxed">Adds 0.8x, 1.0x, and 1.2x speed buttons so raters can listen carefully.</div>
-            </div>
-          </div>
+        // 1. Title Input
+        const titleDiv = document.createElement("div");
+        titleDiv.innerHTML = `
+          <label class="block text-[11px] font-semibold text-zinc-700 mb-1" for="insp-audio-label">Player Title</label>
+          <input type="text" id="insp-audio-label" class="w-full px-3 py-2 text-xs bg-white border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 transition" value="${escapeHtml(selected.label || "")}" placeholder="e.g. Speech Audio" />
         `;
-
-        document.getElementById("insp-audio-label")?.addEventListener("input", (e) => {
+        titleDiv.querySelector("#insp-audio-label").addEventListener("input", (e) => {
           selected.label = e.target.value;
           renderCanvas();
         });
-        document.getElementById("insp-audio-source")?.addEventListener("change", (e) => {
-          selected.source_model = e.target.value;
-          renderCanvas();
-        });
-        document.getElementById("insp-audio-phone")?.addEventListener("change", (e) => {
-          selected.phone_filter = e.target.checked;
-          state.wizardData.ui_config.dsp.phone_filter_8khz = blocks.some(b => b.phone_filter);
-          renderCanvas();
-          updateSmartGuide();
-        });
-        document.getElementById("insp-audio-speeds")?.addEventListener("change", (e) => {
-          selected.speeds = e.target.checked;
-          renderCanvas();
-        });
-      } else if (selected.type === "text_prompt") {
-        el.inspectorControlsContainer.innerHTML = `
-          <div class="space-y-3">
-            <div>
-              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Text Visibility</label>
-              <select id="insp-prompt-mode" class="studio-select w-full px-3 py-2 text-xs">
-                <option value="open" ${selected.mode === "open" ? "selected" : ""}>Always Visible (Normal Reading)</option>
-                <option value="blind_gated" ${selected.mode === "blind_gated" ? "selected" : ""}>Blurred until Clicked (Blind Hearing Test)</option>
-              </select>
-              <div class="text-[10px] text-zinc-500 mt-1 leading-relaxed">Blurred mode hides the text until the listener presses space or clicks reveal, preventing visual reading bias.</div>
-            </div>
+        container.appendChild(titleDiv);
 
-            <div>
-              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Text Size</label>
-              <select id="insp-prompt-size" class="studio-select w-full px-3 py-2 text-xs">
-                <option value="24px" ${selected.font_size === "24px" ? "selected" : ""}>Compact (24px)</option>
-                <option value="32px" ${selected.font_size === "32px" ? "selected" : ""}>Standard (32px)</option>
-                <option value="40px" ${selected.font_size === "40px" ? "selected" : ""}>Large (40px)</option>
-              </select>
-            </div>
+        // 2. Custom Dropdown for Source
+        const sourceOptions = [
+          { value: "candidate", label: "Generated Voice (TTS Model being tested)", desc: "Audition the model's synthesized voice" },
+          { value: "reference", label: "Human Reference (Real Speaker recording)", desc: "Benchmark against original human recording" }
+        ];
+        const sourceDropdown = createCustomDropdown({
+          id: "insp-audio-source",
+          value: selected.source_model || "candidate",
+          options: sourceOptions,
+          label: "Which audio should this play?",
+          helpText: "Pick whether this player tests the AI model output or provides a real human recording to compare against.",
+          onChange: (val) => {
+            selected.source_model = val;
+            renderCanvas();
+          }
+        });
+        container.appendChild(sourceDropdown);
+
+        // 3. Audio DSP Toggles
+        const phoneSwitch = createCustomSwitch({
+          id: "insp-audio-phone",
+          checked: Boolean(selected.phone_filter),
+          label: "Phone Call Simulation",
+          description: "Simulates 8 kHz phone audio bandpass to test call center and IVR voice quality.",
+          onChange: (checked) => {
+            selected.phone_filter = checked;
+            state.wizardData.ui_config.dsp.phone_filter_8khz = blocks.some(b => b.phone_filter);
+            renderCanvas();
+            updateSmartGuide();
+          }
+        });
+        container.appendChild(phoneSwitch);
+
+        const speedsSwitch = createCustomSwitch({
+          id: "insp-audio-speeds",
+          checked: Boolean(selected.speeds),
+          label: "Playback Speed Buttons",
+          description: "Adds 0.8x, 1.0x, and 1.2x speed buttons so raters can listen carefully.",
+          onChange: (checked) => {
+            selected.speeds = checked;
+            renderCanvas();
+          }
+        });
+        container.appendChild(speedsSwitch);
+
+        // 4. Waveform Defect Tagging Toggle + Multi-Select Error Codes
+        const defectSection = document.createElement("div");
+        defectSection.className = "space-y-2.5 pt-1 border-t border-zinc-100";
+
+        const defectToggle = createCustomSwitch({
+          id: "insp-audio-defect-toggle",
+          checked: selected.defect_tagging !== false,
+          label: "Waveform Defect Tagging",
+          description: "Allows listeners to drag across the waveform to highlight speech defect regions.",
+          onChange: (checked) => {
+            selected.defect_tagging = checked;
+            const panel = defectSection.querySelector("#insp-defect-settings-panel");
+            if (panel) panel.classList.toggle("hidden", !checked);
+            state.wizardData.ui_config.waveform_defect_tagging = checked;
+          }
+        });
+        defectSection.appendChild(defectToggle);
+
+        const defectPanel = document.createElement("div");
+        defectPanel.id = "insp-defect-settings-panel";
+        defectPanel.className = `p-3.5 bg-zinc-50/80 border border-zinc-200/90 rounded-2xl space-y-3.5 transition-all ${selected.defect_tagging === false ? "hidden" : ""}`;
+
+        // Top Header of Panel with Select All / Clear All
+        const panelHeader = document.createElement("div");
+        panelHeader.className = "flex items-center justify-between";
+        panelHeader.innerHTML = `
+          <div>
+            <span class="text-xs font-bold text-zinc-900 block">Allowed Error Types (${allDefectCategories.length})</span>
+            <span class="text-[10px] text-zinc-500">Pick which tags raters can select</span>
+          </div>
+          <div class="flex items-center gap-1.5 text-xs font-semibold">
+            <button type="button" id="btn-defect-select-all" class="px-2 py-0.5 rounded text-[10px] text-zinc-700 hover:bg-zinc-200 transition cursor-pointer">All</button>
+            <span class="text-zinc-300 text-[10px]">|</span>
+            <button type="button" id="btn-defect-clear-all" class="px-2 py-0.5 rounded text-[10px] text-zinc-500 hover:bg-zinc-200 transition cursor-pointer">Clear</button>
           </div>
         `;
+        defectPanel.appendChild(panelHeader);
 
-        document.getElementById("insp-prompt-mode")?.addEventListener("change", (e) => {
-          selected.mode = e.target.value;
-          state.wizardData.ui_config.presentation.blind_gating = selected.mode === "blind_gated";
-          renderCanvas();
-          updateSmartGuide();
-        });
-        document.getElementById("insp-prompt-size")?.addEventListener("change", (e) => {
-          selected.font_size = e.target.value;
-          state.wizardData.ui_config.presentation.font_size = selected.font_size;
-          renderCanvas();
-        });
-      } else if (selected.type === "word_tagger") {
-        el.inspectorControlsContainer.innerHTML = `
-          <div class="space-y-3">
-            <div>
-              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">How listeners flag errors</label>
-              <select id="insp-tagger-mode" class="studio-select w-full px-3 py-2 text-xs">
-                <option value="both" ${selected.mode === "both" ? "selected" : ""}>Both Click Words &amp; Drag Waveform</option>
-                <option value="words" ${selected.mode === "words" ? "selected" : ""}>Click Words Only</option>
-                <option value="waveform" ${selected.mode === "waveform" ? "selected" : ""}>Drag on Waveform Only</option>
-              </select>
-            </div>
+        // Compact Scrollable Chip Grid for 19 Defect Categories
+        const chipsGrid = document.createElement("div");
+        chipsGrid.className = "grid grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1";
 
-            <div class="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-1.5">
-              <span class="text-xs font-semibold text-zinc-900 block">Error Types (6 categories)</span>
-              <div class="text-[11px] text-zinc-600 leading-relaxed">
-                Mispronunciation, Noise/Click, Awkward Pause, Robotic Buzz, Unnatural Pitch, Other.
+        function updateDefectChips() {
+          chipsGrid.innerHTML = "";
+          allDefectCategories.forEach(dt => {
+            const isChecked = selected.allowed_defect_codes.includes(dt.code);
+            const chip = document.createElement("div");
+            chip.className = `defect-toggle-chip ${isChecked ? "active" : ""}`;
+            chip.innerHTML = `
+              <div class="defect-checkbox">
+                ${isChecked ? `<svg class="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>` : ""}
               </div>
-            </div>
+              <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                <span class="w-2 h-2 rounded-full shrink-0" style="background-color: ${dt.dot}"></span>
+                <span class="font-medium text-xs text-zinc-800 truncate" title="${escapeHtml(dt.label)} (${escapeHtml(dt.code)})">${escapeHtml(dt.label)}</span>
+              </div>
+              <span class="text-[10px] font-mono text-zinc-400 shrink-0 ml-1">${escapeHtml(dt.code)}</span>
+            `;
+            chip.addEventListener("click", () => {
+              if (isChecked) {
+                if (selected.allowed_defect_codes.length <= 1) {
+                  showToast("At least one defect category must be selected.", "info");
+                  return;
+                }
+                selected.allowed_defect_codes = selected.allowed_defect_codes.filter(c => c !== dt.code);
+                if (selected.default_defect_code === dt.code) {
+                  selected.default_defect_code = selected.allowed_defect_codes[0] || "C_DEL";
+                }
+              } else {
+                selected.allowed_defect_codes.push(dt.code);
+              }
+              // Sync campaign defectTypes
+              state.wizardData.defectTypes = allDefectCategories.filter(c => selected.allowed_defect_codes.includes(c.code));
+              updateDefectChips();
+              refreshDefaultDefectDropdown();
+            });
+            chipsGrid.appendChild(chip);
+          });
+        }
+        updateDefectChips();
+        defectPanel.appendChild(chipsGrid);
+
+        // Wire Select All / Clear All
+        panelHeader.querySelector("#btn-defect-select-all").addEventListener("click", () => {
+          selected.allowed_defect_codes = allDefectCategories.map(c => c.code);
+          state.wizardData.defectTypes = [...allDefectCategories];
+          updateDefectChips();
+          refreshDefaultDefectDropdown();
+        });
+        panelHeader.querySelector("#btn-defect-clear-all").addEventListener("click", () => {
+          selected.allowed_defect_codes = ["C_DEL"];
+          selected.default_defect_code = "C_DEL";
+          state.wizardData.defectTypes = allDefectCategories.filter(c => c.code === "C_DEL");
+          updateDefectChips();
+          refreshDefaultDefectDropdown();
+        });
+
+        // Default Defect Tag Selector Container
+        const defaultDefectWrapper = document.createElement("div");
+        defaultDefectWrapper.id = "insp-default-defect-mount";
+
+        function refreshDefaultDefectDropdown() {
+          defaultDefectWrapper.innerHTML = "";
+          const activeOpts = allDefectCategories
+            .filter(c => selected.allowed_defect_codes.includes(c.code))
+            .map(c => ({
+              value: c.code,
+              label: `${c.label} (${c.code})`,
+              desc: `Default when rater drags across waveform`
+            }));
+          if (activeOpts.length === 0) {
+            activeOpts.push({ value: "C_DEL", label: "Consonant Deletion (C_DEL)" });
+          }
+          const defaultSelect = createCustomDropdown({
+            id: "insp-audio-default-defect",
+            value: selected.default_defect_code || activeOpts[0].value,
+            options: activeOpts,
+            label: "Default Pre-Selected Tag",
+            helpText: "Default category active when raters hold and drag across the waveform.",
+            onChange: (val) => {
+              selected.default_defect_code = val;
+              state.wizardData.ui_config.default_defect_code = val;
+            }
+          });
+          defaultDefectWrapper.appendChild(defaultSelect);
+        }
+        refreshDefaultDefectDropdown();
+        defectPanel.appendChild(defaultDefectWrapper);
+
+        defectSection.appendChild(defectPanel);
+        container.appendChild(defectSection);
+
+        el.inspectorControlsContainer.appendChild(container);
+
+      } else if (selected.type === "text_prompt") {
+        const container = document.createElement("div");
+        container.className = "space-y-4";
+
+        const modeOptions = [
+          { value: "open", label: "Always Visible (Normal Reading)", desc: "Display transcript continuously to raters" },
+          { value: "blind_gated", label: "Blurred until Clicked (Blind Hearing Test)", desc: "Prevents reading bias by hiding text until listening completes" }
+        ];
+        const modeDropdown = createCustomDropdown({
+          id: "insp-prompt-mode",
+          value: selected.mode || "open",
+          options: modeOptions,
+          label: "Text Visibility Mode",
+          helpText: "Blurred mode prevents visual reading bias by keeping the Khmer text blurred until raters click reveal.",
+          onChange: (val) => {
+            selected.mode = val;
+            state.wizardData.ui_config.presentation.blind_gating = selected.mode === "blind_gated";
+            renderCanvas();
+            updateSmartGuide();
+          }
+        });
+        container.appendChild(modeDropdown);
+
+        const sizeOptions = [
+          { value: "24px", label: "Compact (24px)", desc: "Good for long paragraphs" },
+          { value: "32px", label: "Standard (32px)", desc: "Optimal for Khmer syllables" },
+          { value: "40px", label: "Large (40px)", desc: "High clarity presentation" }
+        ];
+        const sizeDropdown = createCustomDropdown({
+          id: "insp-prompt-size",
+          value: selected.font_size || "32px",
+          options: sizeOptions,
+          label: "Text Typography Size",
+          onChange: (val) => {
+            selected.font_size = val;
+            state.wizardData.ui_config.presentation.font_size = selected.font_size;
+            renderCanvas();
+          }
+        });
+        container.appendChild(sizeDropdown);
+
+        el.inspectorControlsContainer.appendChild(container);
+
+      } else if (selected.type === "word_tagger") {
+        const container = document.createElement("div");
+        container.className = "space-y-4";
+
+        const taggerOptions = [
+          { value: "both", label: "Both Click Words & Drag Waveform", desc: "Dual acoustic and lexical error tagging" },
+          { value: "words", label: "Click Words Only", desc: "Focus strictly on word-level pronunciation" },
+          { value: "waveform", label: "Drag on Waveform Only", desc: "Time-sliced acoustic defect tagging" }
+        ];
+        const taggerDropdown = createCustomDropdown({
+          id: "insp-tagger-mode",
+          value: selected.mode || "both",
+          options: taggerOptions,
+          label: "How Listeners Flag Errors",
+          onChange: (val) => {
+            selected.mode = val;
+            renderCanvas();
+          }
+        });
+        container.appendChild(taggerDropdown);
+
+        const categoriesNote = document.createElement("div");
+        categoriesNote.className = "p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl space-y-1.5";
+        categoriesNote.innerHTML = `
+          <span class="text-xs font-semibold text-zinc-900 block">Standard Clinical Error Taxonomies (19)</span>
+          <div class="text-[11px] text-zinc-600 leading-relaxed">
+            Consonant Deletion, Vowel Error, Digital Glitch, Awkward Pause, Stutter, Register Error, Voice Inconsistency, Word Truncation, and 11 other clinical speech categories.
           </div>
         `;
+        container.appendChild(categoriesNote);
 
-        document.getElementById("insp-tagger-mode")?.addEventListener("change", (e) => {
-          selected.mode = e.target.value;
-          renderCanvas();
-        });
+        el.inspectorControlsContainer.appendChild(container);
+
       } else if (selected.type === "scoring_questions") {
+        const container = document.createElement("div");
+        container.className = "space-y-4";
+
+        const scaleOptions = [
+          { value: "5", label: "1 to 5 Stars (Standard MOS)", desc: "ITU-T P.800 standard speech quality scale" },
+          { value: "7", label: "1 to 7 Points (High Detail)", desc: "Fine-grained comparative scoring" },
+          { value: "2", label: "Pass / Fail", desc: "Binary acceptance threshold" }
+        ];
+        const scaleDropdown = createCustomDropdown({
+          id: "insp-scoring-scale",
+          value: String(selected.scale_max || 5),
+          options: scaleOptions,
+          label: "Score Metric Scale",
+          onChange: (val) => {
+            selected.scale_max = parseInt(val, 10);
+            state.wizardData.scaleMax = selected.scale_max;
+            renderCanvas();
+          }
+        });
+        container.appendChild(scaleDropdown);
+
         const criteria = selected.criteria || [];
         const criteriaListHtml = criteria.map((c, i) => `
-          <div class="flex items-center justify-between p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl">
+          <div class="flex items-center justify-between p-2.5 bg-zinc-50 border border-zinc-200/80 rounded-xl hover:border-zinc-300 transition">
             <span class="text-xs font-semibold text-zinc-800">${escapeHtml(c.name)}</span>
-            <button type="button" class="btn-insp-remove-crit text-zinc-400 hover:text-red-600 text-xs font-bold p-1 cursor-pointer" data-idx="${i}" title="Remove question">&times;</button>
+            <button type="button" class="btn-insp-remove-crit w-6 h-6 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center text-xs font-bold transition cursor-pointer" data-idx="${i}" title="Remove question">&times;</button>
           </div>
         `).join("");
 
-        el.inspectorControlsContainer.innerHTML = `
-          <div class="space-y-3">
-            <div>
-              <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Score Scale</label>
-              <select id="insp-scoring-scale" class="studio-select w-full px-3 py-2 text-xs">
-                <option value="5" ${selected.scale_max === 5 ? "selected" : ""}>1 to 5 Stars (Standard MOS)</option>
-                <option value="7" ${selected.scale_max === 7 ? "selected" : ""}>1 to 7 Points (High Detail)</option>
-                <option value="2" ${selected.scale_max === 2 ? "selected" : ""}>Pass / Fail</option>
-              </select>
-            </div>
-
-            <div class="space-y-2">
-              <div class="flex items-center justify-between">
-                <label class="text-[11px] font-semibold text-zinc-700">Questions (${criteria.length})</label>
-                <span class="text-[10px] text-zinc-400">Click &times; to delete</span>
-              </div>
-              <div class="space-y-1.5 max-h-44 overflow-y-auto">${criteriaListHtml}</div>
-              <div class="pt-2 flex gap-1.5">
-                <input type="text" id="insp-new-crit-name" placeholder="Add question (e.g. Naturalness)..." class="flex-1 px-3 py-1.5 text-xs bg-white border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900" />
-                <button type="button" id="insp-btn-add-crit" class="px-3 py-1.5 text-xs bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl font-semibold cursor-pointer shadow-2xs transition">+</button>
-              </div>
-            </div>
+        const questionsBox = document.createElement("div");
+        questionsBox.className = "space-y-2 pt-1 border-t border-zinc-100";
+        questionsBox.innerHTML = `
+          <div class="flex items-center justify-between">
+            <label class="text-[11px] font-semibold text-zinc-700">Evaluation Questions (${criteria.length})</label>
+            <span class="text-[10px] text-zinc-400">Click &times; to delete</span>
+          </div>
+          <div class="space-y-1.5 max-h-48 overflow-y-auto">${criteriaListHtml}</div>
+          <div class="pt-2 flex gap-1.5">
+            <input type="text" id="insp-new-crit-name" placeholder="Add question (e.g. Naturalness)..." class="flex-1 px-3 py-2 text-xs bg-white border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 transition" />
+            <button type="button" id="insp-btn-add-crit" class="px-3.5 py-2 text-xs bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl font-semibold cursor-pointer shadow-2xs transition">+</button>
           </div>
         `;
 
-        document.getElementById("insp-scoring-scale")?.addEventListener("change", (e) => {
-          selected.scale_max = parseInt(e.target.value, 10);
-          state.wizardData.scaleMax = selected.scale_max;
-          renderCanvas();
-        });
-
-        document.querySelectorAll(".btn-insp-remove-crit").forEach(btn => {
+        questionsBox.querySelectorAll(".btn-insp-remove-crit").forEach(btn => {
           btn.addEventListener("click", () => {
             const idx = parseInt(btn.dataset.idx, 10);
             selected.criteria.splice(idx, 1);
@@ -2399,8 +3187,8 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           });
         });
 
-        document.getElementById("insp-btn-add-crit")?.addEventListener("click", () => {
-          const inp = document.getElementById("insp-new-crit-name");
+        questionsBox.querySelector("#insp-btn-add-crit")?.addEventListener("click", () => {
+          const inp = questionsBox.querySelector("#insp-new-crit-name");
           const val = inp?.value.trim();
           if (val) {
             selected.criteria.push({
@@ -2414,28 +3202,32 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
             updateSmartGuide();
           }
         });
-      } else if (selected.type === "transcription") {
-        el.inspectorControlsContainer.innerHTML = `
-          <div class="space-y-3">
-            <div class="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-1.5">
-              <label class="flex items-center justify-between cursor-pointer">
-                <span class="text-xs font-semibold text-zinc-900">Highlight differences with prompt</span>
-                <input type="checkbox" id="insp-trans-diff" class="w-4 h-4 rounded text-zinc-900" ${selected.show_diff ? "checked" : ""} />
-              </label>
-              <div class="text-[11px] text-zinc-500 leading-relaxed">Colors missing, added, or changed words in green and red to quickly check accuracy.</div>
-            </div>
-          </div>
-        `;
 
-        document.getElementById("insp-trans-diff")?.addEventListener("change", (e) => {
-          selected.show_diff = e.target.checked;
-          renderCanvas();
+        container.appendChild(questionsBox);
+        el.inspectorControlsContainer.appendChild(container);
+
+      } else if (selected.type === "transcription") {
+        const container = document.createElement("div");
+        container.className = "space-y-3";
+
+        const diffSwitch = createCustomSwitch({
+          id: "insp-trans-diff",
+          checked: Boolean(selected.show_diff),
+          label: "Highlight differences with prompt",
+          description: "Colors missing, added, or changed words in green and red to quickly check accuracy.",
+          onChange: (checked) => {
+            selected.show_diff = checked;
+            renderCanvas();
+          }
         });
+        container.appendChild(diffSwitch);
+
+        el.inspectorControlsContainer.appendChild(container);
       }
     }
 
     // Task 6: Smart Feedback Bar & Safety Auditor
-    function updateSmartGuide() {
+    updateSmartGuide = function() {
       if (!el.smartGuideBar) return;
 
       const blocks = state.wizardData.ui_config.blocks || [];
@@ -2536,33 +3328,38 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         el.btnLaunchStudy.disabled = true;
         el.btnLaunchStudy.textContent = "Launching Study...";
 
-        // 1. Upload any pending base64 audio files in batch
+        // 1. Upload any pending base64 audio files in chunks of 50 to prevent timeout or payload limit
         const filesToUpload = state.wizardData.items.filter(it => it.base64);
         if (filesToUpload.length > 0) {
-          const uploadPayload = filesToUpload.map(it => ({
-            filename: it.filename,
-            data_base64: it.base64,
-            text: it.text
-          }));
+          const CHUNK_SIZE = 50;
+          for (let c = 0; c < filesToUpload.length; c += CHUNK_SIZE) {
+            const chunk = filesToUpload.slice(c, c + CHUNK_SIZE);
+            el.btnLaunchStudy.textContent = `Uploading audio (${Math.min(c + CHUNK_SIZE, filesToUpload.length)}/${filesToUpload.length})...`;
+            const uploadPayload = chunk.map(it => ({
+              filename: it.filename,
+              data_base64: it.base64,
+              text: it.text
+            }));
 
-          const upResp = await adminFetch("/api/upload-batch", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ files: uploadPayload })
-          });
+            const upResp = await adminFetch("/api/upload-batch", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ files: uploadPayload })
+            });
 
-          if (!upResp.ok) throw new Error("Audio batch upload failed.");
-          const upJson = await upResp.json();
-          const uploadedItems = upJson.items || [];
+            if (!upResp.ok) throw new Error(`Audio batch upload failed at item ${c + 1}`);
+            const upJson = await upResp.json();
+            const uploadedItems = upJson.items || [];
 
-          // Map back URLs
-          uploadedItems.forEach((uItem) => {
-            const target = state.wizardData.items.find(it => it.filename === uItem.filename);
-            if (target) {
-              target.audio_url = uItem.url;
-              delete target.base64;
-            }
-          });
+            // Map back URLs
+            uploadedItems.forEach((uItem) => {
+              const target = state.wizardData.items.find(it => it.filename === uItem.filename);
+              if (target) {
+                target.audio_url = uItem.url;
+                delete target.base64;
+              }
+            });
+          }
         }
 
         // 2. Pre-register any custom models
@@ -2665,6 +3462,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         if (!campaignResp.ok) throw new Error("Failed to create study campaign.");
         const campaignJson = await campaignResp.json();
         state.createdCampaignId = campaignJson.campaign_id;
+        clearWizardDraft();
 
         // 5. Reveal Shareable Link Box
         const fullShareUrl = `${window.location.origin}/eval?id=${state.createdCampaignId}`;
@@ -2706,6 +3504,14 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         loadAnalyticsData();
       }
     });
+
+    // Create Another Study button in Step 4
+    if (el.btnCreateAnotherStudy) {
+      el.btnCreateAnotherStudy.addEventListener("click", () => {
+        resetWizardToStep1();
+        showToast("Starting a new study.", "info");
+      });
+    }
   }
 
   // Analytics & MOS Engine
@@ -2958,7 +3764,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           studyToDelete = null;
 
           renderStudiesView();
-          populateCampaignsDropdown();
+          await refreshCampaignsList();
           showToast("Study permanently deleted.", "info");
         } catch (err) {
           showToast("Failed to delete study: " + err.message, "error");

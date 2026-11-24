@@ -62,7 +62,7 @@
       <div id="box-pin-create" class="hidden space-y-3 text-left">
         <div class="text-center">
           <h2 class="text-base font-bold text-zinc-900">Set Your Admin PIN</h2>
-          <p class="text-xs text-zinc-500 mt-1">Create or update your 4-digit or 6-digit access PIN.</p>
+          <p class="text-xs text-zinc-500 mt-1">Create or update your 4-digit access PIN.</p>
         </div>
 
         <form id="admin-register-form" class="space-y-2.5">
@@ -94,8 +94,8 @@
                 type="password"
                 id="reg-new-pin"
                 required
-                maxlength="6"
-                placeholder="4 or 6 digits"
+                maxlength="4"
+                placeholder="4 digits"
                 class="w-full px-3 py-1.5 text-xs bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 font-mono focus:outline-none focus:ring-1 focus:ring-zinc-900"
               />
             </div>
@@ -105,7 +105,7 @@
                 type="password"
                 id="reg-confirm-pin"
                 required
-                maxlength="6"
+                maxlength="4"
                 placeholder="Repeat PIN"
                 class="w-full px-3 py-1.5 text-xs bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 font-mono focus:outline-none focus:ring-1 focus:ring-zinc-900"
               />
@@ -148,15 +148,16 @@
     <div class="flex items-center gap-1 bg-zinc-100 p-1 rounded-xl">
       <button
         id="tab-btn-wizard"
-        class="px-3 py-1.5 rounded-lg text-xs font-medium bg-white text-zinc-900 shadow-sm cursor-pointer transition"
+        class="px-3 py-1.5 rounded-lg text-xs font-medium bg-white text-zinc-900 shadow-sm cursor-pointer transition flex items-center gap-1.5"
       >
-        Create New Study
+        <span id="tab-wizard-indicator-dot" class="w-2 h-2 rounded-full bg-amber-500 hidden animate-pulse inline-block"></span>
+        <span id="tab-btn-wizard-text">Create New Study</span>
       </button>
       <button
         id="tab-btn-results"
         class="px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer transition"
       >
-        Results & Scores
+        Results &amp; Scores
       </button>
       <button
         id="tab-btn-studies"
@@ -206,87 +207,142 @@
   <main class="flex-1 max-w-[1560px] w-full mx-auto p-4 sm:p-6 transition-all">
 
     <!-- VIEW 1: STUDY CREATOR WIZARD -->
-    <section id="view-wizard" class="space-y-6">
+    <section id="view-wizard" class="space-y-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Study Authoring</span>
+          <span id="draft-status-indicator" class="hidden px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-100 text-zinc-600 border border-zinc-200">Draft saved</span>
+        </div>
+        <button
+          type="button"
+          id="btn-discard-draft"
+          class="hidden px-2.5 py-1 text-xs text-zinc-500 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 rounded-lg transition cursor-pointer flex items-center gap-1.5"
+          title="Clear current draft and start fresh"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          <span>Discard Draft</span>
+        </button>
+      </div>
       
       <!-- Wizard Step Navigation -->
-      <div class="wizard-nav shadow-sm">
-        <div class="wizard-nav-item active" data-step="1">1. Study Information</div>
-        <div class="wizard-nav-item" data-step="2">2. Audio & Text</div>
-        <div class="wizard-nav-item" data-step="3">3. Test Design</div>
-        <div class="wizard-nav-item" data-step="4">4. Launch & Share</div>
+      <div class="wizard-nav shadow-xs">
+        <div class="wizard-nav-item active" data-step="1" title="Jump to Step 1: Study Information">
+          <span class="wizard-step-badge">1</span>
+          <div class="flex flex-col text-left min-w-0">
+            <span class="wizard-step-title">Study Information</span>
+            <span class="wizard-step-subtitle">Basics &amp; instructions</span>
+          </div>
+        </div>
+        <div class="wizard-nav-divider">
+          <svg class="w-4 h-4 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </div>
+        <div class="wizard-nav-item" data-step="2" title="Jump to Step 2: Audio & Text">
+          <span class="wizard-step-badge">2</span>
+          <div class="flex flex-col text-left min-w-0">
+            <span class="wizard-step-title">Audio &amp; Text</span>
+            <span class="wizard-step-subtitle">Samples &amp; models</span>
+          </div>
+        </div>
+        <div class="wizard-nav-divider">
+          <svg class="w-4 h-4 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </div>
+        <div class="wizard-nav-item" data-step="3" title="Jump to Step 3: Test Design">
+          <span class="wizard-step-badge">3</span>
+          <div class="flex flex-col text-left min-w-0">
+            <span class="wizard-step-title">Test Design</span>
+            <span class="wizard-step-subtitle">Layout &amp; questions</span>
+          </div>
+        </div>
+        <div class="wizard-nav-divider">
+          <svg class="w-4 h-4 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </div>
+        <div class="wizard-nav-item is-locked" data-step="4" title="Step 4: Launch & Share (Requires Steps 1–3)">
+          <span class="wizard-step-badge">4</span>
+          <div class="flex flex-col text-left min-w-0">
+            <span class="wizard-step-title">Launch &amp; Share</span>
+            <span class="wizard-step-subtitle">Deploy &amp; rater link</span>
+          </div>
+        </div>
       </div>
 
       <!-- Step 1: Study Information -->
-      <div id="wizard-step-1" class="studio-card space-y-5">
-        <div>
-          <h2 class="text-base font-bold text-zinc-900 mb-1">Study Information</h2>
-          <p class="text-xs text-zinc-500">Set the title, purpose, and clear instructions for your evaluators.</p>
+      <div id="wizard-step-1" class="studio-card space-y-6 max-w-4xl mx-auto shadow-xs">
+        <div class="border-b border-zinc-100 pb-4">
+          <h2 class="text-lg font-bold text-zinc-900 tracking-tight">Study Information</h2>
+          <p class="text-xs text-zinc-500 mt-0.5">Define your study title and guidance for listeners.</p>
         </div>
 
-        <div class="space-y-4 max-w-2xl">
+        <div class="space-y-5">
           <!-- Modality Selector: TTS vs ASR -->
           <div>
-            <label class="block text-xs font-semibold text-zinc-700 mb-1.5">Study Type</label>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <label id="opt-modality-tts" class="border-2 border-zinc-900 bg-zinc-50 p-3.5 rounded-xl cursor-pointer flex flex-col gap-1 transition">
+            <label class="block text-xs font-bold text-zinc-800 uppercase tracking-wider mb-2">Study Type</label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label id="opt-modality-tts" class="border-2 border-zinc-900 bg-zinc-50/80 p-4 rounded-xl cursor-pointer flex flex-col gap-1.5 transition shadow-2xs hover:bg-zinc-50">
                 <div class="flex items-center justify-between">
-                  <span class="text-xs font-bold text-zinc-900 flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5 text-zinc-800" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                  <span class="text-xs font-bold text-zinc-900 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-zinc-900" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
                     Voice Generation (TTS)
                   </span>
                   <input type="radio" name="wiz-modality" value="TTS" checked class="text-zinc-900 focus:ring-0">
                 </div>
-                <p class="text-[11px] text-zinc-500 leading-relaxed">Evaluate generated computer voice quality, naturalness, and mispronounced words.</p>
+                <p class="text-xs text-zinc-500 leading-relaxed">Evaluate generated computer voice naturalness, clarity, and pronunciation errors.</p>
               </label>
 
-              <label id="opt-modality-asr" class="border border-zinc-200 bg-zinc-100/70 p-3.5 rounded-xl flex flex-col gap-1 transition opacity-50 cursor-not-allowed pointer-events-none border-dashed">
+              <label id="opt-modality-asr" class="border border-zinc-200 bg-zinc-50/40 p-4 rounded-xl flex flex-col gap-1.5 transition opacity-60 cursor-not-allowed pointer-events-none border-dashed">
                 <div class="flex items-center justify-between">
-                  <span class="text-xs font-bold text-zinc-500 flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  <span class="text-xs font-bold text-zinc-400 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                     Speech Recognition (ASR)
                     <span class="px-2 py-0.5 text-[9px] font-semibold bg-zinc-200 text-zinc-600 rounded-md uppercase tracking-wider">Coming Soon</span>
                   </span>
                   <input type="radio" name="wiz-modality" value="ASR" disabled class="text-zinc-400 focus:ring-0 cursor-not-allowed">
                 </div>
-                <p class="text-[11px] text-zinc-400 leading-relaxed">Speech recognition accuracy evaluation is currently in development.</p>
+                <p class="text-xs text-zinc-400 leading-relaxed">Automatic speech-to-text transcription accuracy tests.</p>
               </label>
             </div>
           </div>
 
-          <div>
-            <label class="block text-xs font-semibold text-zinc-700 mb-1" for="wiz-study-name">Study Name</label>
-            <input
-              type="text"
-              id="wiz-study-name"
-              placeholder="e.g. Khmer Food Menu Listening Test"
-              class="w-full px-3.5 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-            />
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-zinc-700 mb-1.5" for="wiz-study-name">Study Name <span class="text-red-500">*</span></label>
+              <input
+                type="text"
+                id="wiz-study-name"
+                placeholder="e.g. Khmer Food Menu Listening Test"
+                class="w-full px-3.5 py-2.5 bg-white border border-zinc-200 rounded-xl text-xs sm:text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition shadow-2xs"
+              />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-zinc-700 mb-1.5" for="wiz-study-desc">Project or Topic Description</label>
+              <input
+                type="text"
+                id="wiz-study-desc"
+                placeholder="e.g. Speech evaluation for voice assistant testing"
+                class="w-full px-3.5 py-2.5 bg-white border border-zinc-200 rounded-xl text-xs sm:text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition shadow-2xs"
+              />
+            </div>
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-zinc-700 mb-1" for="wiz-study-desc">Project or Topic Description</label>
-            <input
-              type="text"
-              id="wiz-study-desc"
-              placeholder="e.g. Speech evaluation for voice assistant testing"
-              class="w-full px-3.5 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-            />
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-zinc-700 mb-1" for="wiz-study-instructions">Instructions for Evaluators</label>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-xs font-semibold text-zinc-700" for="wiz-study-instructions">Instructions for Evaluators</label>
+              <span class="text-[11px] text-zinc-400">Shown to listeners on the test page</span>
+            </div>
             <textarea
               id="wiz-study-instructions"
               rows="3"
-              placeholder="e.g. Please wear headphones. Listen to each audio sample and rate its naturalness. If you hear a mispronounced word, drag on the waveform to tag it."
-              class="w-full px-3.5 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              placeholder="e.g. Please wear headphones. Listen to each audio sample and rate its naturalness. If you hear a mispronounced word, tag the error."
+              class="w-full px-3.5 py-2.5 bg-white border border-zinc-200 rounded-xl text-xs sm:text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition shadow-2xs leading-relaxed"
             ></textarea>
-            <p class="text-[11px] text-zinc-400 mt-1">This text appears at the top of the evaluation page to guide listeners.</p>
           </div>
         </div>
 
-        <div class="flex justify-end pt-3 border-t border-zinc-100">
-          <button id="wiz-btn-step1-next" class="btn-carbon cursor-pointer">Continue to Audio Setup &rarr;</button>
+        <div class="flex justify-end pt-4 border-t border-zinc-100">
+          <button id="wiz-btn-step1-next" class="btn-carbon px-5 py-2.5 text-xs font-semibold rounded-xl cursor-pointer shadow-sm hover:opacity-90 transition flex items-center gap-1.5">
+            <span>Continue to Audio Setup</span>
+            <span>&rarr;</span>
+          </button>
         </div>
       </div>
 
@@ -297,29 +353,23 @@
             <h2 class="text-base font-bold text-zinc-900 mb-0.5">Audio &amp; Transcripts</h2>
             <p class="text-xs text-zinc-500">Provide audio clips and matching transcripts.</p>
           </div>
-          <div class="flex items-center gap-2 flex-wrap">
+          <div class="flex items-center gap-2">
             <button
               type="button"
               id="btn-copy-ai-gen-prompt"
-              class="px-2.5 py-1.5 text-xs border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-800 rounded-lg cursor-pointer font-medium transition shadow-2xs flex items-center gap-1.5"
-              title="View prompt for Claude, Codex, or AGY to prepare and align your audio folder and CSV"
+              class="px-3 py-1.5 text-xs font-medium text-zinc-700 bg-white hover:bg-zinc-50 border border-zinc-200 rounded-xl cursor-pointer transition shadow-2xs flex items-center gap-1.5"
+              title="View prompt to prepare and align your audio folder and CSV"
             >
-              <svg class="w-3.5 h-3.5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              AI Dataset Prep Prompt
-            </button>
-            <button
-              type="button"
-              id="btn-load-demo-data"
-              class="px-2.5 py-1.5 text-xs border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-800 rounded-lg cursor-pointer font-medium transition shadow-2xs"
-            >
-              Load Demo Data
+              <svg class="w-3.5 h-3.5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span>AI Prep Prompt</span>
             </button>
             <button
               type="button"
               id="btn-download-csv-template"
-              class="px-2.5 py-1.5 text-xs border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-800 rounded-lg cursor-pointer font-medium transition shadow-2xs"
+              class="px-3 py-1.5 text-xs font-medium text-zinc-700 bg-white hover:bg-zinc-50 border border-zinc-200 rounded-xl cursor-pointer transition shadow-2xs flex items-center gap-1.5"
             >
-              Download CSV Template
+              <svg class="w-3.5 h-3.5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              <span>CSV Template</span>
             </button>
           </div>
         </div>
@@ -365,6 +415,10 @@
           <button type="button" id="mode-btn-table"></button>
           <button type="button" id="mode-btn-paste"></button>
           <button type="button" id="mode-btn-csv"></button>
+          <button type="button" id="btn-toggle-local-folder"></button>
+          <div id="box-link-folder"></div>
+          <input type="text" id="input-local-folder-path" />
+          <button type="button" id="btn-link-local-folder"></button>
           <div id="box-paste-text">
             <span id="paste-line-counter"></span>
             <textarea id="paste-text-input"></textarea>
@@ -403,44 +457,11 @@
                 <svg class="w-5 h-5 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
               </div>
               <div class="text-sm font-semibold text-zinc-900">
-                Drop audio files (.wav, .mp3) and transcript (.csv) here
+                Drop audio files (.wav) or paired transcripts (.csv)
               </div>
               <p class="text-xs text-zinc-500">
-                or click to browse from your computer
+                Upload audio clips first, then upload transcripts to match filenames.
               </p>
-            </div>
-          </div>
-
-          <!-- Secondary Action: Local Folder Link Disclosure -->
-          <div class="pt-1">
-            <button
-              type="button"
-              id="btn-toggle-local-folder"
-              class="text-xs text-zinc-500 hover:text-zinc-900 underline cursor-pointer"
-            >
-              Link local server folder (Zero-copy)
-            </button>
-
-            <div id="box-link-folder" class="hidden mt-3 p-3.5 bg-zinc-50 border border-zinc-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-              <div class="min-w-0">
-                <div class="text-xs font-semibold text-zinc-900">Link Local Folder on Server</div>
-                <div class="text-[11px] text-zinc-500">Path to audio directory (e.g. outputs/models/v1).</div>
-              </div>
-              <div class="flex items-center gap-2">
-                <input
-                  type="text"
-                  id="input-local-folder-path"
-                  placeholder="e.g. audio"
-                  class="px-3 py-1.5 text-xs bg-white border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 w-48 font-mono"
-                />
-                <button
-                  type="button"
-                  id="btn-link-local-folder"
-                  class="px-3 py-1.5 text-xs bg-zinc-900 text-white rounded-lg font-medium hover:bg-zinc-800 transition shrink-0 cursor-pointer"
-                >
-                  Link Folder
-                </button>
-              </div>
             </div>
           </div>
 
@@ -681,15 +702,22 @@
           </div>
 
           <!-- ZONE 3: COLLAPSIBLE CUSTOMIZE DRAWER (Hidden by default until card selected) -->
-          <div id="drawer-customize" class="hidden w-full lg:w-80 shrink-0 bg-white border border-zinc-200 rounded-2xl p-4 space-y-4 shadow-sm lg:sticky lg:top-4 transition-all">
-            <div class="flex items-center justify-between pb-2.5 border-b border-zinc-100">
-              <div>
-                <span class="text-xs font-bold text-zinc-900 uppercase tracking-wider">Customize Component</span>
-                <div id="inspector-selected-title" class="text-[11px] text-zinc-500 mt-0.5 font-medium">-</div>
+          <div id="drawer-customize" class="hidden w-full lg:w-[380px] shrink-0 bg-white border border-zinc-200/90 rounded-2xl p-4 space-y-4 shadow-md lg:sticky lg:top-4 max-h-[calc(100vh-2rem)] overflow-y-auto transition-all duration-200">
+            <div class="flex items-center justify-between pb-3 border-b border-zinc-100">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <div id="inspector-type-icon" class="w-8 h-8 rounded-xl bg-zinc-900 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                </div>
+                <div class="min-w-0">
+                  <span class="text-xs font-bold text-zinc-900 tracking-tight block">Customize Component</span>
+                  <div id="inspector-selected-title" class="text-[11px] text-zinc-500 font-medium truncate">-</div>
+                </div>
               </div>
-              <div class="flex items-center gap-1.5">
-                <span id="inspector-block-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-zinc-100 text-zinc-700">None</span>
-                <button type="button" id="btn-close-customize-drawer" class="text-zinc-400 hover:text-zinc-700 text-sm font-bold p-1 cursor-pointer" title="Close Customize Panel">&times;</button>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <span id="inspector-block-badge" class="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-zinc-100 text-zinc-700">None</span>
+                <button type="button" id="btn-close-customize-drawer" class="w-7 h-7 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 flex items-center justify-center transition cursor-pointer" title="Close Customize Panel">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
               </div>
             </div>
 
@@ -764,22 +792,50 @@
         </div>
 
         <!-- Shareable Link Result Box (Revealed upon launch) -->
-        <div id="shareable-link-container" class="hidden space-y-3 bg-emerald-50 border border-emerald-200 rounded-xl p-5">
-          <div class="flex items-center gap-2 text-emerald-800 text-xs font-semibold uppercase tracking-wider">
-            <span>Study is Live & Ready to Share</span>
+        <div id="shareable-link-container" class="hidden space-y-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl p-6">
+          <div id="published-celebration-card" class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-emerald-200/80">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-base shadow-sm ring-4 ring-emerald-100">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-bold text-emerald-950">Study Published &amp; Live!</span>
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-200/70 text-emerald-900 border border-emerald-300">Active</span>
+                </div>
+                <p class="text-xs text-emerald-800 mt-0.5">Your study is deployed and ready for crowdsourced listening evaluations.</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                id="btn-create-another-study"
+                class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-white hover:bg-zinc-50 text-zinc-900 border border-zinc-300 shadow-xs cursor-pointer transition flex items-center gap-1.5"
+              >
+                <span>+ Create Another Study</span>
+              </button>
+            </div>
           </div>
-          <p class="text-xs text-emerald-900 leading-relaxed">
-            Send this link to your evaluators. When they open it, they will see the speech audio files, transcripts, and waveform defect marking tool with zero login friction.
-          </p>
-          <div class="flex items-center justify-between gap-2 p-2 bg-white rounded-lg border border-emerald-300">
-            <span id="share-link-url" class="truncate font-mono text-xs text-zinc-900 px-1">http://localhost:8080/eval?id=...</span>
-            <button id="btn-copy-share-link" class="btn-carbon text-xs py-1.5 px-3 whitespace-nowrap cursor-pointer">
-              Copy Link
-            </button>
+
+          <div class="space-y-2">
+            <label class="block text-xs font-semibold text-emerald-950 uppercase tracking-wider">Public Evaluator Link</label>
+            <div class="flex items-center justify-between gap-2 p-2.5 bg-white rounded-xl border border-emerald-300 shadow-2xs">
+              <span id="share-link-url" class="truncate font-mono text-xs text-zinc-900 px-1 select-all">http://localhost:8080/eval?id=...</span>
+              <button id="btn-copy-share-link" class="btn-carbon text-xs py-1.5 px-3.5 whitespace-nowrap cursor-pointer">
+                Copy Link
+              </button>
+            </div>
+            <p class="text-[11px] text-emerald-700 leading-relaxed">
+              Share this link with your listeners. Evaluators can rate audio directly in any modern desktop or mobile browser with zero login friction.
+            </p>
           </div>
-          <div class="flex gap-3 pt-2">
-            <a id="btn-open-as-rater" href="#" target="_blank" class="btn-ghost text-xs">Open Study in New Tab</a>
-            <button id="btn-view-study-results" class="btn-ghost text-xs">View Live Results</button>
+
+          <div class="flex flex-wrap items-center gap-3 pt-1">
+            <a id="btn-open-as-rater" href="#" target="_blank" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-800 hover:bg-emerald-900 text-white transition flex items-center gap-1.5">
+              <span>Open Study in New Tab</span>
+              <svg class="w-3.5 h-3.5 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+            </a>
+            <button id="btn-view-study-results" class="btn-ghost text-xs cursor-pointer">View Live Results</button>
           </div>
         </div>
 

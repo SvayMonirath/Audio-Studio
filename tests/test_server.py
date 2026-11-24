@@ -916,6 +916,23 @@ class StudioServerTestCase(unittest.TestCase):
         self.assertNotIn("Blocker: Missing", content)
         self.assertIn("Audio Player Needed", content)
 
+    def test_step4_celebration_and_reset_structure(self):
+        """Verify Step 4 contains celebration card and + Create Another Study button."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            html = f.read()
+        self.assertIn('id="published-celebration-card"', html)
+        self.assertIn('id="btn-create-another-study"', html)
+        self.assertIn('id="btn-view-study-results"', html)
+
+    def test_smart_navigation_tab_structure(self):
+        """Verify navigation header supports dynamic draft status indicator."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            html = f.read()
+        self.assertIn('id="tab-btn-wizard-text"', html)
+        self.assertIn('id="tab-wizard-indicator-dot"', html)
+
 
 if __name__ == "__main__":
     unittest.main()
