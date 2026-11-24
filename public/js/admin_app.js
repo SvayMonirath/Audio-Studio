@@ -414,6 +414,8 @@
     studiesSearchInput: document.getElementById("studies-search-input"),
     modalDeleteStudy: document.getElementById("modal-delete-study"),
     deleteStudyTitle: document.getElementById("delete-study-title"),
+    deleteStudyPromptName: document.getElementById("delete-study-prompt-name"),
+    deleteStudyConfirmInput: document.getElementById("delete-study-confirm-input"),
     btnCancelDelete: document.getElementById("btn-cancel-delete"),
     btnConfirmDelete: document.getElementById("btn-confirm-delete")
   };
@@ -3892,7 +3894,18 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     if (el.btnCancelDelete) {
       el.btnCancelDelete.addEventListener("click", () => {
         el.modalDeleteStudy.classList.add("hidden");
+        if (el.deleteStudyConfirmInput) el.deleteStudyConfirmInput.value = "";
         studyToDelete = null;
+      });
+    }
+
+    if (el.deleteStudyConfirmInput) {
+      el.deleteStudyConfirmInput.addEventListener("input", (e) => {
+        if (!studyToDelete) return;
+        const matches = e.target.value.trim() === studyToDelete.name.trim();
+        el.btnConfirmDelete.disabled = !matches;
+        el.btnConfirmDelete.classList.toggle("opacity-40", !matches);
+        el.btnConfirmDelete.classList.toggle("cursor-not-allowed", !matches);
       });
     }
 
@@ -4066,7 +4079,14 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       card.querySelector(".btn-delete-card").addEventListener("click", () => {
         studyToDelete = camp;
         el.deleteStudyTitle.textContent = `"${camp.name}"`;
+        if (el.deleteStudyPromptName) el.deleteStudyPromptName.textContent = camp.name;
+        if (el.deleteStudyConfirmInput) el.deleteStudyConfirmInput.value = "";
+        if (el.btnConfirmDelete) {
+          el.btnConfirmDelete.disabled = true;
+          el.btnConfirmDelete.classList.add("opacity-40", "cursor-not-allowed");
+        }
         el.modalDeleteStudy.classList.remove("hidden");
+        if (el.deleteStudyConfirmInput) el.deleteStudyConfirmInput.focus();
       });
 
       el.studiesListContainer.appendChild(card);

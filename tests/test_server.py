@@ -1000,5 +1000,14 @@ class StudioServerTestCase(unittest.TestCase):
         self.assertIn('id="analytics-data-content"', html)
 
 
+    def test_delete_modal_double_confirmation_input(self):
+        """Verify delete modal requires typing study name before enabling delete button."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            html = f.read()
+        self.assertIn('id="delete-study-confirm-input"', html)
+        self.assertIn('id="delete-study-prompt-name"', html)
+
+
 if __name__ == "__main__":
     unittest.main()
