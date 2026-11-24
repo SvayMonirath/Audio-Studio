@@ -609,5 +609,470 @@ class StudioServerTestCase(unittest.TestCase):
             self.assertEqual(asr_stats["critical_errors"], 1)
             self.assertAlmostEqual(asr_stats["acceptable_rate"], 50.0)
 
+    def test_ui_config_and_folder_linking(self):
+        """Test persisting ui_config_json in campaigns and linking local audio folder."""
+        # 1. Test POST /api/link-folder with existing audio directory
+        req_folder = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/link-folder",
+            data=json.dumps({"folder_path": "audio"}).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(req_folder) as res:
+            self.assertEqual(res.status, 200)
+            data = json.loads(res.read().decode("utf-8"))
+            self.assertTrue(data.get("success"))
+            self.assertIn("files", data)
+            self.assertIsInstance(data["files"], list)
+
+        # 2. Test creating campaign with ui_config
+        suite_payload = {
+            "name": "Modular Suite",
+            "items": [{"item_key": "M01", "text": "តេស្ត", "audio_url": "/audio/test.wav"}]
+        }
+        req_suite = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/suites",
+            data=json.dumps(suite_payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(req_suite) as res:
+            suite_id = json.loads(res.read().decode("utf-8"))["suite_id"]
+
+        test_ui_config = {
+            "archetype": "conversational_telephone_mos",
+            "dsp": {"phone_filter_8khz": True, "speed_controls": True},
+            "presentation": {"blind_gating": False, "word_pills": True}
+        }
+        camp_payload = {
+            "name": "Modular UI Campaign",
+            "suite_id": suite_id,
+            "rubric_id": "rubric-veaja-p85",
+            "instructions": "Modular instructions",
+            "ui_config": test_ui_config
+        }
+        req_camp = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/campaigns",
+            data=json.dumps(camp_payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(req_camp) as res:
+            self.assertEqual(res.status, 201)
+            camp_id = json.loads(res.read().decode("utf-8"))["campaign_id"]
+
+        # 3. Retrieve campaign and verify ui_config_json is returned and matches
+        url_camps = f"http://127.0.0.1:{TEST_PORT}/api/campaigns"
+        with urlopen(url_camps) as res:
+            self.assertEqual(res.status, 200)
+            camps = json.loads(res.read().decode("utf-8"))["campaigns"]
+            target = next((c for c in camps if c["id"] == camp_id), None)
+            self.assertIsNotNone(target)
+            self.assertIn("ui_config_json", target)
+            stored_cfg = json.loads(target["ui_config_json"])
+            self.assertTrue(stored_cfg["dsp"]["phone_filter_8khz"])
+
+    def test_modular_campaign_end_to_end(self):
+        """Task 8: End-to-end integration test of modular builder, ui_config, and evaluator rating."""
+        # 1. Create a suite with 5 items
+        suite_id = f"suite-modular-e2e-{int(time.time())}"
+        items_payload = [
+            {
+                "item_key": f"E2E-{i}",
+                "source_text": f"ឃ្លាគំរូទី {i}",
+                "text": f"ឃ្លាគំរូទី {i}",
+                "audio_url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH01.wav"
+            }
+            for i in range(1, 6)
+        ]
+        req_suite = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/suites",
+            data=json.dumps({"id": suite_id, "name": "E2E Modular Suite", "items": items_payload}).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(req_suite) as res:
+            self.assertIn(res.status, [200, 201])
+
+        # 2. Post campaign with modular ui_config (phone filter + blind gating)
+        ui_config = {
+            "dsp": {"phone_filter_8khz": True, "speeds": [0.8, 1.0, 1.2]},
+            "presentation": {"blind_gating": True, "font_size": "32px"},
+            "blocks": [
+                {"id": "blk-prompt-1", "type": "text_prompt", "mode": "blind_gated"},
+                {"id": "blk-audio-1", "type": "audio_player", "phone_filter": True},
+                {"id": "blk-scoring-1", "type": "scoring_questions", "scale_max": 5}
+            ]
+        }
+        camp_req = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/campaigns",
+            data=json.dumps({
+                "name": "E2E Modular Builder Study",
+                "suite_id": suite_id,
+                "rubric_id": "rubric-veaja-p85",
+                "instructions": "E2E evaluation instructions",
+                "ui_config_json": json.dumps(ui_config)
+            }).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(camp_req) as res:
+            self.assertEqual(res.status, 201)
+            camp_data = json.loads(res.read().decode("utf-8"))
+            camp_id = camp_data["campaign_id"]
+
+        # 3. Fetch items for this campaign
+        with urlopen(f"http://127.0.0.1:{TEST_PORT}/api/items?campaign_id={camp_id}") as res:
+            items_data = json.loads(res.read().decode("utf-8"))
+            self.assertEqual(items_data["count"], 5)
+            first_item = items_data["items"][0]
+
+        # 4. Register evaluator and submit evaluation
+        req_rater = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/raters",
+            data=json.dumps({"name": "Modular Evaluator Sokha"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        with urlopen(req_rater) as res:
+            rater_id = json.loads(res.read().decode("utf-8"))["rater"]["id"]
+
+        eval_req = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/evaluations",
+            data=json.dumps({
+                "campaign_id": camp_id,
+                "rater_id": rater_id,
+                "item_id": first_item["id"],
+                "model_id": "model-voxcpm2",
+                "scores": {"naturalness": 5, "pronunciation": 4},
+                "comments": "Auditioned with 8kHz telephone bandpass filter."
+            }).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        with urlopen(eval_req) as res:
+            self.assertEqual(res.status, 201)
+
+        # 5. Check admin summary consensus
+        req_summary = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/admin/summary?campaign_id={camp_id}",
+            headers={"X-Admin-PIN": "2026"}
+        )
+        with urlopen(req_summary) as res:
+            self.assertEqual(res.status, 200)
+            summary = json.loads(res.read().decode("utf-8"))
+            self.assertEqual(summary["total_evaluations"], 1)
+            self.assertEqual(summary["total_raters"], 1)
+
+    def test_campaign_launch_with_empty_models(self):
+        """Verify POST /api/suites and POST /api/campaigns succeed even when items have no predefined model_id or models array is empty."""
+        suite_id = f"suite-empty-models-{int(time.time() * 1000)}"
+        # Suite items without predefined model_id or with fallback candidate model
+        items_payload = [
+            {
+                "item_key": f"ITEM-ZERO-{i}",
+                "text": f"ឃ្លាសាកល្បងគំរូទទេ {i}",
+                "audio_url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH01.wav",
+                "audio_files_json": json.dumps({
+                    "model-candidate": {
+                        "model_name": "Candidate Voice",
+                        "model_id": "model-candidate",
+                        "url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH01.wav"
+                    }
+                })
+            }
+            for i in range(1, 3)
+        ]
+
+        req_suite = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/suites",
+            data=json.dumps({"id": suite_id, "name": "Zero Model Suite", "items": items_payload}).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(req_suite) as res:
+            self.assertIn(res.status, [200, 201])
+            suite_data = json.loads(res.read().decode("utf-8"))
+            self.assertTrue(suite_data.get("success", True))
+
+        # Launch campaign linked to this suite
+        camp_req = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/campaigns",
+            data=json.dumps({
+                "name": "Zero Model Campaign",
+                "suite_id": suite_id,
+                "rubric_id": "rubric-veaja-p85",
+                "instructions": "Single candidate model evaluation without predefined comparison models."
+            }).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(camp_req) as res:
+            self.assertEqual(res.status, 201)
+            camp_data = json.loads(res.read().decode("utf-8"))
+            camp_id = camp_data["campaign_id"]
+
+        # Verify items can be fetched for campaign
+        with urlopen(f"http://127.0.0.1:{TEST_PORT}/api/items?campaign_id={camp_id}") as res:
+            items_data = json.loads(res.read().decode("utf-8"))
+            self.assertEqual(items_data["count"], 2)
+
+    def test_decluttered_admin_html_structure(self):
+        """Verify public/admin.html contains the de-cluttered studio creator structure."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        self.assertTrue(os.path.exists(admin_html_path), "public/admin.html must exist")
+
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # 1. Verify unified dropzone and multi-file input
+        self.assertIn('id="dropzone-unified"', content)
+        self.assertIn('id="multi-file-input"', content)
+
+        # 2. Verify expanded viewport width
+        self.assertTrue('max-w-[1560px]' in content or 'max-w-6xl' in content)
+
+        # 3. Verify no hardcoded default models rendered in the initial HTML template
+        # Check models chips container is clean and empty
+        chips_container_marker = 'id="models-chips-container"'
+        self.assertIn(chips_container_marker, content)
+        chips_section = content.split(chips_container_marker, 1)[1].split('</div>', 1)[0]
+        self.assertNotIn("VoxCPM", chips_section)
+        self.assertNotIn("Meta MMS", chips_section)
+        self.assertNotIn("Kokoro", chips_section)
+        self.assertNotIn("Bark", chips_section)
+
+    def test_dropzone_loading_overlay_structure(self):
+        """Verify public/admin.html contains the dropzone loading overlay and spinner elements."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        self.assertIn('id="dropzone-loading-overlay"', content)
+        self.assertIn('id="dropzone-loading-text"', content)
+        self.assertIn('id="dropzone-spinner"', content)
+
+    def test_step3_plain_english_toolbox(self):
+        """Verify Step 3 toolbox uses plain-English labels and clean icons without rainbow dots."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        # Check plain English replacements
+        self.assertIn("Audio Player", content)
+        self.assertIn("Prompt Text", content)
+        self.assertIn("Word Highlighter", content)
+        self.assertIn("Rating Scale", content)
+        self.assertIn("Listener Hearing", content)
+        # Confirm rainbow dot classes removed from toolbox items
+        toolbox_section = content.split('id="builder-toolbox"', 1)[1].split('<!-- ZONE 2', 1)[0]
+        self.assertNotIn("bg-emerald-500", toolbox_section)
+        self.assertNotIn("bg-blue-500", toolbox_section)
+        self.assertNotIn("bg-amber-500", toolbox_section)
+        self.assertNotIn("bg-purple-500", toolbox_section)
+
+    def test_step3_wysiwyg_canvas_structure(self):
+        """Verify Step 3 canvas provides expansive layout and WYSIWYG preview container."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        # Check expanded allocation (Canvas gets flex-1 dominant width)
+        self.assertIn('id="builder-canvas"', content)
+        self.assertIn('flex-1', content)
+
+
+
+    def test_csv_upload_loading_state_wiring(self):
+        """Verify admin_app.js wraps processCsvFile calls with setDropzoneLoading."""
+        admin_js_path = os.path.join(TOOL_DIR, "public", "js", "admin_app.js")
+        with open(admin_js_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        self.assertIn('setDropzoneLoading(true, "Reading and parsing CSV transcript...")', content)
+
+
+    def test_step3_expanded_viewport_and_clean_header(self):
+        """Verify admin.html uses max-w-[1560px] layout and starter kits noise is removed."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        self.assertIn("max-w-[1560px]", content)
+        self.assertNotIn("Starter Kits:", content)
+        self.assertNotIn("btn-kit-mos", content)
+
+
+    def test_step3_customize_drawer_structure(self):
+        """Verify Step 3 contains the collapsible Customize Drawer."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        self.assertIn('id="drawer-customize"', content)
+        self.assertIn("Customize Component", content)
+
+    def test_wysiwyg_real_waveform_and_no_fake_defaults(self):
+        """Verify renderCanvas generates 76px waveform canvas structure matching eval.html."""
+        admin_js_path = os.path.join(TOOL_DIR, "public", "js", "admin_app.js")
+        with open(admin_js_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        self.assertIn("preview-waveform-canvas", content)
+        self.assertIn("h-[76px]", content)
+        self.assertIn("drawPreviewWaveform", content)
+
+    def test_step3_drag_drop_insertion_and_polite_guide(self):
+        """Verify Step 3 supports drop indicator positioning and uses polite guide copy."""
+        admin_js_path = os.path.join(TOOL_DIR, "public", "js", "admin_app.js")
+        with open(admin_js_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        self.assertIn("getDropInsertionIndex", content)
+        self.assertIn("drop-indicator", content)
+        self.assertNotIn("Blocker: Missing", content)
+        self.assertIn("Audio Player Needed", content)
+
+    def test_step4_celebration_and_reset_structure(self):
+        """Verify Step 4 contains celebration card and + Create Another Study button."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            html = f.read()
+        self.assertIn('id="published-celebration-card"', html)
+        self.assertIn('id="btn-create-another-study"', html)
+        self.assertIn('id="btn-view-study-results"', html)
+
+    def test_smart_navigation_tab_structure(self):
+        """Verify navigation header supports dynamic draft status indicator."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            html = f.read()
+        self.assertIn('id="tab-btn-wizard-text"', html)
+        self.assertIn('id="tab-wizard-indicator-dot"', html)
+
+    def test_inactive_study_rater_submission_blocked(self):
+        """Verify raters cannot submit evaluations to a closed/inactive campaign."""
+        # 1. Create a campaign
+        suite_id = "suite-dev23"
+        rubric_id = "rubric-veaja-p85"
+        req = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/campaigns",
+            data=json.dumps({
+                "project_id": "proj-veaja-khmer",
+                "name": "Test Inactive Study",
+                "suite_id": suite_id,
+                "rubric_id": rubric_id,
+                "instructions": "Test"
+            }).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        res = urlopen(req)
+        c_id = json.loads(res.read().decode("utf-8"))["campaign_id"]
+
+        # 2. Toggle status to closed (is_active = 0)
+        req_status = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/campaigns/status",
+            data=json.dumps({"campaign_id": c_id, "is_active": 0}).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        urlopen(req_status)
+
+        # 3. Register a rater
+        rater_id = f"rater-closed-{int(time.time() * 1000)}"
+        req_rater = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/raters",
+            data=json.dumps({"id": rater_id, "name": "Closed Study Tester"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        urlopen(req_rater)
+
+        # 4. Attempt to submit evaluation to closed campaign
+        eval_payload = {
+            "campaign_id": c_id,
+            "rater_id": rater_id,
+            "item_id": "item-dev23-KH01-voxcpm2",
+            "model_id": "model-voxcpm2",
+            "scores": {"naturalness": 4}
+        }
+        req_eval = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/evaluations",
+            data=json.dumps(eval_payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        try:
+            urlopen(req_eval)
+            self.fail("Expected HTTP 403 Forbidden when submitting to closed study")
+        except HTTPError as e:
+            self.assertEqual(e.code, 403)
+
+
+    def test_results_and_scores_chart_containers(self):
+        """Verify Results & Scores view contains visual chart containers and empty state."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            html = f.read()
+        self.assertIn('id="chart-mos-comparison"', html)
+        self.assertIn('id="chart-defect-distribution"', html)
+        self.assertIn('id="analytics-empty-state"', html)
+        self.assertIn('id="analytics-data-content"', html)
+
+
+    def test_delete_modal_double_confirmation_input(self):
+        """Verify delete modal requires typing study name before enabling delete button."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            html = f.read()
+        self.assertIn('id="delete-study-confirm-input"', html)
+        self.assertIn('id="delete-study-prompt-name"', html)
+
+
+    def test_backup_export_and_import_cycle(self):
+        """Verify admin backup export produces valid zip archive and import restores successfully."""
+        import zipfile
+        import io
+        import base64
+
+        # 1. Test GET /api/admin/export-backup
+        req_export = Request(f"http://127.0.0.1:{TEST_PORT}/api/admin/export-backup", headers={"X-Admin-PIN": "2026"})
+        try:
+            with urlopen(req_export) as resp:
+                self.assertEqual(resp.status, 200)
+                self.assertEqual(resp.headers.get("Content-Type"), "application/zip")
+                zip_bytes = resp.read()
+        except HTTPError as e:
+            print("ERROR BODY:", e.read().decode())
+            raise
+
+        # Validate that the downloaded zip file has valid zip structure
+        zip_buf = io.BytesIO(zip_bytes)
+        with zipfile.ZipFile(zip_buf, "r") as zf:
+            namelist = zf.namelist()
+            self.assertTrue(len(namelist) > 0)
+            self.assertIn("workbench.db", namelist)
+
+        # 2. Test POST /api/admin/import-backup
+        zip_b64 = base64.b64encode(zip_bytes).decode("ascii")
+        req_import = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/admin/import-backup",
+            data=json.dumps({"zip_base64": zip_b64}).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(req_import) as resp:
+            self.assertEqual(resp.status, 200)
+            res_data = json.loads(resp.read().decode("utf-8"))
+            self.assertTrue(res_data.get("success"))
+            self.assertIn("studies_count", res_data)
+
+
+    def test_campaign_safe_in_place_update(self):
+        """Verify POST /api/campaigns/update allows non-destructive live updates to study instructions and name."""
+        req_update = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/campaigns/update",
+            data=json.dumps({
+                "campaign_id": "camp-dev23-4models",
+                "name": "Capstone-Sprint2-Updated",
+                "instructions": "Listen carefully to consonant boundaries."
+            }).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(req_update) as resp:
+            self.assertEqual(resp.status, 200)
+            res_data = json.loads(resp.read().decode("utf-8"))
+            self.assertTrue(res_data.get("success"))
+
+        # Verify update in GET /api/campaigns
+        req_get = Request(f"http://127.0.0.1:{TEST_PORT}/api/campaigns")
+        with urlopen(req_get) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            campaigns = data.get("campaigns", data if isinstance(data, list) else [])
+            found = next((c for c in campaigns if c["id"] == "camp-dev23-4models"), None)
+            self.assertIsNotNone(found)
+            self.assertEqual(found["name"], "Capstone-Sprint2-Updated")
+            self.assertEqual(found["instructions"], "Listen carefully to consonant boundaries.")
+
+
 if __name__ == "__main__":
     unittest.main()

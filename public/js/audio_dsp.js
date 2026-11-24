@@ -91,8 +91,27 @@ class AudioDSPEngine {
   }
 
   setPhoneFilter(enabled) {
-    // Unaltered audio policy: Filters disabled to preserve genuine acoustic signal
-    this.isPhoneFilterEnabled = false;
+    this.isPhoneFilterEnabled = !!enabled;
+    if (!this.audioCtx) return;
+
+    try {
+      this.gainNode.disconnect();
+      this.highpassFilter.disconnect();
+      this.lowpassFilter.disconnect();
+      this.analyserNode.disconnect();
+    } catch (e) {}
+
+    if (this.isPhoneFilterEnabled) {
+      // Bandpass 300Hz - 3400Hz telephone simulation
+      this.gainNode.connect(this.highpassFilter);
+      this.highpassFilter.connect(this.lowpassFilter);
+      this.lowpassFilter.connect(this.analyserNode);
+      this.analyserNode.connect(this.audioCtx.destination);
+    } else {
+      // Pure, unaltered audio playback: Gain -> Analyser -> Destination
+      this.gainNode.connect(this.analyserNode);
+      this.analyserNode.connect(this.audioCtx.destination);
+    }
   }
 
   setVolume(vol) {
@@ -137,8 +156,13 @@ class AudioDSPEngine {
     }
   }
 
-  play() {
+  async play() {
     this.ensureContext();
+    if (this.audioCtx && this.audioCtx.state === "suspended") {
+      try {
+        await this.audioCtx.resume();
+      } catch (e) {}
+    }
     if (this.isPlaying) return;
 
     const buffer = this.activeCandidate === "A" ? this.audioBufferA : (this.audioBufferB || this.audioBufferA);
@@ -152,7 +176,8 @@ class AudioDSPEngine {
     source.connect(this.gainNode);
 
     const offset = Math.min(this.pausedAt, buffer.duration - 0.05);
-    source.start(0, Math.max(0, offset));
+    const now = this.audioCtx.currentTime;
+    source.start(now, Math.max(0, offset));
 
     source.onended = () => {
       if (this.isPlaying && this.getCurrentTime() >= buffer.duration - 0.05) {
@@ -170,7 +195,7 @@ class AudioDSPEngine {
       this.sourceNodeB = source;
     }
 
-    this.startTime = this.audioCtx.currentTime - (offset / this.playbackRate);
+    this.startTime = now - (offset / this.playbackRate);
     this.isPlaying = true;
     this.startProgressTracker();
   }
@@ -227,8 +252,11 @@ class AudioDSPEngine {
     if (!this.isPlaying) {
       return this.pausedAt;
     }
-    const elapsed = (this.audioCtx.currentTime - this.startTime) * this.playbackRate;
-    return Math.min(elapsed, this.duration);
+    // Compensate for hardware acoustic latency so waveform cursor matches what human ears hear precisely
+    const latency = (this.audioCtx?.outputLatency || 0) + (this.audioCtx?.baseLatency || 0);
+    const rawElapsed = (this.audioCtx.currentTime - this.startTime) * this.playbackRate;
+    const elapsed = rawElapsed - (latency * this.playbackRate);
+    return Math.max(0, Math.min(elapsed, this.duration));
   }
 
   startProgressTracker() {
@@ -389,11 +417,6 @@ class AudioDSPEngine {
       const rect = canvas.getBoundingClientRect();
       startX = clientX - rect.left;
       currentX = startX;
-
-      if (this.waveformMode === "scrub") {
-        const time = getTimeFromX(startX);
-        this.seek(time);
-      }
     };
 
     const handleMove = (clientX) => {
@@ -401,13 +424,7 @@ class AudioDSPEngine {
       const rect = canvas.getBoundingClientRect();
       currentX = Math.max(0, Math.min(rect.width, clientX - rect.left));
 
-      if (this.waveformMode === "scrub") {
-        hasDragged = true;
-        const time = getTimeFromX(currentX);
-        this.seek(time);
-        return;
-      }
-
+      // Drag threshold of 6px distinguishes click vs drag-to-tag
       if (Math.abs(currentX - startX) > 6) {
         hasDragged = true;
         const time1 = getTimeFromX(startX);
@@ -424,17 +441,8 @@ class AudioDSPEngine {
       if (!isMouseDown) return;
       isMouseDown = false;
 
-      if (this.waveformMode === "scrub") {
-        if (hasDragged) {
-          const time = getTimeFromX(currentX);
-          this.seek(time);
-        }
-        this.renderWaveform(canvas, bufferLetter);
-        return;
-      }
-
       if (hasDragged && this.activeSelection) {
-        // Selection finished
+        // Drag gesture finished: open defect region popover
         if (typeof this.onRegionSelected === "function") {
           const rect = canvas.getBoundingClientRect();
           this.onRegionSelected({
@@ -442,12 +450,12 @@ class AudioDSPEngine {
             endSec: this.activeSelection.endSec,
             startMs: Math.round(this.activeSelection.startSec * 1000),
             endMs: Math.round(this.activeSelection.endSec * 1000),
-            clientX: clientX,
+            clientX: clientX !== undefined ? clientX : rect.left + currentX,
             clientY: clientY !== undefined ? clientY : rect.bottom + 8
           });
         }
       } else {
-        // Simple click / tap -> Seek or select existing region
+        // Quick click / tap without dragging -> Seek or select existing region
         const clickTime = getTimeFromX(startX);
         
         // Check if clicked inside an existing defect region
@@ -455,7 +463,7 @@ class AudioDSPEngine {
         if (hitRegion && typeof this.onRegionClick === "function") {
           this.onRegionClick(hitRegion);
         } else {
-          // Clear active selection on click outside
+          // Clear active selection on click outside and seek
           this.activeSelection = null;
           this.seek(clickTime);
         }
@@ -529,13 +537,14 @@ class AudioDSPEngine {
     this.attachWaveformEvents(canvas, bufferLetter);
 
     const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    const displayWidth = rect.width || 400;
-    const displayHeight = rect.height || 48;
+    const displayWidth = canvas.clientWidth || 400;
+    const displayHeight = canvas.clientHeight || 48;
 
-    if (canvas.width !== Math.round(displayWidth * dpr) || canvas.height !== Math.round(displayHeight * dpr)) {
-      canvas.width = Math.round(displayWidth * dpr);
-      canvas.height = Math.round(displayHeight * dpr);
+    const targetW = Math.round(displayWidth * dpr);
+    const targetH = Math.round(displayHeight * dpr);
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
     }
 
     const ctx = canvas.getContext("2d");

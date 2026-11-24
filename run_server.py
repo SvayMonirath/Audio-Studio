@@ -13,14 +13,15 @@ import argparse
 import subprocess
 import mimetypes
 import uuid
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from datetime import datetime
 
 # Import database module
+import database
 from database import (
     get_connection, init_db, seed_project_khmer_speech,
-    save_admin, verify_admin_credentials
+    save_admin, verify_admin_credentials, DEFAULT_DB_PATH
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -30,7 +31,7 @@ BENCHMARK_AUDIO_DIR = os.path.join(BASE_DIR, "audio")
 # Configurable Admin PINs for team access
 DEFAULT_ADMIN_PINS = set([p.strip() for p in os.environ.get("ADMIN_PINS", "2026,1234,veaja,cadt").split(",") if p.strip()])
 
-class ReusableHTTPServer(HTTPServer):
+class ReusableHTTPServer(ThreadingHTTPServer):
     allow_reuse_address = True
 
 class StudioHandler(BaseHTTPRequestHandler):
@@ -322,9 +323,9 @@ class StudioHandler(BaseHTTPRequestHandler):
 
                 sql = "SELECT * FROM test_items"
                 if suite_id:
-                    rows = cur.execute(sql + " WHERE suite_id = ? ORDER BY item_key ASC", (suite_id,)).fetchall()
+                    rows = cur.execute(sql + " WHERE suite_id = ? ORDER BY rowid ASC", (suite_id,)).fetchall()
                 else:
-                    rows = cur.execute(sql + " ORDER BY item_key ASC").fetchall()
+                    rows = cur.execute(sql + " ORDER BY rowid ASC").fetchall()
 
                 items = []
                 for r in rows:
@@ -592,6 +593,50 @@ class StudioHandler(BaseHTTPRequestHandler):
                 self.wfile.write(csv_data)
                 return
 
+            if path == "/api/admin/export-backup":
+                if not self.is_authenticated_admin():
+                    self.send_json_response({"error": "Admin authentication required. Please provide X-Admin-PIN header."}, status=401)
+                    return
+
+                import zipfile, io, os, shutil
+                from datetime import datetime
+
+                zip_buffer = io.BytesIO()
+                db_file = getattr(database, "DEFAULT_DB_PATH", DEFAULT_DB_PATH)
+
+                # Force WAL checkpoint to flush all data into main file
+                try:
+                    cur.execute("PRAGMA wal_checkpoint(FULL);")
+                except Exception:
+                    pass
+
+                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                    if os.path.exists(db_file):
+                        zip_file.write(db_file, "workbench.db")
+
+                    uploads_dir = os.path.join(PUBLIC_DIR, "uploads")
+                    if os.path.exists(uploads_dir):
+                        for root, _, files in os.walk(uploads_dir):
+                            for file in files:
+                                if file.startswith("."):
+                                    continue
+                                file_path = os.path.join(root, file)
+                                rel_path = os.path.relpath(file_path, PUBLIC_DIR)
+                                zip_file.write(file_path, rel_path)
+
+                zip_data = zip_buffer.getvalue()
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"audio_studio_backup_{timestamp}.zip"
+
+                self.send_response(200)
+                self.send_header("Content-Type", "application/zip")
+                self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+                self.send_header("Content-Length", str(len(zip_data)))
+                self.send_cors_headers()
+                self.end_headers()
+                self.wfile.write(zip_data)
+                return
+
             self.send_error(404, "API endpoint not found")
 
         except Exception as e:
@@ -694,13 +739,87 @@ class StudioHandler(BaseHTTPRequestHandler):
                 return
 
             admin_endpoints = {
-                "/api/campaigns", "/api/campaigns/status", "/api/models",
+                "/api/campaigns", "/api/campaigns/status", "/api/campaigns/update", "/api/models",
                 "/api/suites", "/api/rubrics", "/api/upload-audio",
-                "/api/upload-batch", "/api/seed/capstone", "/api/projects"
+                "/api/upload-batch", "/api/seed/capstone", "/api/projects",
+                "/api/admin/import-backup"
             }
             if path in admin_endpoints:
                 if not self.is_authenticated_admin():
                     self.send_json_response({"error": "Admin authentication required. Please provide X-Admin-PIN header."}, status=401)
+                    return
+
+            if path == "/api/campaigns/update":
+                c_id = payload.get("campaign_id") or payload.get("id")
+                if not c_id:
+                    self.send_json_response({"error": "campaign_id is required."}, status=400)
+                    return
+                updates = []
+                params = []
+                if "name" in payload and payload["name"].strip():
+                    updates.append("name = ?")
+                    params.append(payload["name"].strip())
+                if "instructions" in payload:
+                    updates.append("instructions = ?")
+                    params.append(payload["instructions"])
+                if "ui_config" in payload:
+                    conf = payload["ui_config"]
+                    updates.append("ui_config_json = ?")
+                    params.append(json.dumps(conf) if not isinstance(conf, str) else conf)
+                if not updates:
+                    self.send_json_response({"error": "No valid fields provided to update."}, status=400)
+                    return
+                params.append(c_id)
+                cur.execute(f"UPDATE campaigns SET {', '.join(updates)} WHERE id = ?", params)
+                conn.commit()
+                self.send_json_response({"success": True, "campaign_id": c_id, "message": "Campaign updated successfully."})
+                return
+
+            if path == "/api/admin/import-backup":
+                zip_b64 = payload.get("zip_base64") or payload.get("file_data")
+                if not zip_b64:
+                    self.send_json_response({"error": "Missing zip_base64 in payload."}, status=400)
+                    return
+
+                import zipfile, io, base64, shutil
+                try:
+                    zip_bytes = base64.b64decode(zip_b64)
+                    zip_buffer = io.BytesIO(zip_bytes)
+
+                    with zipfile.ZipFile(zip_buffer, "r") as zip_file:
+                        for member in zip_file.namelist():
+                            if member.startswith("/") or ".." in member:
+                                self.send_json_response({"error": "Malicious zip entry detected."}, status=400)
+                                return
+
+                        conn.close()
+
+                        db_dest = getattr(database, "DEFAULT_DB_PATH", DEFAULT_DB_PATH)
+                        if os.path.exists(db_dest):
+                            shutil.copy2(db_dest, db_dest + ".bak")
+
+                        for member in zip_file.namelist():
+                            if member == "workbench.db":
+                                with open(db_dest, "wb") as f_out:
+                                    f_out.write(zip_file.read(member))
+                            elif member.startswith("uploads/"):
+                                target_path = os.path.join(PUBLIC_DIR, member)
+                                os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                                with open(target_path, "wb") as f_out:
+                                    f_out.write(zip_file.read(member))
+
+                    conn = get_connection()
+                    cur = conn.cursor()
+                    studies_cnt = cur.execute("SELECT COUNT(*) as cnt FROM campaigns").fetchone()["cnt"]
+
+                    self.send_json_response({
+                        "success": True,
+                        "message": "Backup restored successfully.",
+                        "studies_count": studies_cnt
+                    })
+                    return
+                except Exception as err:
+                    self.send_json_response({"error": f"Failed to restore backup: {str(err)}"}, status=500)
                     return
 
             if path == "/api/campaigns/status":
@@ -750,6 +869,13 @@ class StudioHandler(BaseHTTPRequestHandler):
                 else:
                     defect_types_json = None
                 collect_transcription = 1 if payload.get("collect_transcription") else 0
+                ui_config = payload.get("ui_config") or payload.get("ui_config_json")
+                if isinstance(ui_config, (dict, list)):
+                    ui_config_json = json.dumps(ui_config)
+                elif isinstance(ui_config, str):
+                    ui_config_json = ui_config
+                else:
+                    ui_config_json = None
 
                 if not name:
                     self.send_json_response({"error": "Campaign name is required."}, status=400)
@@ -759,11 +885,31 @@ class StudioHandler(BaseHTTPRequestHandler):
                 if modality not in ("TTS", "ASR"):
                     modality = "TTS"
                 cur.execute("""
-                INSERT INTO campaigns (id, project_id, name, suite_id, rubric_id, instructions, defect_types_json, collect_transcription, modality, is_active)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-                """, (c_id, p_id, name, suite_id, rubric_id, instructions, defect_types_json, collect_transcription, modality))
+                INSERT INTO campaigns (id, project_id, name, suite_id, rubric_id, instructions, defect_types_json, collect_transcription, modality, ui_config_json, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                """, (c_id, p_id, name, suite_id, rubric_id, instructions, defect_types_json, collect_transcription, modality, ui_config_json))
                 conn.commit()
                 self.send_json_response({"success": True, "campaign_id": c_id}, status=201)
+                return
+
+            if path == "/api/link-folder":
+                folder_path = payload.get("folder_path", "").strip()
+                if not folder_path:
+                    self.send_json_response({"error": "folder_path is required."}, status=400)
+                    return
+                base_dir = os.path.dirname(os.path.abspath(__file__))
+                resolved_path = folder_path if os.path.isabs(folder_path) else os.path.join(base_dir, folder_path)
+                if not os.path.exists(resolved_path) or not os.path.isdir(resolved_path):
+                    self.send_json_response({"error": f"Folder not found: {folder_path}"}, status=404)
+                    return
+                files = []
+                for f in sorted(os.listdir(resolved_path)):
+                    if f.lower().endswith((".wav", ".mp3", ".ogg", ".flac")):
+                        files.append({
+                            "filename": f,
+                            "audio_url": f"/audio/{folder_path.lstrip('/')}/{f}" if not folder_path.startswith("/") else f"/audio/{f}"
+                        })
+                self.send_json_response({"success": True, "folder": folder_path, "files": files, "count": len(files)})
                 return
 
             if path == "/api/suites":
@@ -962,6 +1108,12 @@ class StudioHandler(BaseHTTPRequestHandler):
                     self.send_json_response({"error": "campaign_id, rater_id, item_id, and model_id are required."}, status=400)
                     return
 
+                # Check if campaign is active
+                c_check = cur.execute("SELECT is_active FROM campaigns WHERE id = ?", (campaign_id,)).fetchone()
+                if c_check and c_check["is_active"] == 0:
+                    self.send_json_response({"error": "This study has concluded and is no longer accepting new submissions."}, status=403)
+                    return
+
                 # Ensure rater and model exist to satisfy foreign key constraints
                 r_check = cur.execute("SELECT id FROM raters WHERE id = ?", (rater_id,)).fetchone()
                 if not r_check:
@@ -1043,8 +1195,14 @@ class StudioHandler(BaseHTTPRequestHandler):
             conn.close()
 
 def start_server(port=8080, share=False):
-    # Ensure database is seeded
-    seed_project_khmer_speech()
+    # Ensure database is initialized; only auto-seed if no campaigns exist
+    init_db()
+    conn = get_connection()
+    cur = conn.cursor()
+    campaign_count = cur.execute("SELECT COUNT(*) as cnt FROM campaigns").fetchone()["cnt"]
+    conn.close()
+    if campaign_count == 0:
+        seed_project_khmer_speech()
 
     server_address = ("", port)
     httpd = ReusableHTTPServer(server_address, StudioHandler)

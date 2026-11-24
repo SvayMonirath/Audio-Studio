@@ -62,7 +62,7 @@
       <div id="box-pin-create" class="hidden space-y-3 text-left">
         <div class="text-center">
           <h2 class="text-base font-bold text-zinc-900">Set Your Admin PIN</h2>
-          <p class="text-xs text-zinc-500 mt-1">Create or update your 4-digit or 6-digit access PIN.</p>
+          <p class="text-xs text-zinc-500 mt-1">Create or update your 4-digit access PIN.</p>
         </div>
 
         <form id="admin-register-form" class="space-y-2.5">
@@ -94,8 +94,8 @@
                 type="password"
                 id="reg-new-pin"
                 required
-                maxlength="6"
-                placeholder="4 or 6 digits"
+                maxlength="4"
+                placeholder="4 digits"
                 class="w-full px-3 py-1.5 text-xs bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 font-mono focus:outline-none focus:ring-1 focus:ring-zinc-900"
               />
             </div>
@@ -105,7 +105,7 @@
                 type="password"
                 id="reg-confirm-pin"
                 required
-                maxlength="6"
+                maxlength="4"
                 placeholder="Repeat PIN"
                 class="w-full px-3 py-1.5 text-xs bg-zinc-50 border border-zinc-300 rounded-lg text-zinc-900 font-mono focus:outline-none focus:ring-1 focus:ring-zinc-900"
               />
@@ -148,15 +148,16 @@
     <div class="flex items-center gap-1 bg-zinc-100 p-1 rounded-xl">
       <button
         id="tab-btn-wizard"
-        class="px-3 py-1.5 rounded-lg text-xs font-medium bg-white text-zinc-900 shadow-sm cursor-pointer transition"
+        class="px-3 py-1.5 rounded-lg text-xs font-medium bg-white text-zinc-900 shadow-sm cursor-pointer transition flex items-center gap-1.5"
       >
-        Create New Study
+        <span id="tab-wizard-indicator-dot" class="w-2 h-2 rounded-full bg-amber-500 hidden animate-pulse inline-block"></span>
+        <span id="tab-btn-wizard-text">Create New Study</span>
       </button>
       <button
         id="tab-btn-results"
         class="px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer transition"
       >
-        Results & Scores
+        Results &amp; Scores
       </button>
       <button
         id="tab-btn-studies"
@@ -191,6 +192,31 @@
         </a>
       </div>
 
+      <!-- 1-Click Backup & Migration -->
+      <div class="flex items-center gap-1.5">
+        <button
+          id="btn-export-backup"
+          type="button"
+          class="px-2.5 py-1 text-xs border border-zinc-200 rounded-lg text-zinc-700 bg-white hover:bg-zinc-50 cursor-pointer transition font-medium flex items-center gap-1.5 shadow-2xs"
+          title="Download complete project backup with database and audio files"
+        >
+          <svg class="w-3.5 h-3.5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          <span class="hidden md:inline">Export Backup (.zip)</span>
+          <span class="md:hidden">Backup</span>
+        </button>
+        <button
+          id="btn-import-backup-trigger"
+          type="button"
+          class="px-2.5 py-1 text-xs border border-zinc-200 rounded-lg text-zinc-700 bg-white hover:bg-zinc-50 cursor-pointer transition font-medium flex items-center gap-1.5 shadow-2xs"
+          title="Restore database and audio files from backup zip"
+        >
+          <svg class="w-3.5 h-3.5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12"/></svg>
+          <span class="hidden md:inline">Restore Backup</span>
+          <span class="md:hidden">Restore</span>
+        </button>
+        <input type="file" id="input-restore-backup" accept=".zip" class="hidden" />
+      </div>
+
       <button
         id="btn-admin-lock"
         class="px-2.5 py-1 text-xs border border-zinc-200 rounded-lg text-zinc-600 hover:bg-zinc-100 cursor-pointer transition font-medium flex items-center gap-1.5"
@@ -203,113 +229,172 @@
   </header>
 
   <!-- Main Container -->
-  <main class="flex-1 max-w-4xl w-full mx-auto p-6">
+  <main class="flex-1 max-w-[1560px] w-full mx-auto p-4 sm:p-6 transition-all">
 
     <!-- VIEW 1: STUDY CREATOR WIZARD -->
-    <section id="view-wizard" class="space-y-6">
+    <section id="view-wizard" class="space-y-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Study Authoring</span>
+          <span id="draft-status-indicator" class="hidden px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-100 text-zinc-600 border border-zinc-200">Draft saved</span>
+        </div>
+        <button
+          type="button"
+          id="btn-discard-draft"
+          class="hidden px-2.5 py-1 text-xs text-zinc-500 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 rounded-lg transition cursor-pointer flex items-center gap-1.5"
+          title="Clear current draft and start fresh"
+        >
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          <span>Discard Draft</span>
+        </button>
+      </div>
       
       <!-- Wizard Step Navigation -->
-      <div class="wizard-nav shadow-sm">
-        <div class="wizard-nav-item active" data-step="1">1. Study Information</div>
-        <div class="wizard-nav-item" data-step="2">2. Audio & Text</div>
-        <div class="wizard-nav-item" data-step="3">3. Rating Questions</div>
-        <div class="wizard-nav-item" data-step="4">4. Launch & Share</div>
+      <div class="wizard-nav shadow-xs">
+        <div class="wizard-nav-item active" data-step="1" title="Jump to Step 1: Study Information">
+          <span class="wizard-step-badge">1</span>
+          <div class="flex flex-col text-left min-w-0">
+            <span class="wizard-step-title">Study Information</span>
+            <span class="wizard-step-subtitle">Basics &amp; instructions</span>
+          </div>
+        </div>
+        <div class="wizard-nav-divider">
+          <svg class="w-4 h-4 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </div>
+        <div class="wizard-nav-item" data-step="2" title="Jump to Step 2: Audio & Text">
+          <span class="wizard-step-badge">2</span>
+          <div class="flex flex-col text-left min-w-0">
+            <span class="wizard-step-title">Audio &amp; Text</span>
+            <span class="wizard-step-subtitle">Samples &amp; models</span>
+          </div>
+        </div>
+        <div class="wizard-nav-divider">
+          <svg class="w-4 h-4 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </div>
+        <div class="wizard-nav-item" data-step="3" title="Jump to Step 3: Test Design">
+          <span class="wizard-step-badge">3</span>
+          <div class="flex flex-col text-left min-w-0">
+            <span class="wizard-step-title">Test Design</span>
+            <span class="wizard-step-subtitle">Layout &amp; questions</span>
+          </div>
+        </div>
+        <div class="wizard-nav-divider">
+          <svg class="w-4 h-4 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </div>
+        <div class="wizard-nav-item is-locked" data-step="4" title="Step 4: Launch & Share (Requires Steps 1–3)">
+          <span class="wizard-step-badge">4</span>
+          <div class="flex flex-col text-left min-w-0">
+            <span class="wizard-step-title">Launch &amp; Share</span>
+            <span class="wizard-step-subtitle">Deploy &amp; rater link</span>
+          </div>
+        </div>
       </div>
 
       <!-- Step 1: Study Information -->
-      <div id="wizard-step-1" class="studio-card space-y-5">
-        <div>
-          <h2 class="text-base font-bold text-zinc-900 mb-1">Study Information</h2>
-          <p class="text-xs text-zinc-500">Set the title, purpose, and clear instructions for your evaluators.</p>
+      <div id="wizard-step-1" class="studio-card space-y-6 max-w-4xl mx-auto shadow-xs">
+        <div class="border-b border-zinc-100 pb-4">
+          <h2 class="text-lg font-bold text-zinc-900 tracking-tight">Study Information</h2>
+          <p class="text-xs text-zinc-500 mt-0.5">Define your study title and guidance for listeners.</p>
         </div>
 
-        <div class="space-y-4 max-w-2xl">
+        <div class="space-y-5">
           <!-- Modality Selector: TTS vs ASR -->
           <div>
-            <label class="block text-xs font-semibold text-zinc-700 mb-1.5">Study Type</label>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <label id="opt-modality-tts" class="border-2 border-zinc-900 bg-zinc-50 p-3.5 rounded-xl cursor-pointer flex flex-col gap-1 transition">
+            <label class="block text-xs font-bold text-zinc-800 uppercase tracking-wider mb-2">Study Type</label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label id="opt-modality-tts" class="border-2 border-zinc-900 bg-zinc-50/80 p-4 rounded-xl cursor-pointer flex flex-col gap-1.5 transition shadow-2xs hover:bg-zinc-50">
                 <div class="flex items-center justify-between">
-                  <span class="text-xs font-bold text-zinc-900 flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5 text-zinc-800" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                  <span class="text-xs font-bold text-zinc-900 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-zinc-900" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
                     Voice Generation (TTS)
                   </span>
                   <input type="radio" name="wiz-modality" value="TTS" checked class="text-zinc-900 focus:ring-0">
                 </div>
-                <p class="text-[11px] text-zinc-500 leading-relaxed">Evaluate generated computer voice quality, naturalness, and mispronounced words.</p>
+                <p class="text-xs text-zinc-500 leading-relaxed">Evaluate generated computer voice naturalness, clarity, and pronunciation errors.</p>
               </label>
 
-              <label id="opt-modality-asr" class="border border-zinc-200 bg-white hover:bg-zinc-50 p-3.5 rounded-xl cursor-pointer flex flex-col gap-1 transition">
+              <label id="opt-modality-asr" class="border border-zinc-200 bg-zinc-50/40 p-4 rounded-xl flex flex-col gap-1.5 transition opacity-60 cursor-not-allowed pointer-events-none border-dashed">
                 <div class="flex items-center justify-between">
-                  <span class="text-xs font-bold text-zinc-900 flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5 text-zinc-800" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  <span class="text-xs font-bold text-zinc-400 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                     Speech Recognition (ASR)
+                    <span class="px-2 py-0.5 text-[9px] font-semibold bg-zinc-200 text-zinc-600 rounded-md uppercase tracking-wider">Coming Soon</span>
                   </span>
-                  <input type="radio" name="wiz-modality" value="ASR" class="text-zinc-900 focus:ring-0">
+                  <input type="radio" name="wiz-modality" value="ASR" disabled class="text-zinc-400 focus:ring-0 cursor-not-allowed">
                 </div>
-                <p class="text-[11px] text-zinc-500 leading-relaxed">Evaluate speech recognition accuracy, visual word differences, and spoken Khmer variations.</p>
+                <p class="text-xs text-zinc-400 leading-relaxed">Automatic speech-to-text transcription accuracy tests.</p>
               </label>
             </div>
           </div>
 
-          <div>
-            <label class="block text-xs font-semibold text-zinc-700 mb-1" for="wiz-study-name">Study Name</label>
-            <input
-              type="text"
-              id="wiz-study-name"
-              placeholder="e.g. Khmer Food Menu Listening Test"
-              class="w-full px-3.5 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-            />
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-zinc-700 mb-1.5" for="wiz-study-name">Study Name <span class="text-red-500">*</span></label>
+              <input
+                type="text"
+                id="wiz-study-name"
+                placeholder="e.g. Khmer Food Menu Listening Test"
+                class="w-full px-3.5 py-2.5 bg-white border border-zinc-200 rounded-xl text-xs sm:text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition shadow-2xs"
+              />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-zinc-700 mb-1.5" for="wiz-study-desc">Project or Topic Description</label>
+              <input
+                type="text"
+                id="wiz-study-desc"
+                placeholder="e.g. Speech evaluation for voice assistant testing"
+                class="w-full px-3.5 py-2.5 bg-white border border-zinc-200 rounded-xl text-xs sm:text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition shadow-2xs"
+              />
+            </div>
           </div>
 
           <div>
-            <label class="block text-xs font-semibold text-zinc-700 mb-1" for="wiz-study-desc">Project or Topic Description</label>
-            <input
-              type="text"
-              id="wiz-study-desc"
-              placeholder="e.g. Speech evaluation for voice assistant testing"
-              class="w-full px-3.5 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-            />
-          </div>
-
-          <div>
-            <label class="block text-xs font-semibold text-zinc-700 mb-1" for="wiz-study-instructions">Instructions for Evaluators</label>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-xs font-semibold text-zinc-700" for="wiz-study-instructions">Instructions for Evaluators</label>
+              <span class="text-[11px] text-zinc-400">Shown to listeners on the test page</span>
+            </div>
             <textarea
               id="wiz-study-instructions"
               rows="3"
-              placeholder="e.g. Please wear headphones. Listen to each audio sample and rate its naturalness. If you hear a mispronounced word, drag on the waveform to tag it."
-              class="w-full px-3.5 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              placeholder="e.g. Please wear headphones. Listen to each audio sample and rate its naturalness. If you hear a mispronounced word, tag the error."
+              class="w-full px-3.5 py-2.5 bg-white border border-zinc-200 rounded-xl text-xs sm:text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition shadow-2xs leading-relaxed"
             ></textarea>
-            <p class="text-[11px] text-zinc-400 mt-1">This text appears at the top of the evaluation page to guide listeners.</p>
           </div>
         </div>
 
-        <div class="flex justify-end pt-3 border-t border-zinc-100">
-          <button id="wiz-btn-step1-next" class="btn-carbon cursor-pointer">Continue to Audio Setup &rarr;</button>
+        <div class="flex justify-end pt-4 border-t border-zinc-100">
+          <button id="wiz-btn-step1-next" class="btn-carbon px-5 py-2.5 text-xs font-semibold rounded-xl cursor-pointer shadow-sm hover:opacity-90 transition flex items-center gap-1.5">
+            <span>Continue to Audio Setup</span>
+            <span>&rarr;</span>
+          </button>
         </div>
       </div>
 
-      <!-- Step 2: Audio & Text Ingestion (Fish Audio De-cluttered Layout) -->
+      <!-- Step 2: Audio & Text Ingestion (Unified Clean Dropzone) -->
       <div id="wizard-step-2" class="studio-card hidden space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-zinc-100">
           <div>
-            <h2 class="text-base font-bold text-zinc-900 mb-0.5">Audio Samples & Transcripts</h2>
-            <p class="text-xs text-zinc-500">Upload batch audio clips, match Khmer transcripts, and assign test models.</p>
+            <h2 class="text-base font-bold text-zinc-900 mb-0.5">Audio &amp; Transcripts</h2>
+            <p class="text-xs text-zinc-500">Provide audio clips and matching transcripts.</p>
           </div>
           <div class="flex items-center gap-2">
             <button
               type="button"
-              id="btn-load-demo-data"
-              class="px-3 py-1.5 text-xs border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-800 rounded-lg cursor-pointer font-medium transition shadow-xs"
+              id="btn-copy-ai-gen-prompt"
+              class="px-3 py-1.5 text-xs font-medium text-zinc-700 bg-white hover:bg-zinc-50 border border-zinc-200 rounded-xl cursor-pointer transition shadow-2xs flex items-center gap-1.5"
+              title="View prompt to prepare and align your audio folder and CSV"
             >
-              Load Quick Demo (3 items)
+              <svg class="w-3.5 h-3.5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <span>AI Prep Prompt</span>
             </button>
             <button
               type="button"
               id="btn-download-csv-template"
-              class="px-3 py-1.5 text-xs border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-800 rounded-lg cursor-pointer font-medium transition shadow-xs"
+              class="px-3 py-1.5 text-xs font-medium text-zinc-700 bg-white hover:bg-zinc-50 border border-zinc-200 rounded-xl cursor-pointer transition shadow-2xs flex items-center gap-1.5"
             >
-              Download CSV Template
+              <svg class="w-3.5 h-3.5 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              <span>CSV Template</span>
             </button>
           </div>
         </div>
@@ -318,8 +403,8 @@
         <div class="space-y-2 pb-5 border-b border-zinc-100">
           <div class="flex items-center justify-between">
             <div>
-              <span class="text-xs font-semibold text-zinc-900">TTS Models to Compare</span>
-              <p class="text-[11px] text-zinc-500">Each audio clip is tagged with one of these models for comparative MOS scoring.</p>
+              <span class="text-xs font-semibold text-zinc-800">Models to Compare (Optional)</span>
+              <p class="text-[11px] text-zinc-500">Auto-detected from CSV/files, or define manually below.</p>
             </div>
             <button
               type="button"
@@ -347,126 +432,120 @@
           </div>
         </div>
 
-        <!-- 2. Clean Audio Upload Dropzone -->
-        <div class="space-y-3 pb-5 border-b border-zinc-100">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <span class="text-xs font-semibold text-zinc-900">Upload Speech Audio Files</span>
-              <p class="text-[11px] text-zinc-500">Select or drop all your speech audio clips at once (WAV or MP3).</p>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-xs text-zinc-600 font-medium">Tag uploaded files as:</span>
-              <select id="sel-upload-target-model" class="px-2.5 py-1 text-xs bg-white border border-zinc-200 rounded-lg font-medium text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900">
-                <!-- Dynamically filled with configured models -->
-              </select>
-            </div>
+        <!-- Hidden compat elements for admin_app.js until Task 3 -->
+        <div class="hidden">
+          <select id="sel-upload-target-model"></select>
+          <div id="dropzone-audio"></div>
+          <input type="file" id="multi-audio-input" />
+          <button type="button" id="mode-btn-table"></button>
+          <button type="button" id="mode-btn-paste"></button>
+          <button type="button" id="mode-btn-csv"></button>
+          <button type="button" id="btn-toggle-local-folder"></button>
+          <div id="box-link-folder"></div>
+          <input type="text" id="input-local-folder-path" />
+          <button type="button" id="btn-link-local-folder"></button>
+          <div id="box-paste-text">
+            <span id="paste-line-counter"></span>
+            <textarea id="paste-text-input"></textarea>
+            <button type="button" id="btn-apply-pasted-text"></button>
           </div>
+          <div id="box-csv-upload">
+            <div id="dropzone-csv"></div>
+            <input type="file" id="csv-file-input" />
+          </div>
+        </div>
 
+        <!-- 2. Single Unified Dropzone -->
+        <div class="space-y-3 pb-5 border-b border-zinc-100">
           <div
-            id="dropzone-audio"
-            class="border border-dashed border-zinc-300 hover:border-zinc-900 rounded-xl p-6 text-center bg-zinc-50/40 hover:bg-zinc-50 transition cursor-pointer"
+            id="dropzone-unified"
+            class="border-2 border-dashed border-zinc-300 hover:border-zinc-900 rounded-2xl p-8 text-center bg-zinc-50/50 hover:bg-zinc-50 transition cursor-pointer relative"
           >
+            <div
+              id="dropzone-loading-overlay"
+              class="hidden absolute inset-0 bg-white/95 backdrop-blur-xs rounded-2xl flex flex-col items-center justify-center gap-3 z-10 transition-opacity"
+            >
+              <div id="dropzone-spinner" class="w-8 h-8 border-3 border-zinc-200 border-t-zinc-900 rounded-full animate-spin"></div>
+              <div id="dropzone-loading-text" class="text-xs font-semibold text-zinc-900">
+                Processing files...
+              </div>
+              <div class="w-56 bg-zinc-100 rounded-full h-2 overflow-hidden border border-zinc-200/80">
+                <div id="dropzone-progress-bar" class="bg-zinc-900 h-full rounded-full transition-all duration-150" style="width: 0%"></div>
+              </div>
+              <div id="dropzone-progress-percent" class="text-[11px] font-mono font-semibold text-zinc-500">
+                0%
+              </div>
+            </div>
             <input
               type="file"
-              id="multi-audio-input"
-              accept=".wav,.mp3,audio/*"
+              id="multi-file-input"
+              accept=".wav,.mp3,.csv,.txt,audio/*"
               multiple
               class="hidden"
             />
-            <div class="flex flex-col items-center justify-center gap-1.5">
-              <div class="w-10 h-10 rounded-full bg-white border border-zinc-200 flex items-center justify-center text-zinc-800 text-sm font-bold shadow-xs">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            <div class="flex flex-col items-center justify-center gap-2">
+              <div class="w-12 h-12 rounded-full bg-white border border-zinc-200 flex items-center justify-center text-zinc-800 shadow-xs">
+                <svg class="w-5 h-5 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
               </div>
-              <div class="text-xs font-semibold text-zinc-900">
-                Click to browse files or drag & drop batch audio here
+              <div class="text-sm font-semibold text-zinc-900">
+                Drop audio files (.wav) or paired transcripts (.csv)
               </div>
-              <p class="text-[11px] text-zinc-500 max-w-sm">
-                Supports multiple .wav and .mp3 files. No need to upload one-by-one.
+              <p class="text-xs text-zinc-500">
+                Upload audio clips first, then upload transcripts to match filenames.
               </p>
             </div>
           </div>
-        </div>
 
-        <!-- 3. Clean Transcript Pairing (Segmented Switcher) -->
-        <div class="space-y-3 pb-5 border-b border-zinc-100">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <span class="text-xs font-semibold text-zinc-900">Khmer Transcripts</span>
-              <p class="text-[11px] text-zinc-500">Provide the text matching each audio sample:</p>
-            </div>
-
-            <!-- Segmented Pill Bar -->
-            <div class="flex p-0.5 bg-zinc-100 rounded-lg border border-zinc-200 text-xs">
-              <button
-                type="button"
-                id="mode-btn-table"
-                class="px-3 py-1 text-xs rounded-md font-medium bg-white text-zinc-900 shadow-xs cursor-pointer transition"
-              >
-                1. Edit in Table
-              </button>
-              <button
-                type="button"
-                id="mode-btn-paste"
-                class="px-3 py-1 text-xs rounded-md font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer transition"
-              >
-                2. Paste Line-by-Line
-              </button>
-              <button
-                type="button"
-                id="mode-btn-csv"
-                class="px-3 py-1 text-xs rounded-md font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer transition"
-              >
-                3. Upload CSV
-              </button>
-            </div>
-          </div>
-
-          <!-- Paste Lines Box -->
-          <div id="box-paste-text" class="hidden space-y-2 pt-1">
-            <div class="flex items-center justify-between text-[11px] text-zinc-500">
-              <span>Paste sentences below (one per line, matching your audio files in order):</span>
-              <span id="paste-line-counter" class="font-mono text-zinc-600">0 lines</span>
-            </div>
-            <textarea
-              id="paste-text-input"
-              rows="4"
-              placeholder="អាឡូ សួស្តីបង!&#10;សួស្តីបង មានអីឲ្យខ្ញុំជួយបានខ្លះ?&#10;ខ្ញុំចង់កុម្ម៉ង់បាយឆាសាច់មាន់មួយចាន..."
-              class="w-full text-xs p-3 bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-zinc-900 font-khmer text-[13px] leading-relaxed"
-            ></textarea>
-            <button
-              type="button"
-              id="btn-apply-pasted-text"
-              class="btn-carbon text-xs py-1.5 px-3"
-            >
-              Apply Transcripts
-            </button>
-          </div>
-
-          <!-- Styled CSV Upload Box (NO ugly browser default file button) -->
-          <div id="box-csv-upload" class="hidden space-y-2 pt-1">
-            <div
-              id="dropzone-csv"
-              class="border border-dashed border-zinc-300 hover:border-zinc-900 rounded-xl p-5 text-center bg-white cursor-pointer transition"
-            >
-              <input
-                type="file"
-                id="csv-file-input"
-                accept=".csv,.txt"
-                class="hidden"
-              />
-              <div class="flex flex-col items-center justify-center gap-1">
-                <div class="text-xs font-semibold text-zinc-800">
-                  Click to select CSV file, or drag & drop here
-                </div>
-                <div class="text-[11px] text-zinc-500">
-                  Required columns: <span class="font-mono text-zinc-800 font-semibold">audio_filename, transcript_text, model_name</span>
-                </div>
+          <!-- Manual Column Mapping Fallback (Appears if auto-detection fails) -->
+          <div id="box-column-fallback" class="hidden p-3.5 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+            <div class="text-xs font-semibold text-amber-900">Custom Columns Detected — Select Matching Fields:</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Text / Transcript Column</label>
+                <select id="sel-col-text" class="w-full px-2.5 py-1.5 text-xs bg-white border border-zinc-300 rounded-lg text-zinc-800"></select>
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Audio Filename / ID Column</label>
+                <select id="sel-col-audio" class="w-full px-2.5 py-1.5 text-xs bg-white border border-zinc-300 rounded-lg text-zinc-800"></select>
               </div>
             </div>
+            <button type="button" id="btn-apply-custom-columns" class="px-3 py-1 text-xs bg-zinc-900 text-white rounded-lg font-medium cursor-pointer">Apply Column Mapping</button>
           </div>
         </div>
 
-        <!-- 4. Review Samples Table -->
+        <!-- Smart Reconciliation Summary Card -->
+        <div id="reconciliation-card" class="hidden studio-card p-4 rounded-xl border border-zinc-200 bg-zinc-50/70 space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-200 pb-2.5">
+            <div class="text-xs font-bold text-zinc-900 uppercase tracking-wide">Audio &amp; Text Reconciliation Summary</div>
+            <div class="flex items-center gap-2">
+              <span id="badge-matched-count" class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">0 Matched</span>
+              <span id="badge-missing-count" class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 hidden">0 Missing Audio</span>
+              <span id="badge-orphan-count" class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-zinc-200 text-zinc-700 hidden">0 Unpaired Files</span>
+            </div>
+          </div>
+
+          <!-- Missing Files Detail Box -->
+          <div id="box-missing-details" class="hidden p-3 bg-amber-50/80 border border-amber-200 rounded-xl space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="text-xs font-semibold text-amber-900">Missing Audio Files Detected in CSV:</div>
+              <button type="button" id="btn-copy-ai-fix-prompt" class="px-2.5 py-1 text-[11px] bg-zinc-900 text-white rounded-md font-medium hover:bg-zinc-800 transition cursor-pointer flex items-center gap-1.5" title="View prompt to generate missing audio or clean up your CSV with AI">
+                <svg class="w-3.5 h-3.5 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                AI Fix Helper
+              </button>
+            </div>
+            <ul id="missing-files-list" class="text-[11px] text-amber-800 space-y-1 font-mono max-h-24 overflow-y-auto pl-2"></ul>
+            <div class="flex items-center gap-2 pt-1 border-t border-amber-200/60">
+              <button type="button" id="btn-skip-missing-rows" class="px-2.5 py-1 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-md font-medium cursor-pointer transition">
+                Skip Missing Rows &amp; Proceed
+              </button>
+              <button type="button" id="btn-discard-orphans" class="hidden px-2.5 py-1 text-xs border border-zinc-300 bg-white text-zinc-700 rounded-md font-medium hover:bg-zinc-50 cursor-pointer transition">
+                Discard Unpaired Audio
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Review Samples Table -->
         <div class="space-y-2">
           <div class="flex items-center justify-between">
             <div class="text-xs font-semibold text-zinc-900">
@@ -475,22 +554,22 @@
             <button id="btn-clear-items" class="text-xs text-red-600 hover:text-red-700 hover:underline cursor-pointer">Clear All</button>
           </div>
 
-          <div class="border border-zinc-200 rounded-xl overflow-hidden max-h-96 overflow-y-auto bg-white">
+          <div class="border border-zinc-200 rounded-xl overflow-hidden max-h-96 overflow-y-auto bg-white shadow-2xs">
             <table class="w-full text-left text-xs">
               <thead class="bg-zinc-50 border-b border-zinc-200 text-zinc-600 font-semibold sticky top-0 z-10">
                 <tr>
                   <th class="p-2.5 w-12 text-zinc-500 font-mono">#</th>
-                  <th class="p-2.5 w-40">Assigned Model</th>
-                  <th class="p-2.5 w-44">Audio Filename</th>
-                  <th class="p-2.5">Khmer Transcript (Click to Edit)</th>
-                  <th class="p-2.5 w-36">Preview</th>
+                  <th class="p-2.5 w-36">Model</th>
+                  <th class="p-2.5 w-44">Filename</th>
+                  <th class="p-2.5">Khmer Transcript</th>
+                  <th class="p-2.5 w-36">Audio Preview</th>
                   <th class="p-2.5 w-12 text-right">Delete</th>
                 </tr>
               </thead>
               <tbody id="items-preview-tbody" class="divide-y divide-zinc-100">
                 <tr>
                   <td colspan="6" class="p-8 text-center text-zinc-400">
-                    No audio files added yet. Drop audio files above or click "Load Demo Samples".
+                    No audio files added yet. Drop audio files above or click "Load Demo Data".
                   </td>
                 </tr>
               </tbody>
@@ -504,167 +583,201 @@
         </div>
       </div>
 
-      <!-- Step 3: Rating Questions Matrix -->
+      <!-- Step 3: Dynamic Modular Test Builder & Live Inspector -->
       <div id="wizard-step-3" class="studio-card hidden space-y-6">
-        <div class="pb-3 border-b border-zinc-100">
-          <h2 class="text-base font-bold text-zinc-900 mb-0.5">Rating Criteria & Rubric</h2>
-          <p class="text-xs text-zinc-500">Select what acoustic dimensions listeners will score for each speech sample.</p>
-        </div>
-
-        <!-- 1-Click Templates -->
-        <div class="space-y-2">
-          <label class="block text-xs font-semibold text-zinc-800">Select Question Preset</label>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <button
-              type="button"
-              id="tpl-btn-standard"
-              class="p-3.5 text-left border-2 border-zinc-900 rounded-xl bg-zinc-50 cursor-pointer transition shadow-2xs"
-            >
-              <div class="font-bold text-xs text-zinc-900">Standard Test</div>
-              <div class="text-[11px] text-zinc-600 mt-1">Naturalness & Pronunciation (2 questions)</div>
-            </button>
-            <button
-              type="button"
-              id="tpl-btn-detailed"
-              class="p-3.5 text-left border border-zinc-200 rounded-xl bg-white hover:bg-zinc-50 cursor-pointer transition"
-            >
-              <div class="font-bold text-xs text-zinc-900">Comprehensive MOS</div>
-              <div class="text-[11px] text-zinc-600 mt-1">Naturalness, Accuracy, Clarity & Quality (4 questions)</div>
-            </button>
-            <button
-              type="button"
-              id="tpl-btn-custom"
-              class="p-3.5 text-left border border-zinc-200 rounded-xl bg-white hover:bg-zinc-50 cursor-pointer transition"
-            >
-              <div class="font-bold text-xs text-zinc-900">Custom Questions</div>
-              <div class="text-[11px] text-zinc-600 mt-1">Create custom scoring dimensions</div>
-            </button>
-          </div>
-        </div>
-
-        <!-- Scale Configuration (Clean Inline) -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg p-3.5 rounded-xl border border-zinc-100 bg-zinc-50/70">
+        <div class="flex items-center justify-between pb-3 border-b border-zinc-100">
           <div>
-            <label class="block text-xs font-semibold text-zinc-800 mb-1" for="wiz-scale-max">Rating Scale</label>
-            <select id="wiz-scale-max" class="w-full px-3 py-1.5 text-xs border border-zinc-300 rounded-lg bg-white text-zinc-800 font-medium">
-              <option value="5" selected>1 to 5 Points (Standard ITU-T MOS)</option>
-              <option value="7">1 to 7 Points (Detailed Scale)</option>
-            </select>
-          </div>
-          <div class="text-xs text-zinc-600 flex flex-col justify-center">
-            <span class="font-semibold text-zinc-800">Score Range:</span>
-            <span class="text-zinc-500 text-[11px]">1 = Very Poor / Robotic</span>
-            <span class="text-zinc-500 text-[11px]">5 = Excellent / Human Natural</span>
+            <h2 class="text-base font-bold text-zinc-900 mb-0.5">Evaluation Stage Playground</h2>
+            <p class="text-xs text-zinc-500">Design what listeners see and hear during testing.</p>
           </div>
         </div>
 
-        <!-- Questions List & Inline Add Form -->
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-zinc-900">Active Questions</span>
-            <button type="button" id="btn-add-criterion" class="btn-ghost text-xs cursor-pointer">+ Add Custom Question</button>
-          </div>
+        <!-- 2-ZONE EXPANSIVE WORKSPACE: Left Toolbox, Dominant Playground Canvas + Collapsible Customize Drawer -->
+        <div class="flex flex-col lg:flex-row gap-5 min-h-[560px] items-start relative">
 
-          <!-- Inline Add Criterion Form (Replaces prompt) -->
-          <div id="box-add-criterion-form" class="hidden space-y-3 p-4 bg-zinc-50 rounded-xl border border-zinc-200">
-            <div class="text-xs font-bold text-zinc-900">Add New Evaluation Question</div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Question Name</label>
-                <input
-                  type="text"
-                  id="input-new-criterion-name"
-                  placeholder="e.g. Expressiveness, Emotional Tone, Cadence"
-                  class="w-full px-3 py-1.5 text-xs bg-white border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
-                />
+          <!-- ZONE 1: TOOLBOX (Compact 64) -->
+          <div class="w-full lg:w-64 shrink-0 bg-zinc-50/60 rounded-2xl p-3 space-y-3">
+            <div class="flex items-center justify-between pb-2 border-b border-zinc-200">
+              <span class="text-xs font-bold text-zinc-900 uppercase tracking-wider">Components</span>
+              <span class="text-[10px] text-zinc-500">Drag or Click [+]</span>
+            </div>
+
+            <div id="builder-toolbox" class="space-y-2">
+              <!-- Tool 1: Audio Player -->
+              <div
+                class="toolbox-item p-2.5 bg-white border border-zinc-200 rounded-xl hover:border-zinc-900 cursor-grab active:cursor-grabbing transition shadow-2xs flex items-center justify-between select-none"
+                draggable="true"
+                data-tool="audio_player"
+              >
+                <div class="flex items-center gap-2.5">
+                  <div class="w-7 h-7 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-700 shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="text-xs font-bold text-zinc-900">
+                      Audio Player
+                    </div>
+                    <div class="text-[10px] text-zinc-500 mt-0.5">Play bar, speeds, phone filter</div>
+                  </div>
+                </div>
+                <button type="button" class="btn-tool-add text-xs font-bold text-zinc-400 hover:text-zinc-900 cursor-pointer p-1" title="Add to Canvas">+</button>
               </div>
-              <div>
-                <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Evaluator Guidance Text</label>
-                <input
-                  type="text"
-                  id="input-new-criterion-desc"
-                  placeholder="e.g. Does the voice reflect natural emotional inflection?"
-                  class="w-full px-3 py-1.5 text-xs bg-white border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
-                />
+
+              <!-- Tool 2: Text Prompt -->
+              <div
+                class="toolbox-item p-2.5 bg-white border border-zinc-200 rounded-xl hover:border-zinc-900 cursor-grab active:cursor-grabbing transition shadow-2xs flex items-center justify-between select-none"
+                draggable="true"
+                data-tool="text_prompt"
+              >
+                <div class="flex items-center gap-2.5">
+                  <div class="w-7 h-7 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-700 shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <polyline points="4 7 4 4 20 4 20 7"></polyline>
+                      <line x1="9" y1="20" x2="15" y2="20"></line>
+                      <line x1="12" y1="4" x2="12" y2="20"></line>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="text-xs font-bold text-zinc-900">
+                      Prompt Text
+                    </div>
+                    <div class="text-[10px] text-zinc-500 mt-0.5">Transcript with optional blur</div>
+                  </div>
+                </div>
+                <button type="button" class="btn-tool-add text-xs font-bold text-zinc-400 hover:text-zinc-900 cursor-pointer p-1" title="Add to Canvas">+</button>
+              </div>
+
+              <!-- Tool 3: Word Glitch Highlighter -->
+              <div
+                class="toolbox-item p-2.5 bg-white border border-zinc-200 rounded-xl hover:border-zinc-900 cursor-grab active:cursor-grabbing transition shadow-2xs flex items-center justify-between select-none"
+                draggable="true"
+                data-tool="word_tagger"
+              >
+                <div class="flex items-center gap-2.5">
+                  <div class="w-7 h-7 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-700 shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="text-xs font-bold text-zinc-900">
+                      Word Highlighter
+                    </div>
+                    <div class="text-[10px] text-zinc-500 mt-0.5">Clickable words to flag glitches</div>
+                  </div>
+                </div>
+                <button type="button" class="btn-tool-add text-xs font-bold text-zinc-400 hover:text-zinc-900 cursor-pointer p-1" title="Add to Canvas">+</button>
+              </div>
+
+              <!-- Tool 4: Scoring Questions -->
+              <div
+                class="toolbox-item p-2.5 bg-white border border-zinc-200 rounded-xl hover:border-zinc-900 cursor-grab active:cursor-grabbing transition shadow-2xs flex items-center justify-between select-none"
+                draggable="true"
+                data-tool="scoring_questions"
+              >
+                <div class="flex items-center gap-2.5">
+                  <div class="w-7 h-7 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-700 shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="text-xs font-bold text-zinc-900">
+                      Rating Scale
+                    </div>
+                    <div class="text-[10px] text-zinc-500 mt-0.5">1–5 Stars or Pass/Fail</div>
+                  </div>
+                </div>
+                <button type="button" class="btn-tool-add text-xs font-bold text-zinc-400 hover:text-zinc-900 cursor-pointer p-1" title="Add to Canvas">+</button>
+              </div>
+
+              <!-- Tool 5: Listener Transcription -->
+              <div
+                class="toolbox-item p-2.5 bg-white border border-zinc-200 rounded-xl hover:border-zinc-900 cursor-grab active:cursor-grabbing transition shadow-2xs flex items-center justify-between select-none"
+                draggable="true"
+                data-tool="transcription"
+              >
+                <div class="flex items-center gap-2.5">
+                  <div class="w-7 h-7 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-700 shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <div class="text-xs font-bold text-zinc-900">
+                      Listener Hearing
+                    </div>
+                    <div class="text-[10px] text-zinc-500 mt-0.5">"What did you hear?" diff comparison</div>
+                  </div>
+                </div>
+                <button type="button" class="btn-tool-add text-xs font-bold text-zinc-400 hover:text-zinc-900 cursor-pointer p-1" title="Add to Canvas">+</button>
               </div>
             </div>
-            <div class="flex justify-end gap-2 pt-1">
-              <button type="button" id="btn-cancel-new-criterion" class="btn-ghost text-xs py-1.5 px-3">Cancel</button>
-              <button type="button" id="btn-save-new-criterion" class="btn-carbon text-xs py-1.5 px-3">Save Question</button>
+          </div>
+
+          <!-- ZONE 2: EXPANSIVE PLAYGROUND CANVAS -->
+          <div class="flex-1 min-w-0 flex flex-col gap-3">
+            <div class="flex items-center justify-between pb-1">
+              <span class="text-xs font-bold text-zinc-900 uppercase tracking-wider">Evaluation Stage</span>
+              <span class="text-[10px] text-zinc-400">Click a card to customize; drag to reorder</span>
+            </div>
+
+            <div
+              id="builder-canvas"
+              class="space-y-3 min-h-[460px] p-4 rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50/50 transition"
+            >
+              <!-- Dynamic Canvas Cards Rendered by JS -->
             </div>
           </div>
 
-          <div id="criteria-list-container" class="space-y-2">
-            <!-- Dynamic Criteria Rows -->
+          <!-- ZONE 3: COLLAPSIBLE CUSTOMIZE DRAWER (Hidden by default until card selected) -->
+          <div id="drawer-customize" class="hidden w-full lg:w-[380px] shrink-0 bg-white border border-zinc-200/90 rounded-2xl p-4 space-y-4 shadow-md lg:sticky lg:top-4 max-h-[calc(100vh-2rem)] overflow-y-auto transition-all duration-200">
+            <div class="flex items-center justify-between pb-3 border-b border-zinc-100">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <div id="inspector-type-icon" class="w-8 h-8 rounded-xl bg-zinc-900 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                </div>
+                <div class="min-w-0">
+                  <span class="text-xs font-bold text-zinc-900 tracking-tight block">Customize Component</span>
+                  <div id="inspector-selected-title" class="text-[11px] text-zinc-500 font-medium truncate">-</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <span id="inspector-block-badge" class="px-2 py-0.5 rounded-md text-[10px] font-mono font-semibold bg-zinc-100 text-zinc-700">None</span>
+                <button type="button" id="btn-close-customize-drawer" class="w-7 h-7 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 flex items-center justify-center transition cursor-pointer" title="Close Customize Panel">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Dynamic Customize Settings Form -->
+            <div id="inspector-controls-container" class="space-y-4 text-xs">
+              <!-- Rendered dynamically -->
+            </div>
           </div>
+
         </div>
 
-        <!-- Perceived Speech Transcription Toggle ("What did you hear?") -->
-        <div class="p-3.5 rounded-xl border border-zinc-200 bg-zinc-50/70 space-y-2">
-          <label class="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              id="wiz-collect-transcription"
-              class="w-4 h-4 mt-0.5 rounded text-zinc-900 border-zinc-300 focus:ring-zinc-900 cursor-pointer"
-              checked
-            />
-            <div>
-              <div class="text-xs font-bold text-zinc-900">Enable "What Did You Hear?" Listener Transcription</div>
-              <div class="text-[11px] text-zinc-600 mt-0.5">
-                Allows listeners to transcribe what they heard if spoken words differ from the prompt, with 1-click text copying and live difference highlighting.
+        <!-- STICKY BOTTOM SMART GUIDE BAR -->
+        <div id="smart-guide-bar" class="p-4 rounded-xl border border-zinc-200 bg-zinc-50/90 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+          <div class="flex items-center gap-3 min-w-0">
+            <span id="guide-status-icon" class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
+            <div class="min-w-0">
+              <div class="font-bold text-zinc-900 flex items-center gap-2">
+                <span id="guide-headline" class="text-xs">Layout Balanced &amp; Ready</span>
+                <span id="guide-time-estimate" class="text-zinc-500 font-normal text-[11px]">(~12 mins per evaluator)</span>
+              </div>
+              <div id="guide-warning-text" class="text-[11px] text-zinc-600 truncate mt-0.5">
+                All mandatory components verified.
               </div>
             </div>
-          </label>
-        </div>
-
-        <!-- Waveform Defect Tag Categories (Flattened) -->
-        <div class="space-y-3 pt-3 border-t border-zinc-100">
-          <div class="flex items-center justify-between">
-            <div>
-              <div class="text-xs font-bold text-zinc-900">Sound Defect Categories</div>
-              <div class="text-[11px] text-zinc-500">Categories available when listeners drag on the sound wave to tag defects.</div>
-            </div>
-            <button type="button" id="btn-add-defect-type" class="btn-ghost text-xs cursor-pointer">+ Add Defect Category</button>
           </div>
-
-          <!-- Inline Add Defect Type Form -->
-          <div id="box-add-defect-form" class="hidden space-y-3 p-3 bg-zinc-50 rounded-xl border border-zinc-200">
-            <div class="text-xs font-bold text-zinc-900">New Defect Category</div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Display Label</label>
-                <input
-                  type="text"
-                  id="input-new-defect-label"
-                  placeholder="e.g. Dropped Syllable, Echo, Noise"
-                  class="w-full px-3 py-1.5 text-xs bg-white border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900"
-                />
-              </div>
-              <div>
-                <label class="block text-[11px] font-semibold text-zinc-700 mb-1">Tag Code (UPPERCASE)</label>
-                <input
-                  type="text"
-                  id="input-new-defect-code"
-                  placeholder="e.g. DROPPED_SYLLABLE"
-                  class="w-full px-3 py-1.5 text-xs bg-white border border-zinc-300 rounded-lg text-zinc-900 focus:outline-none focus:ring-1 focus:ring-zinc-900 font-mono"
-                />
-              </div>
-            </div>
-            <div class="flex justify-end gap-2 pt-1">
-              <button type="button" id="btn-cancel-new-defect" class="btn-ghost text-xs py-1.5 px-3">Cancel</button>
-              <button type="button" id="btn-save-new-defect" class="btn-carbon text-xs py-1.5 px-3">Save Category</button>
-            </div>
+          <div class="flex items-center gap-2.5 shrink-0">
+            <button id="wiz-btn-step3-prev" class="btn-ghost text-xs py-2 px-3.5 cursor-pointer">&larr; Back</button>
+            <button id="wiz-btn-step3-next" class="btn-carbon text-xs py-2 px-4 cursor-pointer font-semibold">Review &amp; Launch &rarr;</button>
           </div>
-
-          <!-- Active Defect Chips List -->
-          <div id="defect-types-container" class="flex flex-wrap gap-1.5 pt-1">
-            <!-- Rendered dynamically -->
-          </div>
-        </div>
-
-        <div class="flex justify-between pt-3 border-t border-zinc-100">
-          <button id="wiz-btn-step3-prev" class="btn-ghost cursor-pointer">&larr; Back</button>
-          <button id="wiz-btn-step3-next" class="btn-carbon cursor-pointer">Review & Launch &rarr;</button>
         </div>
       </div>
 
@@ -710,22 +823,50 @@
         </div>
 
         <!-- Shareable Link Result Box (Revealed upon launch) -->
-        <div id="shareable-link-container" class="hidden space-y-3 bg-emerald-50 border border-emerald-200 rounded-xl p-5">
-          <div class="flex items-center gap-2 text-emerald-800 text-xs font-semibold uppercase tracking-wider">
-            <span>Study is Live & Ready to Share</span>
+        <div id="shareable-link-container" class="hidden space-y-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl p-6">
+          <div id="published-celebration-card" class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-emerald-200/80">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-base shadow-sm ring-4 ring-emerald-100">
+                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-bold text-emerald-950">Study Published &amp; Live!</span>
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-200/70 text-emerald-900 border border-emerald-300">Active</span>
+                </div>
+                <p class="text-xs text-emerald-800 mt-0.5">Your study is deployed and ready for crowdsourced listening evaluations.</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                id="btn-create-another-study"
+                class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-white hover:bg-zinc-50 text-zinc-900 border border-zinc-300 shadow-xs cursor-pointer transition flex items-center gap-1.5"
+              >
+                <span>+ Create Another Study</span>
+              </button>
+            </div>
           </div>
-          <p class="text-xs text-emerald-900 leading-relaxed">
-            Send this link to your evaluators. When they open it, they will see the speech audio files, transcripts, and waveform defect marking tool with zero login friction.
-          </p>
-          <div class="flex items-center justify-between gap-2 p-2 bg-white rounded-lg border border-emerald-300">
-            <span id="share-link-url" class="truncate font-mono text-xs text-zinc-900 px-1">http://localhost:8080/eval?id=...</span>
-            <button id="btn-copy-share-link" class="btn-carbon text-xs py-1.5 px-3 whitespace-nowrap cursor-pointer">
-              Copy Link
-            </button>
+
+          <div class="space-y-2">
+            <label class="block text-xs font-semibold text-emerald-950 uppercase tracking-wider">Public Evaluator Link</label>
+            <div class="flex items-center justify-between gap-2 p-2.5 bg-white rounded-xl border border-emerald-300 shadow-2xs">
+              <span id="share-link-url" class="truncate font-mono text-xs text-zinc-900 px-1 select-all">http://localhost:8080/eval?id=...</span>
+              <button id="btn-copy-share-link" class="btn-carbon text-xs py-1.5 px-3.5 whitespace-nowrap cursor-pointer">
+                Copy Link
+              </button>
+            </div>
+            <p class="text-[11px] text-emerald-700 leading-relaxed">
+              Share this link with your listeners. Evaluators can rate audio directly in any modern desktop or mobile browser with zero login friction.
+            </p>
           </div>
-          <div class="flex gap-3 pt-2">
-            <a id="btn-open-as-rater" href="#" target="_blank" class="btn-ghost text-xs">Open Study in New Tab</a>
-            <button id="btn-view-study-results" class="btn-ghost text-xs">View Live Results</button>
+
+          <div class="flex flex-wrap items-center gap-3 pt-1">
+            <a id="btn-open-as-rater" href="#" target="_blank" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-800 hover:bg-emerald-900 text-white transition flex items-center gap-1.5">
+              <span>Open Study in New Tab</span>
+              <svg class="w-3.5 h-3.5 text-emerald-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+            </a>
+            <button id="btn-view-study-results" class="btn-ghost text-xs cursor-pointer">View Live Results</button>
           </div>
         </div>
 
@@ -751,89 +892,137 @@
         </div>
       </div>
 
-      <!-- Overview Cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div class="studio-card p-4">
-          <div class="text-xs text-zinc-500 font-medium">Total Evaluations</div>
-          <div class="text-2xl font-bold text-zinc-900 mt-1" id="stat-total-evals">0</div>
+      <!-- Zero-Data Empty State -->
+      <div id="analytics-empty-state" class="hidden studio-card p-12 text-center space-y-4">
+        <div class="w-12 h-12 rounded-full bg-zinc-100 text-zinc-400 mx-auto flex items-center justify-center font-bold text-lg">0</div>
+        <div class="max-w-md mx-auto space-y-1">
+          <h3 class="text-sm font-bold text-zinc-900">No evaluations submitted yet</h3>
+          <p class="text-xs text-zinc-500 leading-relaxed">
+            Share the evaluation link with listeners or conduct test ratings in the evaluation portal to see live consensus metrics.
+          </p>
         </div>
-        <div class="studio-card p-4">
-          <div class="text-xs text-zinc-500 font-medium">Distinct Listeners</div>
-          <div class="text-2xl font-bold text-zinc-900 mt-1" id="stat-total-raters">0</div>
-        </div>
-        <div class="studio-card p-4">
-          <div class="text-xs text-zinc-500 font-medium">Average Score (1 to 5)</div>
-          <div class="text-2xl font-bold text-zinc-900 mt-1" id="stat-mean-mos">0.00</div>
+        <div class="pt-2">
+          <button type="button" id="btn-copy-empty-results-link" class="btn-carbon text-xs">Copy Study Link</button>
         </div>
       </div>
 
-      <!-- MOS Scorecard Table -->
-      <div class="studio-card p-0 overflow-hidden">
-        <div class="px-5 py-3 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
-          <div class="text-xs font-semibold text-zinc-800">Average Scores by Audio Model / Sample</div>
-        </div>
-        <table class="w-full text-left text-xs">
-          <thead id="analytics-mos-thead" class="bg-zinc-50/50 border-b border-zinc-200 text-zinc-600 font-semibold">
-            <tr>
-              <th class="p-3">Model / Sample</th>
-              <th class="p-3">Evaluations</th>
-              <th class="p-3">Naturalness (± Margin)</th>
-              <th class="p-3">Pronunciation (± Margin)</th>
-              <th class="p-3">Clarity (± Margin)</th>
-            </tr>
-          </thead>
-          <tbody id="analytics-mos-tbody" class="divide-y divide-zinc-100">
-            <tr>
-              <td colspan="5" class="p-4 text-center text-zinc-400">Loading results...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Defect Frequency Table -->
-      <div class="studio-card p-0 overflow-hidden">
-        <div class="px-5 py-3 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
-          <div class="text-xs font-semibold text-zinc-800">Flagged Speech Defects</div>
-        </div>
-        <table class="w-full text-left text-xs">
-          <thead class="bg-zinc-50/50 border-b border-zinc-200 text-zinc-600 font-semibold">
-            <tr>
-              <th class="p-3">Defect Category</th>
-              <th class="p-3">Associated Model / Item</th>
-              <th class="p-3 text-right">Count Flagged</th>
-            </tr>
-          </thead>
-          <tbody id="analytics-defects-tbody" class="divide-y divide-zinc-100">
-            <tr>
-              <td colspan="3" class="py-8 text-center text-xs text-zinc-400 font-medium">No speech defects flagged yet.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Perceived Speech Transcription Discrepancies Table -->
-      <div class="studio-card p-0 overflow-hidden">
-        <div class="px-5 py-3 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
-          <div>
-            <div class="text-xs font-semibold text-zinc-800">Listener Transcriptions ("What Listeners Heard")</div>
-            <div class="text-[11px] text-zinc-500">Transcriptions submitted by evaluators when speech differed from prompt.</div>
+      <!-- Main Analytics Data Content -->
+      <div id="analytics-data-content" class="space-y-6">
+        <!-- Overview Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="studio-card p-4">
+            <div class="text-xs text-zinc-500 font-medium">Total Evaluations</div>
+            <div class="text-2xl font-bold text-zinc-900 mt-1" id="stat-total-evals">0</div>
+          </div>
+          <div class="studio-card p-4">
+            <div class="text-xs text-zinc-500 font-medium">Distinct Listeners</div>
+            <div class="text-2xl font-bold text-zinc-900 mt-1" id="stat-total-raters">0</div>
+          </div>
+          <div class="studio-card p-4">
+            <div class="text-xs text-zinc-500 font-medium">Average Score (1 to 5)</div>
+            <div class="text-2xl font-bold text-zinc-900 mt-1" id="stat-mean-mos">0.00</div>
           </div>
         </div>
-        <table class="w-full text-left text-xs">
-          <thead class="bg-zinc-50/50 border-b border-zinc-200 text-zinc-600 font-semibold">
-            <tr>
-              <th class="p-3">Sample & Model</th>
-              <th class="p-3">Expected Prompt</th>
-              <th class="p-3">What Rater Heard</th>
-              <th class="p-3">Evaluator</th>
-            </tr>
-          </thead>
-          <tbody id="analytics-transcriptions-tbody" class="divide-y divide-zinc-100">
-            <tr>
-              <td colspan="4" class="p-4 text-center text-zinc-400">No transcription discrepancies recorded yet.</td>
-            </tr>
-          </tbody>
-        </table>
+
+        <!-- Visual Analytics Deck: MOS Comparison + Defect Frequency Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <!-- Interactive MOS Comparison Bar Chart with 95% CI -->
+          <div class="studio-card p-5 space-y-3">
+            <div class="flex items-center justify-between border-b border-zinc-100 pb-2.5">
+              <div>
+                <h3 class="text-xs font-bold text-zinc-900">Model MOS Comparison (1–5)</h3>
+                <p class="text-[11px] text-zinc-500">Mean naturalness score with 95% confidence intervals</p>
+              </div>
+              <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-zinc-100 text-zinc-700">95% CI Error Ticks</span>
+            </div>
+            <div id="chart-mos-comparison" class="w-full min-h-[220px] flex items-center justify-center">
+              <!-- Rendered via SVG in admin_app.js -->
+            </div>
+          </div>
+
+          <!-- 19-Clinical-Code Defect Distribution Chart -->
+          <div class="studio-card p-5 space-y-3">
+            <div class="flex items-center justify-between border-b border-zinc-100 pb-2.5">
+              <div>
+                <h3 class="text-xs font-bold text-zinc-900">Acoustic Defect Distribution</h3>
+                <p class="text-[11px] text-zinc-500">Frequency of flagged speech artifacts across 19 codes</p>
+              </div>
+              <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-200">Defects</span>
+            </div>
+            <div id="chart-defect-distribution" class="w-full min-h-[220px] flex items-center justify-center">
+              <!-- Rendered via SVG in admin_app.js -->
+            </div>
+          </div>
+        </div>
+
+        <!-- MOS Scorecard Table -->
+        <div class="studio-card p-0 overflow-hidden">
+          <div class="px-5 py-3 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
+            <div class="text-xs font-semibold text-zinc-800">Average Scores by Audio Model / Sample</div>
+          </div>
+          <table class="w-full text-left text-xs">
+            <thead id="analytics-mos-thead" class="bg-zinc-50/50 border-b border-zinc-200 text-zinc-600 font-semibold">
+              <tr>
+                <th class="p-3">Model / Sample</th>
+                <th class="p-3">Evaluations</th>
+                <th class="p-3">Naturalness (± Margin)</th>
+                <th class="p-3">Pronunciation (± Margin)</th>
+                <th class="p-3">Clarity (± Margin)</th>
+              </tr>
+            </thead>
+            <tbody id="analytics-mos-tbody" class="divide-y divide-zinc-100">
+              <tr>
+                <td colspan="5" class="p-4 text-center text-zinc-400">Loading results...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Defect Frequency Table -->
+        <div class="studio-card p-0 overflow-hidden">
+          <div class="px-5 py-3 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
+            <div class="text-xs font-semibold text-zinc-800">Flagged Speech Defects</div>
+          </div>
+          <table class="w-full text-left text-xs">
+            <thead class="bg-zinc-50/50 border-b border-zinc-200 text-zinc-600 font-semibold">
+              <tr>
+                <th class="p-3">Defect Category</th>
+                <th class="p-3">Associated Model / Item</th>
+                <th class="p-3 text-right">Count Flagged</th>
+              </tr>
+            </thead>
+            <tbody id="analytics-defects-tbody" class="divide-y divide-zinc-100">
+              <tr>
+                <td colspan="3" class="py-8 text-center text-xs text-zinc-400 font-medium">No speech defects flagged yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Perceived Speech Transcription Discrepancies Table -->
+        <div class="studio-card p-0 overflow-hidden">
+          <div class="px-5 py-3 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
+            <div>
+              <div class="text-xs font-semibold text-zinc-800">Listener Transcriptions ("What Listeners Heard")</div>
+              <div class="text-[11px] text-zinc-500">Transcriptions submitted by evaluators when speech differed from prompt.</div>
+            </div>
+          </div>
+          <table class="w-full text-left text-xs">
+            <thead class="bg-zinc-50/50 border-b border-zinc-200 text-zinc-600 font-semibold">
+              <tr>
+                <th class="p-3">Sample & Model</th>
+                <th class="p-3">Expected Prompt</th>
+                <th class="p-3">What Rater Heard</th>
+                <th class="p-3">Evaluator</th>
+              </tr>
+            </thead>
+            <tbody id="analytics-transcriptions-tbody" class="divide-y divide-zinc-100">
+              <tr>
+                <td colspan="4" class="p-4 text-center text-zinc-400">No transcription discrepancies recorded yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -860,6 +1049,44 @@
       </div>
     </section>
 
+    <!-- AI Prompt Transparent Preview Modal -->
+    <div id="modal-ai-prompt-preview" class="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+      <div class="bg-white rounded-2xl border border-zinc-200 p-6 max-w-2xl w-full shadow-2xl space-y-4">
+        <div class="flex items-start justify-between gap-4 border-b border-zinc-100 pb-3">
+          <div>
+            <h3 id="ai-prompt-modal-title" class="text-sm font-bold text-zinc-900">AI Prompt Helper</h3>
+            <p id="ai-prompt-modal-desc" class="text-xs text-zinc-500 mt-0.5 leading-relaxed">
+              Use this prompt with ChatGPT, Claude, or Cursor to generate audio or fix missing dataset files.
+            </p>
+          </div>
+          <button type="button" id="btn-ai-prompt-modal-close-icon" class="text-zinc-400 hover:text-zinc-700 p-1 rounded-lg text-lg leading-none cursor-pointer">&times;</button>
+        </div>
+
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between text-[11px] text-zinc-500 font-medium">
+            <span>Prompt Text Preview:</span>
+            <span>Formatted for LLMs &amp; Python Scripts</span>
+          </div>
+          <textarea
+            id="ai-prompt-modal-textarea"
+            readonly
+            class="w-full h-64 p-3 bg-zinc-900 text-zinc-100 font-mono text-xs rounded-xl border border-zinc-800 focus:outline-none resize-none leading-relaxed"
+          ></textarea>
+        </div>
+
+        <div class="flex items-center justify-between pt-2 border-t border-zinc-100">
+          <span id="ai-prompt-modal-status" class="text-xs text-emerald-600 font-medium hidden">Copied to clipboard!</span>
+          <div class="flex items-center gap-2 ml-auto">
+            <button type="button" id="btn-ai-prompt-modal-close" class="btn-ghost text-xs cursor-pointer">Close</button>
+            <button type="button" id="btn-ai-prompt-modal-copy" class="px-4 py-2 text-xs font-semibold rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white cursor-pointer transition flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+              <span>Copy Prompt</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Delete Study Confirmation Modal -->
     <div id="modal-delete-study" class="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
       <div class="bg-white rounded-2xl border border-zinc-200 p-6 max-w-sm w-full shadow-xl space-y-4">
@@ -871,10 +1098,24 @@
           <p class="text-xs text-zinc-600 mt-1 leading-relaxed">
             Are you sure you want to delete <span id="delete-study-title" class="font-semibold text-zinc-900"></span>? All associated ratings, defect tags, and test items will be permanently removed.
           </p>
+          <div class="mt-2.5 p-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800 leading-snug">
+            <span class="font-semibold">Tip:</span> To keep historical data while stopping new submissions, choose <strong>Close Study</strong> instead.
+          </div>
+          <div class="mt-3 space-y-1">
+            <label class="block text-[11px] font-medium text-zinc-700">
+              Type <strong id="delete-study-prompt-name" class="font-mono text-zinc-900 select-all"></strong> to confirm:
+            </label>
+            <input
+              type="text"
+              id="delete-study-confirm-input"
+              placeholder="Type study name exactly..."
+              class="w-full px-3 py-1.5 text-xs bg-zinc-50 border border-zinc-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-red-500 text-zinc-900 font-medium"
+            />
+          </div>
         </div>
         <div class="flex justify-end gap-2 pt-2">
           <button type="button" id="btn-cancel-delete" class="btn-ghost text-xs cursor-pointer">Cancel</button>
-          <button type="button" id="btn-confirm-delete" class="px-4 py-2 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white cursor-pointer transition">Delete Permanently</button>
+          <button type="button" id="btn-confirm-delete" disabled class="px-4 py-2 text-xs font-semibold rounded-lg bg-red-600 text-white cursor-not-allowed opacity-40 transition">Delete Permanently</button>
         </div>
       </div>
     </div>

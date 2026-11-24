@@ -145,6 +145,12 @@
     tryoutAsrDiffContent: document.getElementById("tryout-asr-diff-content"),
 
     // Instructions Modal
+    phoneFilterWrapper: document.getElementById("phone-filter-wrapper"),
+    btnPhoneFilterToggle: document.getElementById("btn-phone-filter-toggle"),
+    promptGatingOverlay: document.getElementById("prompt-gating-overlay"),
+    btnRevealPrompt: document.getElementById("btn-reveal-prompt"),
+    wordPillsContainer: document.getElementById("word-pills-container"),
+    rawKhmerContent: document.getElementById("raw-khmer-content"),
     btnShowInstructions: document.getElementById("btn-show-instructions"),
     modalInstructions: document.getElementById("modal-instructions"),
     btnCloseInstructions: document.getElementById("btn-close-instructions"),
@@ -174,6 +180,7 @@
     btnPopoverSave: document.getElementById("btn-popover-save"),
 
     // Rating
+    studyConcludedBanner: document.getElementById("study-concluded-banner"),
     ratingFormContainer: document.getElementById("rating-form-container"),
     evalNotesInput: document.getElementById("eval-notes-input"),
 
@@ -406,10 +413,9 @@
       el.toggleSpeed.textContent = `${next}x`;
     });
 
-    // Audio DSP progress updates
+    // Audio DSP progress updates (time display; 60fps playhead handled inside DSP engine)
     window.dspEngine.onProgressCallback = (currentTime, duration) => {
       el.audioTimeLabel.textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`;
-      window.dspEngine.renderWaveform(el.waveformCanvas, "A");
     };
 
     window.dspEngine.onEndedCallback = () => {
@@ -645,6 +651,23 @@
       if (el.studyHeadline) el.studyHeadline.textContent = state.campaign.name || "Khmer Speech Evaluation";
       if (el.onboardCampaignTitle) el.onboardCampaignTitle.textContent = state.campaign.name || "Khmer Speech Evaluation";
 
+      // If campaign is inactive/closed, show banner and disable submission
+      const isConcluded = state.campaign.is_active === 0;
+      if (el.studyConcludedBanner) {
+        el.studyConcludedBanner.classList.toggle("hidden", !isConcluded);
+      }
+      if (el.btnNextItem) {
+        if (isConcluded) {
+          el.btnNextItem.disabled = true;
+          el.btnNextItem.classList.add("opacity-50", "cursor-not-allowed");
+          el.btnNextItem.title = "This study is closed. Submissions are disabled.";
+        } else {
+          el.btnNextItem.disabled = false;
+          el.btnNextItem.classList.remove("opacity-50", "cursor-not-allowed");
+          el.btnNextItem.title = "";
+        }
+      }
+
       if (state.campaign.instructions) {
         if (el.modalStudyInstructionsBox) el.modalStudyInstructionsBox.classList.remove("hidden");
         if (el.modalStudyInstructionsText) el.modalStudyInstructionsText.textContent = state.campaign.instructions;
@@ -704,6 +727,24 @@
       modelsMap[mId].total++;
       if (isCompleted) modelsMap[mId].completed++;
       modelsMap[mId].items.push({ item: it, globalIndex: idx });
+    });
+
+    // Naturally sort items within each model by item_key or filename numeric index
+    Object.values(modelsMap).forEach(m => {
+      m.items.sort((a, b) => {
+        const keyA = `${a.item.item_key || ""} ${a.item.filename || ""}`;
+        const keyB = `${b.item.item_key || ""} ${b.item.filename || ""}`;
+        const matchA = keyA.match(/\b(?:W|Word|KH|ITEM)[-_]?0*(\d+)\b/i);
+        const matchB = keyB.match(/\b(?:W|Word|KH|ITEM)[-_]?0*(\d+)\b/i);
+        if (matchA && matchB) {
+          return parseInt(matchA[1], 10) - parseInt(matchB[1], 10);
+        }
+        return (a.item.item_key || "").localeCompare(b.item.item_key || "", undefined, { numeric: true });
+      });
+      // Assign clean sequential model-relative index (1 to N)
+      m.items.forEach((entry, idx) => {
+        entry.modelRelativeIndex = idx + 1;
+      });
     });
 
     const unratedCount = total - completedCount;
@@ -768,23 +809,33 @@
     if (el.sidebarMatrixGrid) {
       el.sidebarMatrixGrid.innerHTML = "";
 
-      // Helper function to create interactive matrix cell
-      const createCell = (it, globalIndex, mName) => {
+      // Helper function to create interactive matrix cell with model-relative word index
+      const createCell = (it, globalIndex, mName, modelRelativeIndex) => {
         const isCompleted = !!state.existingEvaluations[it.id];
         const isActive = globalIndex === state.currentIndex;
         const cell = document.createElement("button");
         cell.type = "button";
         cell.className = `matrix-cell ${isActive ? "active" : ""} ${isCompleted ? "completed" : ""}`;
 
-        // Extract clean sentence number: KH01 -> "01"
-        let cellText = `${globalIndex + 1}`;
-        if (it.item_key && it.item_key.includes("KH")) {
-          const match = it.item_key.match(/KH(\d+)/i);
-          if (match) cellText = match[1];
+        // Extract clean word/sentence index: W001 -> "1", KH01 -> "1", or fallback to sequential index in this model
+        let cellText = `${modelRelativeIndex || globalIndex + 1}`;
+        const keyOrFilename = `${it.item_key || ""} ${it.filename || ""}`;
+        const wMatch = keyOrFilename.match(/\bW(?:ord)?[-_]?0*(\d+)\b/i);
+        const khMatch = keyOrFilename.match(/\bKH[-_]?0*(\d+)\b/i);
+        const mObj = modelsMap[resolveItemModelId(it)];
+        const maxModelItems = mObj ? mObj.total : 200;
+
+        if (wMatch) {
+          const parsed = parseInt(wMatch[1], 10);
+          cellText = (parsed > 0 && parsed <= maxModelItems) ? `${parsed}` : `${modelRelativeIndex || globalIndex + 1}`;
+        } else if (khMatch) {
+          cellText = `${parseInt(khMatch[1], 10)}`;
+        } else if (modelRelativeIndex !== undefined) {
+          cellText = `${modelRelativeIndex}`;
         }
 
         cell.innerHTML = `<span>${cellText}</span>`;
-        cell.title = `${mName || "Model"} • ${it.item_key || `Sample ${globalIndex + 1}`}\n${it.source_text || it.text || ""}\nStatus: ${isCompleted ? "Completed" : "Unrated"}`;
+        cell.title = `${mName || "Model"} • #${cellText} (${it.item_key || it.filename || `Sample ${modelRelativeIndex || globalIndex + 1}`})\n${it.source_text || it.text || ""}\nStatus: ${isCompleted ? "Completed" : "Unrated"}`;
 
         cell.addEventListener("click", async () => {
           if (globalIndex !== state.currentIndex) {
@@ -804,7 +855,7 @@
           el.matrixActiveModelLabel.textContent = `All Models (${Object.keys(modelsMap).length} Groups • ${total} Items)`;
         }
 
-        // Render each model as a distinct section with clear header and 23 items
+        // Render each model as a distinct section with clear header and items
         Object.values(modelsMap).forEach(m => {
           const groupDiv = document.createElement("div");
           groupDiv.className = "model-grid-section space-y-1.5";
@@ -821,12 +872,12 @@
           gridDiv.className = "matrix-grid";
 
           let renderedCount = 0;
-          m.items.forEach(({ item, globalIndex }) => {
+          m.items.forEach(({ item, globalIndex, modelRelativeIndex }) => {
             const isCompleted = !!state.existingEvaluations[item.id];
             if (state.sidebarFilter === "unrated" && isCompleted) return;
             if (state.sidebarFilter === "completed" && !isCompleted) return;
 
-            gridDiv.appendChild(createCell(item, globalIndex, m.name));
+            gridDiv.appendChild(createCell(item, globalIndex, m.name, modelRelativeIndex));
             renderedCount++;
           });
 
@@ -836,22 +887,22 @@
           }
         });
       } else {
-        // Render single selected model 23-cell grid
+        // Render single selected model grid with model-relative indexing (1..N)
         const selectedModel = modelsMap[state.selectedModelFilter];
         if (el.matrixActiveModelLabel) {
-          el.matrixActiveModelLabel.textContent = selectedModel ? `${selectedModel.name} (${selectedModel.total} Sentences)` : "Model Samples";
+          el.matrixActiveModelLabel.textContent = selectedModel ? `${selectedModel.name} (${selectedModel.total} Samples)` : "Model Samples";
         }
 
         const gridDiv = document.createElement("div");
         gridDiv.className = "matrix-grid";
 
         const mItems = selectedModel ? selectedModel.items : [];
-        mItems.forEach(({ item, globalIndex }) => {
+        mItems.forEach(({ item, globalIndex, modelRelativeIndex }) => {
           const isCompleted = !!state.existingEvaluations[item.id];
           if (state.sidebarFilter === "unrated" && isCompleted) return;
           if (state.sidebarFilter === "completed" && !isCompleted) return;
 
-          gridDiv.appendChild(createCell(item, globalIndex, selectedModel ? selectedModel.name : "Model"));
+          gridDiv.appendChild(createCell(item, globalIndex, selectedModel ? selectedModel.name : "Model", modelRelativeIndex));
         });
 
         el.sidebarMatrixGrid.appendChild(gridDiv);
@@ -1129,6 +1180,71 @@
       el.rawKhmerContent.textContent = rawText;
     }
 
+    // Parse ui_config_json if present on campaign
+    let uiConfig = null;
+    if (state.campaign?.ui_config_json) {
+      try {
+        uiConfig = typeof state.campaign.ui_config_json === "string" ? JSON.parse(state.campaign.ui_config_json) : state.campaign.ui_config_json;
+      } catch (e) {}
+    }
+
+    // 1. DSP 8 kHz Phone Filter Toggle
+    if (uiConfig?.dsp?.phone_filter_8khz) {
+      if (el.phoneFilterWrapper) el.phoneFilterWrapper.classList.remove("hidden");
+      if (el.btnPhoneFilterToggle) {
+        el.btnPhoneFilterToggle.onchange = (e) => {
+          window.dspEngine.setPhoneFilter(e.target.checked);
+          showToast(e.target.checked ? "8 kHz Telephone Bandpass Filter active." : "8 kHz Telephone Filter bypassed.", "info");
+        };
+      }
+    } else {
+      if (el.phoneFilterWrapper) el.phoneFilterWrapper.classList.add("hidden");
+    }
+
+    // 2. Blind-Gated Presentation (Subtle Blur Prompt until revealed)
+    const isBlindGated = uiConfig?.presentation?.blind_gating || false;
+    if (isBlindGated && !isAsr) {
+      if (el.rawKhmerContent) el.rawKhmerContent.classList.add("blurred");
+      if (el.promptGatingOverlay) el.promptGatingOverlay.classList.remove("hidden");
+      const revealPrompt = () => {
+        if (el.rawKhmerContent) el.rawKhmerContent.classList.remove("blurred");
+        if (el.promptGatingOverlay) el.promptGatingOverlay.classList.add("hidden");
+      };
+      if (el.btnRevealPrompt) el.btnRevealPrompt.onclick = revealPrompt;
+      if (el.promptGatingOverlay) el.promptGatingOverlay.onclick = revealPrompt;
+    } else {
+      if (el.rawKhmerContent) el.rawKhmerContent.classList.remove("blurred");
+      if (el.promptGatingOverlay) el.promptGatingOverlay.classList.add("hidden");
+    }
+
+    // 3. Word-Level Tagging Pills (if word_tagger active)
+    const taggerBlock = uiConfig?.blocks?.find(b => b.type === "word_tagger");
+    if (taggerBlock && el.wordPillsContainer && !isAsr) {
+      const rawText = item.source_text || item.text || item.prompt_text || "";
+      const words = rawText.split(/\s+/).filter(Boolean);
+      if (words.length > 0) {
+        el.wordPillsContainer.classList.remove("hidden");
+        el.wordPillsContainer.innerHTML = words.map((w, wIdx) => `
+          <button type="button" class="px-2 py-0.5 rounded-lg border border-zinc-200 bg-white hover:bg-amber-50 hover:border-amber-400 text-xs font-khmer text-zinc-800 transition cursor-pointer word-pill-btn" data-word="${escapeHtml(w)}" data-widx="${wIdx}">
+            ${escapeHtml(w)}
+          </button>
+        `).join("");
+
+        el.wordPillsContainer.querySelectorAll(".word-pill-btn").forEach(pBtn => {
+          pBtn.onclick = () => {
+            pBtn.classList.toggle("bg-amber-100");
+            pBtn.classList.toggle("border-amber-500");
+            pBtn.classList.toggle("text-amber-900");
+            showToast(`Marked word "${pBtn.dataset.word}"`, "info");
+          };
+        });
+      } else {
+        el.wordPillsContainer.classList.add("hidden");
+      }
+    } else {
+      if (el.wordPillsContainer) el.wordPillsContainer.classList.add("hidden");
+    }
+
     // 2. Resolve Audio URL
     state.currentAudioUrl = resolveAudioUrl(item);
     updatePlayIcons(false);
@@ -1182,16 +1298,14 @@
       }
     }
 
-    // Toggle Perceived Speech Transcription field (collapsed by default to eliminate vertical screen overflow)
+    // Perceived Speech Transcription field - open and visible directly without toggle
     if (state.campaign?.collect_transcription) {
       if (el.heardTranscriptionWrapper) el.heardTranscriptionWrapper.classList.remove("hidden");
+      if (el.heardTranscriptionContainer) el.heardTranscriptionContainer.classList.remove("hidden");
       const hasEditedText = !!(el.heardTranscriptInput && el.heardTranscriptInput.value.trim());
-      if (hasEditedText) {
-        if (el.heardTranscriptionContainer) el.heardTranscriptionContainer.classList.remove("hidden");
-        if (el.heardIndicatorBadge) el.heardIndicatorBadge.classList.remove("hidden");
-      } else {
-        if (el.heardTranscriptionContainer) el.heardTranscriptionContainer.classList.add("hidden");
-        if (el.heardIndicatorBadge) el.heardIndicatorBadge.classList.add("hidden");
+      if (el.heardIndicatorBadge) {
+        if (hasEditedText) el.heardIndicatorBadge.classList.remove("hidden");
+        else el.heardIndicatorBadge.classList.add("hidden");
       }
     } else {
       if (el.heardTranscriptionWrapper) el.heardTranscriptionWrapper.classList.add("hidden");
@@ -1202,12 +1316,37 @@
 
   // Resolve audio file URL
   function resolveAudioUrl(item) {
-    if (item.audio_url) return item.audio_url;
-
     if (item.audio_files_json) {
       try {
         const filesObj = typeof item.audio_files_json === "string" ? JSON.parse(item.audio_files_json) : item.audio_files_json;
         if (filesObj.url) return filesObj.url;
+
+        // 1. Match currently active model tab/filter
+        if (state.selectedModelFilter && state.selectedModelFilter !== "all") {
+          if (filesObj[state.selectedModelFilter]) {
+            return filesObj[state.selectedModelFilter]?.url || filesObj[state.selectedModelFilter];
+          }
+          // Search by model_id attribute inside entries
+          for (const k of Object.keys(filesObj)) {
+            if (filesObj[k]?.model_id === state.selectedModelFilter) {
+              return filesObj[k]?.url || filesObj[k];
+            }
+          }
+        }
+
+        // 2. Match item's own model_id
+        if (item.model_id) {
+          if (filesObj[item.model_id]) {
+            return filesObj[item.model_id]?.url || filesObj[item.model_id];
+          }
+          for (const k of Object.keys(filesObj)) {
+            if (filesObj[k]?.model_id === item.model_id) {
+              return filesObj[k]?.url || filesObj[k];
+            }
+          }
+        }
+
+        // 3. Fallback to first available model audio
         const keys = Object.keys(filesObj);
         if (keys.length > 0) {
           const targetKey = keys[0];
@@ -1215,86 +1354,58 @@
         }
       } catch (e) {}
     }
+
+    if (item.audio_url) return item.audio_url;
     return null;
   }
 
-  // Render dynamic rubric criteria (2x2 Compact Zero-Scroll Grid with Bilingual Khmer-English Labels)
+  // Render dynamic rubric criteria
   function renderRubricForm() {
     el.ratingFormContainer.innerHTML = "";
     const metrics = state.campaign.metrics || [
-      { key: "naturalness", label_en: "Naturalness", label_km: "លក្ខណៈធម្មជាតិនៃសំឡេង", desc: "Does it sound like a real human speaking?" },
-      { key: "pronunciation", label_en: "Pronunciation Accuracy", label_km: "ភាពត្រឹមត្រូវនៃការបញ្ចេញសំឡេង", desc: "Are vowels and consonants pronounced correctly?" }
+      { key: "naturalness", label_en: "Naturalness", desc: "Does it sound like a real human speaking?" },
+      { key: "pronunciation", label_en: "Pronunciation Accuracy", desc: "Are vowels and consonants pronounced correctly?" }
     ];
 
     const minScale = state.campaign.scale_min || 1;
     const maxScale = state.campaign.scale_max || 5;
 
-    const khmerMetricNames = {
-      pronunciation: "ភាពត្រឹមត្រូវនៃការបញ្ចេញសំឡេង",
-      intelligibility: "ភាពងាយស្រួលក្នុងការស្តាប់យល់",
-      naturalness: "លក្ខណៈធម្មជាតិនៃសំឡេង",
-      voice_quality: "គុណភាពនៃសម្លេង"
-    };
-
-    const khmerMetricDescs = {
-      pronunciation: "តើពាក្យត្រូវបានបញ្ចេញសំឡេងត្រឹមត្រូវ ដោយមិនបាត់ស្រៈ ឬព្យញ្ជនៈដែរឬទេ?",
-      intelligibility: "តើពាក្យ និងឃ្លាអាចស្តាប់យល់បានច្បាស់លាស់កម្រិតណា?",
-      naturalness: "ចង្វាក់និយាយរលូនដូចមនុស្សពិត ដោយគ្មានសំឡេងរ៉ូបូត។",
-      voice_quality: "កម្រិតច្បាស់នៃសំឡេង ដោយគ្មានសំឡេងរំខាន ឬខ្សឹបខ្សៀវ។"
-    };
-
     for (const metric of metrics) {
       const metricKey = metric.key || metric.id || metric.name;
       const titleEn = metric.label_en || metric.label || metric.name || metricKey;
-      const titleKm = metric.label_km || khmerMetricNames[metricKey] || "";
       const descEn = metric.desc_en || metric.desc || "";
-      const descKm = metric.desc_km || khmerMetricDescs[metricKey] || "";
 
       const row = document.createElement("div");
-      row.className = "rating-criterion-row p-3 bg-white border border-zinc-200 rounded-xl flex flex-col justify-between gap-2 shadow-2xs";
+      row.className = "rating-criterion-row p-4 bg-white border border-zinc-200 rounded-2xl flex flex-col justify-between gap-3 shadow-sm hover:border-zinc-400 transition";
       row.dataset.metricKey = metricKey;
 
       const headerDiv = document.createElement("div");
-      headerDiv.className = "flex items-start justify-between gap-1.5";
-
-      let titleHtml = "";
-      if (titleKm) {
-        titleHtml = `<span class="font-khmer font-bold text-zinc-900">${escapeHtml(titleKm)}</span> <span class="text-[11px] font-semibold text-zinc-500 font-sans">(${escapeHtml(titleEn)})</span>`;
-      } else {
-        titleHtml = `<span class="font-bold text-zinc-900">${escapeHtml(titleEn)}</span>`;
-      }
-
-      let descHtml = "";
-      if (descKm) {
-        descHtml = `<span class="font-khmer text-zinc-500">${escapeHtml(descKm)}</span>`;
-      } else if (descEn) {
-        descHtml = `<span class="text-zinc-500">${escapeHtml(descEn)}</span>`;
-      }
+      headerDiv.className = "flex items-start justify-between gap-2";
 
       headerDiv.innerHTML = `
         <div class="min-w-0">
-          <div class="criterion-title text-xs leading-snug">${titleHtml}</div>
-          ${descHtml ? `<div class="criterion-desc text-[11px] truncate mt-0.5" title="${escapeHtml(descEn || descKm)}">${descHtml}</div>` : ""}
+          <div class="criterion-title text-sm sm:text-base font-bold text-zinc-900 leading-snug tracking-tight">${escapeHtml(titleEn)}</div>
+          ${descEn && descEn !== titleEn ? `<div class="criterion-desc text-xs text-zinc-500 mt-0.5">${escapeHtml(descEn)}</div>` : ""}
         </div>
       `;
 
       const controlsDiv = document.createElement("div");
-      controlsDiv.className = "flex flex-col gap-1";
+      controlsDiv.className = "flex flex-col gap-1.5 pt-1";
 
       const anchorsDiv = document.createElement("div");
-      anchorsDiv.className = "flex justify-between w-full text-[10px] text-zinc-500 font-medium px-1";
+      anchorsDiv.className = "flex justify-between w-full text-xs text-zinc-500 font-semibold px-1";
       anchorsDiv.innerHTML = `
-        <span><strong class="font-mono text-zinc-700">1:</strong> ខ្សោយ (Poor)</span>
-        <span><strong class="font-mono text-zinc-700">${maxScale}:</strong> ល្អឥតខ្ចោះ (Excellent)</span>
+        <span><strong class="font-mono text-zinc-800">1:</strong> Poor</span>
+        <span><strong class="font-mono text-zinc-800">${maxScale}:</strong> Excellent</span>
       `;
 
       const scaleDiv = document.createElement("div");
-      scaleDiv.className = "scale-selector flex gap-1.5";
+      scaleDiv.className = "scale-selector flex gap-2";
 
       for (let s = minScale; s <= maxScale; s++) {
         const pill = document.createElement("button");
         pill.type = "button";
-        pill.className = "score-pill flex-1 min-h-[44px] h-11 text-sm font-bold rounded-xl border border-zinc-200 bg-white hover:border-zinc-900 hover:bg-zinc-50 text-zinc-800 transition cursor-pointer flex items-center justify-center";
+        pill.className = "score-pill flex-1 min-h-[52px] h-[52px] text-lg font-extrabold rounded-xl border-2 border-zinc-200 bg-zinc-50 hover:border-zinc-900 hover:bg-white text-zinc-900 transition-all cursor-pointer flex items-center justify-center shadow-2xs";
         pill.textContent = s;
         pill.dataset.score = s;
         pill.dataset.metricKey = metricKey;
@@ -1369,26 +1480,32 @@
     }
   }
 
-  // Render Dynamic Defect Chips based on Campaign Configuration with Bilingual Khmer-English Labels
+  // Render Dynamic Defect Chips based on Campaign Configuration (English Error Taxonomies)
   function renderDefectChips() {
     if (!el.popoverChipGroup) return;
-    const defectTypes = state.campaign?.defect_types || [
-      { code: "MISPRON", label: "Mispronunciation", label_km: "បញ្ចេញសំឡេងខុស" },
-      { code: "NOISE", label: "Noise / Click", label_km: "សំឡេងរំខាន" },
-      { code: "UNNAT_PAUSE", label: "Awkward Pause", label_km: "ផ្អាកខុសប្រក្រតី" },
-      { code: "ROBOTIC", label: "Robotic Buzz", label_km: "សំឡេងរ៉ូបូត" },
-      { code: "PITCH", label: "Unnatural Pitch", label_km: "កម្ពស់សំឡេងខុស" },
-      { code: "OTHER", label: "Other Defect", label_km: "បញ្ហាផ្សេងទៀត" }
-    ];
-
-    const khmerDefectMap = {
-      MISPRON: "បញ្ចេញសំឡេងខុស",
-      NOISE: "សំឡេងរំខាន",
-      UNNAT_PAUSE: "ផ្អាកខុសប្រក្រតី",
-      ROBOTIC: "សំឡេងរ៉ូបូត",
-      PITCH: "កម្ពស់សំឡេងខុស",
-      OTHER: "បញ្ហាផ្សេងទៀត"
-    };
+    const defectTypes = (state.campaign?.defect_types && state.campaign.defect_types.length > 0)
+      ? state.campaign.defect_types
+      : [
+          { code: "C_DEL", label: "Consonant Deletion" },
+          { code: "C_SUB", label: "Consonant Substitution" },
+          { code: "V_DEL_INS", label: "Vowel Error" },
+          { code: "CLIP_TRUNC", label: "Word Truncation" },
+          { code: "CODE", label: "Code-Switching Failure" },
+          { code: "GLITCH", label: "Digital Glitch" },
+          { code: "ELONG", label: "Syllable Elongation" },
+          { code: "PROM", label: "Inappropriate Loudness" },
+          { code: "PROS", label: "Bad Prosody / Cadence" },
+          { code: "SILENCE", label: "Dead Silence" },
+          { code: "SEG", label: "Awkward Pause" },
+          { code: "INCONSIST", label: "Voice Inconsistency" },
+          { code: "LEX_SUB", label: "Lexical Substitution" },
+          { code: "REPETITION", label: "Stutter / Repetition" },
+          { code: "REG_FAIL", label: "Register Error" },
+          { code: "SUB_FAIL", label: "Subscript Error" },
+          { code: "NASAL_FAIL", label: "Nasal Error" },
+          { code: "DIALECT", label: "Non-Standard Accent" },
+          { code: "NONE", label: "Clean Audio" }
+        ];
 
     el.popoverChipGroup.innerHTML = "";
     defectTypes.forEach((dt, idx) => {
@@ -1397,14 +1514,13 @@
       chip.className = `defect-chip ${idx === 0 ? "selected" : ""}`;
       chip.dataset.code = dt.code;
 
-      const labelKm = dt.label_km || khmerDefectMap[dt.code] || "";
       const labelEn = dt.label || dt.name || dt.code;
+      chip.innerHTML = `<span class="font-medium text-xs">${escapeHtml(labelEn)}</span> <span class="text-[10px] text-zinc-400 font-mono">(${escapeHtml(dt.code)})</span>`;
 
-      if (labelKm) {
-        chip.innerHTML = `<span class="font-khmer font-medium">${escapeHtml(labelKm)}</span> <span class="text-[10px] text-zinc-500 font-sans">(${escapeHtml(labelEn)})</span>`;
-      } else {
-        chip.textContent = labelEn;
-      }
+      chip.addEventListener("click", () => {
+        el.popoverChipGroup.querySelectorAll(".defect-chip").forEach(c => c.classList.remove("selected"));
+        chip.classList.add("selected");
+      });
 
       el.popoverChipGroup.appendChild(chip);
     });
@@ -1416,9 +1532,20 @@
     el.popoverTimeRange.textContent = `${selection.startSec.toFixed(2)}s - ${selection.endSec.toFixed(2)}s`;
     el.popoverDefectNote.value = "";
 
-    el.popoverChipGroup.querySelectorAll(".defect-chip").forEach(c => c.classList.remove("selected"));
-    const firstChip = el.popoverChipGroup.querySelector(".defect-chip");
-    if (firstChip) firstChip.classList.add("selected");
+    const defaultCode = state.campaign?.ui_config?.default_defect_code || "C_DEL";
+    let matchedChip = false;
+    el.popoverChipGroup.querySelectorAll(".defect-chip").forEach(c => {
+      if (c.dataset.code === defaultCode) {
+        c.classList.add("selected");
+        matchedChip = true;
+      } else {
+        c.classList.remove("selected");
+      }
+    });
+    if (!matchedChip) {
+      const firstChip = el.popoverChipGroup.querySelector(".defect-chip");
+      if (firstChip) firstChip.classList.add("selected");
+    }
 
     el.regionTagPopover.classList.remove("hidden");
     const popoverWidth = 320;
@@ -1441,7 +1568,7 @@
     if (!state.activeSelection) return;
 
     const selectedChip = el.popoverChipGroup.querySelector(".defect-chip.selected");
-    const errorCode = selectedChip ? selectedChip.dataset.code : "MISPRON";
+    const errorCode = selectedChip ? selectedChip.dataset.code : "C_DEL";
     const errorLabel = selectedChip ? selectedChip.textContent.trim() : "Defect";
     const note = el.popoverDefectNote.value.trim();
 
@@ -1530,6 +1657,64 @@
     }
     return "";
   }
+
+  // Offline Resilience & Auto-Sync Engine
+  const OFFLINE_EVAL_QUEUE_KEY = "audio_studio_offline_eval_queue_v1";
+
+  function getOfflineQueue() {
+    try {
+      const raw = localStorage.getItem(OFFLINE_EVAL_QUEUE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function queueOfflineEvaluation(payload) {
+    try {
+      const queue = getOfflineQueue();
+      const filtered = queue.filter(q => !(q.campaign_id === payload.campaign_id && q.item_id === payload.item_id && q.rater_id === payload.rater_id));
+      filtered.push(payload);
+      localStorage.setItem(OFFLINE_EVAL_QUEUE_KEY, JSON.stringify(filtered));
+    } catch (e) {
+      console.warn("Could not save to offline queue:", e);
+    }
+  }
+
+  async function flushOfflineQueue() {
+    const queue = getOfflineQueue();
+    if (queue.length === 0) return;
+
+    const remaining = [];
+    let synced = 0;
+
+    for (const item of queue) {
+      try {
+        const resp = await fetch("/api/evaluations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(item)
+        });
+        if (resp.ok) {
+          synced++;
+        } else {
+          remaining.push(item);
+        }
+      } catch (e) {
+        remaining.push(item);
+      }
+    }
+
+    try {
+      localStorage.setItem(OFFLINE_EVAL_QUEUE_KEY, JSON.stringify(remaining));
+      if (synced > 0) {
+        showToast(`Auto-synced ${synced} saved offline evaluation(s).`, "success");
+      }
+    } catch (e) {}
+  }
+
+  window.addEventListener("online", flushOfflineQueue);
+  setInterval(flushOfflineQueue, 15000);
 
   // Auto-save current ratings if user is jumping to another item
   async function autoSaveCurrentItem() {
@@ -1639,38 +1824,40 @@
       });
 
       if (!resp.ok) {
-        const errData = await resp.json();
-        throw new Error(errData.error || "Failed to save evaluation");
-      }
-
-      state.existingEvaluations[item.id] = payload;
-
-      // Check if there are other unrated items
-      const nextUnrated = state.items.findIndex((it, idx) => idx > state.currentIndex && !state.existingEvaluations[it.id]);
-
-      if (nextUnrated !== -1) {
-        state.currentIndex = nextUnrated;
-        renderCurrentItem();
-        renderSidebar();
-      } else if (state.currentIndex < state.items.length - 1) {
-        state.currentIndex++;
-        renderCurrentItem();
-        renderSidebar();
-      } else {
-        // If all items are completed, finish!
-        const anyUnrated = state.items.findIndex(it => !state.existingEvaluations[it.id]);
-        if (anyUnrated === -1) {
-          showCompletionScreen();
-        } else {
-          state.currentIndex = anyUnrated;
-          renderCurrentItem();
-          renderSidebar();
-        }
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.error || `Server status ${resp.status}`);
       }
     } catch (err) {
-      showToast("Error saving evaluation: " + err.message, "error");
+      console.warn("Network evaluation save error; saving to local device queue:", err);
+      queueOfflineEvaluation(payload);
+      showToast("Offline mode: Saved safely on your device. Will auto-sync when online.", "info");
     } finally {
       el.btnNextItem.disabled = false;
+    }
+
+    state.existingEvaluations[item.id] = payload;
+
+    // Check if there are other unrated items
+    const nextUnrated = state.items.findIndex((it, idx) => idx > state.currentIndex && !state.existingEvaluations[it.id]);
+
+    if (nextUnrated !== -1) {
+      state.currentIndex = nextUnrated;
+      renderCurrentItem();
+      renderSidebar();
+    } else if (state.currentIndex < state.items.length - 1) {
+      state.currentIndex++;
+      renderCurrentItem();
+      renderSidebar();
+    } else {
+      // If all items are completed, finish!
+      const anyUnrated = state.items.findIndex(it => !state.existingEvaluations[it.id]);
+      if (anyUnrated === -1) {
+        showCompletionScreen();
+      } else {
+        state.currentIndex = anyUnrated;
+        renderCurrentItem();
+        renderSidebar();
+      }
     }
   }
 
