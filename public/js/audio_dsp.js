@@ -157,11 +157,11 @@ class AudioDSPEngine {
     }
   }
 
-  async play() {
+  play() {
     this.ensureContext();
     if (this.audioCtx && this.audioCtx.state === "suspended") {
       try {
-        await this.audioCtx.resume();
+        this.audioCtx.resume();
       } catch (e) {}
     }
     if (this.isPlaying) return;
@@ -176,12 +176,19 @@ class AudioDSPEngine {
     // Pure Unaltered Audio Wiring (Direct gain -> analyser -> destination)
     source.connect(this.gainNode);
 
-    const offset = Math.min(this.pausedAt, buffer.duration - 0.05);
+    // If offset is already at or past the buffer end, restart cleanly from 0
+    let offset = this.pausedAt || 0;
+    if (offset >= buffer.duration - 0.05) {
+      offset = 0;
+      this.pausedAt = 0;
+    }
+
     const now = this.audioCtx.currentTime;
-    source.start(now, Math.max(0, offset));
+    source.start(0, Math.max(0, offset));
 
     source.onended = () => {
-      if (this.isPlaying && this.getCurrentTime() >= buffer.duration - 0.05) {
+      // Check if this source wasn't superseded or stopped manually
+      if (this.sourceNodeA === source || this.sourceNodeB === source) {
         this.isPlaying = false;
         this.pausedAt = 0;
         cancelAnimationFrame(this.animationFrameId);
@@ -203,7 +210,8 @@ class AudioDSPEngine {
 
   pause() {
     if (!this.isPlaying) return;
-    this.pausedAt = this.getCurrentTime();
+    const curTime = this.getCurrentTime();
+    this.pausedAt = (this.duration && curTime >= this.duration - 0.05) ? 0 : curTime;
     this.isPlaying = false;
     cancelAnimationFrame(this.animationFrameId);
     this.updateAllWaveforms();

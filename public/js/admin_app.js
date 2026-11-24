@@ -2456,15 +2456,15 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
               <div class="flex items-center gap-4 pt-1">
                 <button
                   type="button"
-                  class="w-12 h-12 flex-shrink-0 rounded-full bg-zinc-900 text-white flex items-center justify-center shadow-sm cursor-default"
-                  title="Audio Playback Preview"
+                  class="btn-preview-audio-play w-12 h-12 flex-shrink-0 rounded-full bg-zinc-900 hover:bg-zinc-800 text-white flex items-center justify-center shadow-sm cursor-pointer transition active:scale-95"
+                  title="Play / Pause Audio Preview"
                 >
-                  <svg class="w-5 h-5 ml-0.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  <svg class="preview-play-icon w-5 h-5 ml-0.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                 </button>
 
                 <div class="flex-1 min-w-0 flex flex-col gap-1.5">
                   <div class="flex items-center justify-between text-[11px] text-zinc-500">
-                    <span class="font-medium text-xs font-mono">0.00s / 0.01.3</span>
+                    <span class="preview-audio-time font-medium text-xs font-mono">0.00s / 0:01.3</span>
                     <span class="hidden sm:inline text-zinc-400">Click & drag on waveform to tag defect region • ចុចអូសលើរលកសំឡេងដើម្បីសម្គាល់កំហុស</span>
                   </div>
                   <div class="waveform-canvas-box rounded-lg overflow-hidden h-[76px] relative bg-white border border-zinc-200">
@@ -2678,9 +2678,79 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       el.builderCanvas.querySelectorAll(".preview-waveform-canvas").forEach((canvas) => {
         drawPreviewWaveform(canvas);
       });
+
+      // Wire interactive audio playback in Step 3 Preview Card
+      el.builderCanvas.querySelectorAll(".btn-preview-audio-play").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const card = btn.closest(".builder-card");
+          const canvas = card ? card.querySelector(".preview-waveform-canvas") : null;
+          const timeLabel = card ? card.querySelector(".preview-audio-time") : null;
+
+          if (wizardPreviewAudio && !wizardPreviewAudio.paused) {
+            wizardPreviewAudio.pause();
+            if (wizardPreviewAnim) {
+              cancelAnimationFrame(wizardPreviewAnim);
+              wizardPreviewAnim = null;
+            }
+            btn.innerHTML = `<svg class="w-5 h-5 ml-0.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+            return;
+          }
+
+          const sampleItem = state.wizardData.items[0];
+          let audioSrc = sampleItem ? (sampleItem.audio_url || (sampleItem.base64 ? `data:audio/wav;base64,${sampleItem.base64}` : null)) : null;
+          if (!audioSrc) {
+            audioSrc = "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH01.wav";
+          }
+
+          if (!wizardPreviewAudio || wizardPreviewAudio.src !== audioSrc) {
+            if (wizardPreviewAudio) {
+              try { wizardPreviewAudio.pause(); } catch (err) {}
+            }
+            wizardPreviewAudio = new Audio(audioSrc);
+          }
+
+          btn.innerHTML = `<svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+
+          const updateProgress = () => {
+            if (!wizardPreviewAudio || wizardPreviewAudio.paused) return;
+            const cur = wizardPreviewAudio.currentTime;
+            const dur = wizardPreviewAudio.duration || 1.3;
+            if (timeLabel) {
+              const curSec = cur.toFixed(2);
+              const durSec = dur.toFixed(1);
+              timeLabel.textContent = `${curSec}s / 0:${durSec < 10 ? '0' : ''}${durSec}`;
+            }
+            if (canvas) {
+              drawPreviewWaveform(canvas, cur / dur);
+            }
+            wizardPreviewAnim = requestAnimationFrame(updateProgress);
+          };
+
+          wizardPreviewAudio.onended = () => {
+            if (wizardPreviewAnim) {
+              cancelAnimationFrame(wizardPreviewAnim);
+              wizardPreviewAnim = null;
+            }
+            btn.innerHTML = `<svg class="w-5 h-5 ml-0.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+            if (timeLabel) timeLabel.textContent = `0.00s / 0:${(wizardPreviewAudio.duration || 1.3).toFixed(1)}`;
+            if (canvas) drawPreviewWaveform(canvas, 0);
+          };
+
+          wizardPreviewAudio.play().then(() => {
+            wizardPreviewAnim = requestAnimationFrame(updateProgress);
+          }).catch(err => {
+            console.warn("Audio preview playback failed:", err);
+            btn.innerHTML = `<svg class="w-5 h-5 ml-0.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+          });
+        });
+      });
     }
 
-    function drawPreviewWaveform(canvas) {
+    let wizardPreviewAudio = null;
+    let wizardPreviewAnim = null;
+
+    function drawPreviewWaveform(canvas, progress = 0) {
       if (!canvas) return;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
@@ -2706,6 +2776,11 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       const unplayedGrad = ctx.createLinearGradient(0, midY - (maxBarHeight / 2), 0, midY + (maxBarHeight / 2));
       unplayedGrad.addColorStop(0, "#D4D4D8");
       unplayedGrad.addColorStop(1, "#E4E4E7");
+
+      // Played gradient matching audio_dsp.js
+      const playedGrad = ctx.createLinearGradient(0, midY - (maxBarHeight / 2), 0, midY + (maxBarHeight / 2));
+      playedGrad.addColorStop(0, "#09090B");
+      playedGrad.addColorStop(1, "#27272A");
 
       // Realistic speech waveform packet synthesis with 4 natural utterances separated by small pauses
       // Matching real eval.html waveform screenshot exactly
@@ -2740,7 +2815,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         const barH = Math.max(4, amp * maxBarHeight);
         const y = midY - (barH / 2);
 
-        ctx.fillStyle = unplayedGrad;
+        ctx.fillStyle = norm <= progress ? playedGrad : unplayedGrad;
         const radius = Math.min(barWidth / 2, barH / 2);
         ctx.beginPath();
         if (typeof ctx.roundRect === "function") {
@@ -2749,6 +2824,13 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           ctx.rect(x, y, barWidth, barH);
         }
         ctx.fill();
+      }
+
+      // Draw subtle playhead cursor if currently playing
+      if (progress > 0 && progress < 1) {
+        const playheadX = progress * width;
+        ctx.fillStyle = "#09090B";
+        ctx.fillRect(playheadX - 1, 4, 2, height - 8);
       }
 
       ctx.restore();
