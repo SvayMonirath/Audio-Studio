@@ -1122,10 +1122,10 @@
 
     if (!heardText) {
       el.heardDiffPreview.classList.add("hidden");
-      if (el.heardIndicatorBadge) el.heardIndicatorBadge.classList.add("hidden");
+      updateTranscriptionRequirement();
       return;
     }
-    if (el.heardIndicatorBadge) el.heardIndicatorBadge.classList.remove("hidden");
+    updateTranscriptionRequirement();
 
     const diff = computeKhmerDiff(expectedText, heardText);
     el.heardDiffContent.innerHTML = diff.html;
@@ -1140,6 +1140,38 @@
       if (el.diffStatusBadge) {
         el.diffStatusBadge.textContent = "Differences detected (មានភាពខុសគ្នា)";
         el.diffStatusBadge.className = "font-medium text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200";
+      }
+    }
+  }
+
+  function updateTranscriptionRequirement() {
+    if (!el.heardTranscriptInput) return;
+    const hasDefects = Boolean(state.currentDefects && state.currentDefects.length > 0);
+    const heardText = el.heardTranscriptInput.value.trim();
+
+    if (hasDefects) {
+      if (el.heardIndicatorBadge) {
+        el.heardIndicatorBadge.textContent = "Required (Defect Flagged)";
+        el.heardIndicatorBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300 animate-pulse";
+        el.heardIndicatorBadge.classList.remove("hidden");
+      }
+      el.heardTranscriptInput.placeholder = "Defect flagged: please type the exact word or sound you heard...";
+      if (!heardText) {
+        el.heardTranscriptInput.classList.add("border-amber-400");
+      } else {
+        el.heardTranscriptInput.classList.remove("ring-2", "ring-rose-500", "border-rose-500", "border-amber-400");
+      }
+    } else {
+      el.heardTranscriptInput.classList.remove("ring-2", "ring-rose-500", "border-rose-500", "border-amber-400");
+      el.heardTranscriptInput.placeholder = "Click 'Copy Prompt' to start with the prompt text, or type what you heard...";
+      if (el.heardIndicatorBadge) {
+        if (heardText) {
+          el.heardIndicatorBadge.textContent = "Edited";
+          el.heardIndicatorBadge.className = "px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300";
+          el.heardIndicatorBadge.classList.remove("hidden");
+        } else {
+          el.heardIndicatorBadge.classList.add("hidden");
+        }
       }
     }
   }
@@ -1413,8 +1445,17 @@
     for (const metric of metrics) {
       const metricKey = metric.key || metric.id || metric.name;
       const titleEn = metric.label_en || metric.label || metric.name || metricKey;
-      const descEn = metric.desc_en || metric.desc || "";
-      const isBinary = metric.type === "binary_pass_fail" || metric.type === "binary" || (metric.scale_min === 0 && metric.scale_max === 1);
+      let descEn = metric.desc_en || metric.desc || "";
+      const isBinary = metric.type === "binary_pass_fail" || 
+                       metric.type === "binary" || 
+                       (metric.scale_min === 0 && metric.scale_max === 1) || 
+                       (metric.scale_min === 1 && metric.scale_max === 2) || 
+                       metric.scale_max <= 2 || 
+                       state.campaign.scale_max <= 2 || 
+                       (state.campaign.protocol_type || "").toLowerCase() === "diagnostic";
+      if (isBinary && (/score from 1 to 2/i.test(descEn) || /score from 0 to 1/i.test(descEn) || /^score from \d/i.test(descEn))) {
+        descEn = "";
+      }
       const isPhoneMetric = (metricKey || "").toLowerCase().includes("phone") || (metricKey || "").toLowerCase().includes("telephone");
 
       const row = document.createElement("div");
@@ -1519,7 +1560,16 @@
     el.ratingFormContainer.querySelectorAll(".score-pill").forEach(pill => {
       const mKey = pill.dataset.metricKey;
       const score = parseInt(pill.dataset.score, 10);
-      const isSelected = state.currentScores[mKey] === score;
+      const isPassPill = pill.classList.contains("score-pill-pass");
+      const isFailPill = pill.classList.contains("score-pill-fail");
+      let isSelected = false;
+      if (isPassPill) {
+        isSelected = (state.currentScores[mKey] === 1 || state.currentScores[mKey] === 2);
+      } else if (isFailPill) {
+        isSelected = (state.currentScores[mKey] === 0);
+      } else {
+        isSelected = state.currentScores[mKey] === score;
+      }
       pill.classList.toggle("active", isSelected);
     });
 
@@ -1728,6 +1778,7 @@
 
     if (state.currentDefects.length === 0) {
       el.defectTagsList.innerHTML = `<span class="text-xs text-zinc-400 italic">No defects flagged for this sample</span>`;
+      updateTranscriptionRequirement();
       return;
     }
 
@@ -1749,6 +1800,7 @@
 
       el.defectTagsList.appendChild(badge);
     }
+    updateTranscriptionRequirement();
   }
 
   // Resolve item model ID
@@ -1911,6 +1963,19 @@
           showToast(`Please choose a score for: ${m.label_en || m.name || mKey}`, "warning");
           return;
         }
+      }
+    }
+
+    // Validate conditional mandatory transcription when defects are flagged
+    if (state.campaign?.collect_transcription && state.currentDefects && state.currentDefects.length > 0) {
+      const heardVal = el.heardTranscriptInput ? el.heardTranscriptInput.value.trim() : "";
+      if (!heardVal) {
+        showToast("Defect flagged: Please type what you heard in the transcription box before submitting.", "warning");
+        if (el.heardTranscriptInput) {
+          el.heardTranscriptInput.focus();
+          el.heardTranscriptInput.classList.add("ring-2", "ring-rose-500", "border-rose-500");
+        }
+        return;
       }
     }
 

@@ -81,6 +81,7 @@
   let renderCanvas = () => {};
   let renderInspector = () => {};
   let updateSmartGuide = () => {};
+  let applyStarterKit = () => {};
 
   // LocalStorage Key for Draft Persistence
   const DRAFT_STORAGE_KEY = "audio_studio_creator_draft_v1";
@@ -950,6 +951,9 @@
         return;
       }
       state.maxUnlockedStep = Math.max(state.maxUnlockedStep, 3);
+      if ((!state.wizardData.ui_config.blocks || state.wizardData.ui_config.blocks.length === 0) && typeof applyStarterKit === "function") {
+        applyStarterKit("mos");
+      }
       goToStep(3);
     });
 
@@ -1024,6 +1028,7 @@
   function resetWizardToStep1() {
     clearWizardDraft();
     state.createdCampaignId = null;
+    state.wizardPublished = false;
     state.wizardStep = 1;
     state.maxUnlockedStep = 1;
     state.wizardData.name = "";
@@ -2141,7 +2146,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     }
 
     // 1-Click Starter Kits
-    function applyStarterKit(kitName) {
+    applyStarterKit = function(kitName) {
       if (kitName === "mos") {
         state.wizardData.ui_config.dsp.phone_filter_8khz = false;
         state.wizardData.ui_config.presentation.blind_gating = false;
@@ -2529,32 +2534,34 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
                 <div class="text-[11px] text-zinc-400 mt-0.5">Click to select this card and add rating questions in the right panel.</div>
               </div>
             `;
-          } else {
+          } else if (scaleMax <= 2) {
             const criteriaColsHtml = criteria.map(c => `
               <div class="p-2.5 bg-white border border-zinc-200 rounded-lg space-y-1.5">
                 <div class="flex items-baseline justify-between">
                   <div class="text-xs font-bold text-zinc-900">${escapeHtml(c.name)}</div>
-                  <span class="text-[9px] text-zinc-400">1 to ${scaleMax}</span>
+                  <span class="text-[9px] font-bold text-zinc-500 uppercase font-mono">Pass / Fail</span>
                 </div>
                 <div class="text-[10px] text-zinc-500 truncate" title="${escapeHtml(c.desc || "")}">${escapeHtml(c.desc || "")}</div>
-                <div class="flex gap-1 pt-1">
-                  ${Array.from({ length: scaleMax }, (_, i) => i + 1).map(num => `
-                    <div class="flex-1 h-7 rounded border ${num === 4 ? "bg-zinc-900 border-zinc-900 text-white" : "bg-zinc-50 border-zinc-200 text-zinc-700"} flex items-center justify-center text-xs font-semibold">
-                      ${num}
-                    </div>
-                  `).join("")}
+                <div class="flex gap-2 pt-1">
+                  <div class="flex-1 h-7 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-800 flex items-center justify-center text-xs font-bold shadow-2xs">
+                    Pass [1]
+                  </div>
+                  <div class="flex-1 h-7 rounded-lg bg-rose-50 border border-rose-300 text-rose-800 flex items-center justify-center text-xs font-bold shadow-2xs">
+                    Fail [0]
+                  </div>
                 </div>
               </div>
             `).join("");
 
             previewHtml = `
               <div class="mt-3 p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl space-y-2">
-                <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Evaluator Rubric • លក្ខណៈវិនិច្ឆ័យ</div>
+                <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Evaluator Rubric • លក្ខណៈវិនិច្ឆ័យ (Pass / Fail)</div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   ${criteriaColsHtml}
                 </div>
               </div>
             `;
+          } else {
           }
         } else if (block.type === "transcription") {
           const showDiff = Boolean(block.show_diff);
@@ -3122,6 +3129,12 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
             const panel = defectSection.querySelector("#insp-defect-settings-panel");
             if (panel) panel.classList.toggle("hidden", !checked);
             state.wizardData.ui_config.waveform_defect_tagging = checked;
+            if (!checked) {
+              state.wizardData.collectTranscription = false;
+            } else {
+              const trInput = panel?.querySelector("#insp-audio-transcription-toggle");
+              state.wizardData.collectTranscription = trInput ? trInput.checked : true;
+            }
           }
         });
         defectSection.appendChild(defectToggle);
@@ -3204,6 +3217,23 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           state.wizardData.defectTypes = allDefectCategories.filter(c => c.code === "C_DEL");
           updateDefectChips();
         });
+
+        // Sub-setting: Listener Perceived Hearing (Transcription)
+        const transcriptionSubSection = document.createElement("div");
+        transcriptionSubSection.className = "pt-3 border-t border-zinc-200/80 space-y-2";
+        const transcriptionToggle = createCustomSwitch({
+          id: "insp-audio-transcription-toggle",
+          checked: state.wizardData.collectTranscription !== false,
+          label: "Listener Perceived Hearing (Transcription)",
+          description: "Prompts listeners to type what they heard. Optional by default; becomes mandatory when a defect is flagged on the waveform.",
+          onChange: (checked) => {
+            state.wizardData.collectTranscription = checked;
+            selected.collect_transcription = checked;
+            saveWizardDraft();
+          }
+        });
+        transcriptionSubSection.appendChild(transcriptionToggle);
+        defectPanel.appendChild(transcriptionSubSection);
 
         defectSection.appendChild(defectPanel);
         container.appendChild(defectSection);
@@ -3293,7 +3323,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         const scaleOptions = [
           { value: "5", label: "1 to 5 Stars (Standard MOS)", desc: "ITU-T P.800 standard speech quality scale" },
           { value: "7", label: "1 to 7 Points (High Detail)", desc: "Fine-grained comparative scoring" },
-          { value: "2", label: "Pass / Fail", desc: "Binary acceptance threshold" }
+          { value: "2", label: "Pass / Fail (Binary)", desc: "Binary acceptance threshold (Pass / Fail)" }
         ];
         const scaleDropdown = createCustomDropdown({
           id: "insp-scoring-scale",
@@ -3470,14 +3500,26 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     if (el.summaryStudyTranscription) {
       el.summaryStudyTranscription.textContent = state.wizardData.collectTranscription ? "Enabled" : "Disabled";
     }
-    el.summaryStudyScale.textContent = `1 to ${state.wizardData.scaleMax} Points`;
+    el.summaryStudyScale.textContent = state.wizardData.scaleMax <= 2 ? "Pass / Fail" : `1 to ${state.wizardData.scaleMax} Points`;
 
-    el.shareableLinkContainer.classList.add("hidden");
-    el.launchActionBox.classList.remove("hidden");
+    if (state.createdCampaignId && state.wizardPublished) {
+      const fullShareUrl = `${window.location.origin}/eval?id=${state.createdCampaignId}`;
+      el.shareLinkUrl.textContent = fullShareUrl;
+      el.btnOpenAsRater.href = fullShareUrl;
+      el.shareableLinkContainer.classList.remove("hidden");
+      el.launchActionBox.classList.add("hidden");
+    } else {
+      el.shareableLinkContainer.classList.add("hidden");
+      el.launchActionBox.classList.remove("hidden");
+    }
   }
 
   function setupLaunchAndShare() {
     el.btnLaunchStudy.addEventListener("click", async () => {
+      if (state.createdCampaignId && state.wizardPublished) {
+        showToast("This study has already been launched. Evaluators can access it with the shareable link.", "info");
+        return;
+      }
       try {
         el.btnLaunchStudy.disabled = true;
         el.btnLaunchStudy.textContent = "Launching Study...";
@@ -3535,14 +3577,15 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         }
 
         // 3. Create Rubric
+        const isBinary = state.wizardData.scaleMax <= 2;
         const rubricMetrics = state.wizardData.criteria.map(c => ({
           key: c.id,
           label_en: c.name,
           label_km: c.name,
           desc: c.desc,
-          type: c.type || (state.wizardData.scaleMax === 1 ? "binary_pass_fail" : "scale_1_5"),
-          scale_min: c.scale_min || 1,
-          scale_max: c.scale_max || state.wizardData.scaleMax || 5
+          type: isBinary ? "binary_pass_fail" : (c.type || "scale_1_5"),
+          scale_min: isBinary ? 0 : (c.scale_min || 1),
+          scale_max: isBinary ? 1 : (c.scale_max || state.wizardData.scaleMax || 5)
         }));
 
         const rubricResp = await adminFetch("/api/rubrics", {
@@ -3550,9 +3593,9 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: `${state.wizardData.name} Rubric`,
-            protocol_type: "ACR",
-            scale_min: 1,
-            scale_max: state.wizardData.scaleMax,
+            protocol_type: isBinary ? "Diagnostic" : "ACR",
+            scale_min: isBinary ? 0 : 1,
+            scale_max: isBinary ? 1 : state.wizardData.scaleMax,
             metrics: rubricMetrics
           })
         });
@@ -3646,6 +3689,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         if (!campaignResp.ok) throw new Error("Failed to create study campaign.");
         const campaignJson = await campaignResp.json();
         state.createdCampaignId = campaignJson.campaign_id;
+        state.wizardPublished = true;
         clearWizardDraft();
 
         // 5. Reveal Shareable Link Box
@@ -5208,7 +5252,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           </div>
           <div>
             <div class="text-[10px] text-zinc-500 font-medium">Rubric Scale</div>
-            <div class="font-bold text-zinc-900">1 - ${camp.scale_max || 5} ${escapeHtml(camp.protocol_type || "ACR")}</div>
+            <div class="font-bold text-zinc-900">${(camp.scale_max <= 2 || (camp.protocol_type || '').toLowerCase() === 'diagnostic') ? 'Pass / Fail' : `1 - ${camp.scale_max || 5} ${escapeHtml(camp.protocol_type || "ACR")}`}</div>
           </div>
         </div>
 
@@ -5222,7 +5266,6 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           <div class="flex flex-wrap items-center gap-2">
             <button type="button" class="btn-ghost text-xs btn-copy-card-link" data-url="${shareUrl}">Copy Link</button>
             <a href="${shareUrl}" target="_blank" class="btn-ghost text-xs">Evaluate</a>
-            <button type="button" class="btn-carbon text-xs btn-view-card-results" data-id="${camp.id}">Results & MOS</button>
             <button type="button" class="px-2.5 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg font-medium cursor-pointer transition btn-delete-card" data-id="${camp.id}" data-name="${escapeHtml(camp.name)}">
               Delete
             </button>
@@ -5240,13 +5283,6 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         } catch (err) {
           showToast(`Study URL: ${shareUrl}`, "info");
         }
-      });
-
-      // View Results
-      card.querySelector(".btn-view-card-results").addEventListener("click", () => {
-        el.tabBtnResults.click();
-        el.analyticsCampaignSelect.value = camp.id;
-        loadAnalyticsData();
       });
 
       // Toggle Status
