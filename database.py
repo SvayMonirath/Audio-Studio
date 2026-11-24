@@ -17,10 +17,15 @@ DEFAULT_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "work
 def get_connection(db_path=None):
     if db_path is None:
         db_path = DEFAULT_DB_PATH
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, timeout=30.0)
     conn.row_factory = sqlite3.Row
-    # Enable foreign keys
+    # Enable foreign keys and WAL mode for high concurrency
     conn.execute("PRAGMA foreign_keys = ON;")
+    if db_path != ":memory:":
+        try:
+            conn.execute("PRAGMA journal_mode = WAL;")
+        except sqlite3.OperationalError:
+            pass
     return conn
 
 def init_db(db_path=None):

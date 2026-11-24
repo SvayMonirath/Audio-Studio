@@ -11,9 +11,14 @@ venv/
 # Database and temporary uploads
 workbench.db
 *.sqlite3
+*.db.bak
+*.db-shm
+*.db-wal
 public/uploads/
 audio/uploads/
 
 # Operating System
 .DS_Store
 Thumbs.db
+*.log
+

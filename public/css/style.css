@@ -499,8 +499,8 @@ h3 {
 }
 
 .raw-khmer-text.blurred {
-  filter: blur(5px) !important;
-  opacity: 0.45 !important;
+  filter: blur(7px) !important;
+  opacity: 0.65 !important;
   user-select: none !important;
   pointer-events: none;
 }

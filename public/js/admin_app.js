@@ -411,7 +411,10 @@
     analyticsDefectsTbody: document.getElementById("analytics-defects-tbody"),
     analyticsTranscriptionsTbody: document.getElementById("analytics-transcriptions-tbody"),
 
-    // Studies
+    // Studies & Backup
+    btnExportBackup: document.getElementById("btn-export-backup"),
+    btnImportBackupTrigger: document.getElementById("btn-import-backup-trigger"),
+    inputRestoreBackup: document.getElementById("input-restore-backup"),
     studiesListContainer: document.getElementById("studies-list-container"),
     btnCreateStudyShortcut: document.getElementById("btn-create-study-shortcut"),
     studiesSearchInput: document.getElementById("studies-search-input"),
@@ -1173,7 +1176,8 @@
 
       setDropzoneLoading(true, `Reading audio samples (1 of ${total})...`, 5);
 
-      let added = 0;
+      let pairedCount = 0;
+      let addedNewCount = 0;
       try {
         for (let i = 0; i < total; i++) {
           const file = audioFilesToProcess[i];
@@ -1182,21 +1186,44 @@
 
           const base64Str = await readFileAsBase64(file);
           const blobUrl = URL.createObjectURL(file);
+          const fStem = normalizeStem(file.name);
 
-          state.wizardData.items.push({
-            id: `item-up-${Date.now()}-${i}`,
-            filename: file.name,
-            audio_url: blobUrl,
-            base64: base64Str,
-            model_id: targetModelObj.id || "model-candidate",
-            model_name: targetModelObj.name || "Candidate Voice",
-            text: ""
+          // Check if an existing item in wizardData is awaiting audio and matches this stem
+          const pendingItem = state.wizardData.items.find(it => {
+            if (!it.awaiting_audio) return false;
+            const itStem = normalizeStem(it.filename || it.item_key);
+            return itStem === fStem || itStem.startsWith(fStem + "_") || fStem.startsWith(itStem + "_");
           });
-          added++;
+
+          if (pendingItem) {
+            pendingItem.audio_url = blobUrl;
+            pendingItem.base64 = base64Str;
+            pendingItem.awaiting_audio = false;
+            pairedCount++;
+          } else {
+            state.wizardData.items.push({
+              id: `item-up-${Date.now()}-${i}`,
+              filename: file.name,
+              item_key: file.name.replace(/\.[^/.]+$/, ""),
+              audio_url: blobUrl,
+              base64: base64Str,
+              model_id: targetModelObj.id || "model-candidate",
+              model_name: targetModelObj.name || "Candidate Voice",
+              text: "",
+              awaiting_audio: false
+            });
+            addedNewCount++;
+          }
         }
 
         renderItemsTable();
-        showToast(`Loaded ${added} audio samples.`, "success");
+        if (pairedCount > 0 && addedNewCount === 0) {
+          showToast(`Successfully paired all ${pairedCount} audio files with transcripts!`, "success");
+        } else if (pairedCount > 0 && addedNewCount > 0) {
+          showToast(`Paired ${pairedCount} audio files with transcripts and added ${addedNewCount} new samples.`, "success");
+        } else {
+          showToast(`Loaded ${addedNewCount} audio samples.`, "success");
+        }
 
         // Automatically reconcile if user uploaded transcripts first
         if (state.reconciliation.pendingCsvRows && state.reconciliation.pendingCsvRows.length > 0) {
@@ -1382,14 +1409,21 @@
       const headers = parseCsvLine(rawLines[0]);
       const headerLower = headers.map(h => h.toLowerCase().replace(/[^a-z0-9_]/g, "_"));
 
-      // Candidates
-      const textCandidates = ["text", "tts_input", "prompt", "sentence", "transcript", "khmer_text", "transcript_text"];
-      const audioCandidates = ["audio_file", "filename", "file", "audio", "wav", "item_id", "id", "audio_filename"];
-      const modelCandidates = ["model", "model_name", "system", "engine"];
+      // Candidates with strict priority: distinguish audio filename from item ID
+      const textCandidates = ["text", "tts_input", "prompt", "sentence", "transcript", "khmer_text", "transcript_text", "expected_text"];
+      const audioCandidates = ["audio_file", "audio_filename", "audio_url", "wav", "audio", "filename", "file"];
+      const idCandidates = ["id", "item_id", "sentence_id", "word_id", "key", "trial_id", "prompt_id"];
+      const modelCandidates = ["model", "model_name", "model_id", "system", "engine"];
 
       let textColIdx = headerLower.findIndex(h => textCandidates.includes(h));
       let audioColIdx = headerLower.findIndex(h => audioCandidates.includes(h));
+      let idColIdx = headerLower.findIndex(h => idCandidates.includes(h));
       let modelColIdx = headerLower.findIndex(h => modelCandidates.includes(h));
+
+      // If audio column not found by specific audio terms, check id column as audio name fallback
+      if (audioColIdx === -1 && idColIdx !== -1) {
+        audioColIdx = idColIdx;
+      }
 
       const rows = [];
       for (let i = 1; i < rawLines.length; i++) {
@@ -1417,10 +1451,12 @@
 
       const textColName = headers[textColIdx];
       const audioColName = headers[audioColIdx];
+      const idColName = idColIdx !== -1 ? headers[idColIdx] : null;
       const modelColName = modelColIdx !== -1 ? headers[modelColIdx] : null;
 
       return rows.map(r => ({
-        audioFilename: r.rowObj[audioColName] || "",
+        itemId: idColName ? r.rowObj[idColName] : "",
+        audioFilename: r.rowObj[audioColName] || (idColName ? r.rowObj[idColName] : ""),
         text: r.rowObj[textColName] || "",
         model: modelColName ? (r.rowObj[modelColName] || "") : ""
       }));
@@ -1428,6 +1464,7 @@
 
     function applyParsedCsvRows(parsedRows, textColName, audioColName) {
       const standardized = parsedRows.map(r => ({
+        itemId: r.rowObj["id"] || r.rowObj["item_id"] || "",
         audioFilename: r.rowObj[audioColName] || "",
         text: r.rowObj[textColName] || "",
         model: r.rowObj["model"] || r.rowObj["model_name"] || ""
@@ -1450,9 +1487,29 @@
 
       const currentItems = state.wizardData.items;
 
-      // If user uploaded CSV before audio files, keep rows pending without showing false error
+      // If user uploaded CSV before audio files, populate items directly so table and progress give 100% feedback!
       if (!currentItems || currentItems.length === 0) {
-        showToast(`Transcripts loaded (${csvRows.length} lines). Drop audio files (.wav) now to pair them.`, "info");
+        state.wizardData.items = csvRows.map((r, idx) => {
+          let foundModel = r.model ? state.wizardData.models.find(m => m.name.toLowerCase() === r.model.toLowerCase()) : null;
+          if (!foundModel && r.model) {
+            foundModel = { id: `model-${Date.now()}-${state.wizardData.models.length + 1}`, name: r.model };
+            state.wizardData.models.push(foundModel);
+          }
+          const defaultModel = state.wizardData.models[0] || { id: "model-candidate", name: "Candidate Voice" };
+          return {
+            id: `item-csv-${Date.now()}-${idx}`,
+            item_key: r.itemId || r.audioFilename || `W${idx + 1}`,
+            filename: r.audioFilename ? (r.audioFilename.endsWith(".wav") ? r.audioFilename : `${r.audioFilename}.wav`) : `${r.itemId || `sample_${idx + 1}`}.wav`,
+            text: r.text || "",
+            model_id: foundModel ? foundModel.id : defaultModel.id,
+            model_name: foundModel ? foundModel.name : defaultModel.name,
+            audio_url: "",
+            awaiting_audio: true
+          };
+        });
+        renderModelsChips();
+        renderItemsTable();
+        showToast(`Loaded ${csvRows.length} transcript items from CSV. Drop audio folder now to attach WAV files.`, "success");
         return;
       }
 
@@ -1975,7 +2032,12 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         <td class="p-2.5">
           ${item.audio_url ? `
             <audio controls class="h-7 w-36" preload="none" src="${item.audio_url}"></audio>
-          ` : `<span class="text-zinc-400 italic text-xs">Audio ready</span>`}
+          ` : (item.awaiting_audio ? `
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+              Awaiting Audio (.wav)
+            </span>
+          ` : `<span class="text-zinc-400 italic text-xs">Audio ready</span>`)}
         </td>
         <td class="p-2.5 text-right">
           <button type="button" class="btn-remove-item text-zinc-400 hover:text-red-600 font-bold cursor-pointer text-sm" data-idx="${idx}">&times;</button>
@@ -2403,15 +2465,14 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           previewHtml = `
             <div class="mt-3 p-4 bg-white border border-zinc-200 rounded-xl relative overflow-hidden">
               <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">Transcript to Evaluate • អត្ថបទសម្រាប់វាយតម្លៃ</div>
-              <div class="font-khmer text-zinc-900 leading-relaxed transition-all duration-300 ${isGated ? "blur-md select-none opacity-50" : ""}" style="font-size: ${fontSize};">
+              <div class="font-khmer text-zinc-900 leading-relaxed transition-all duration-300 ${isGated ? "blur-[7px] select-none opacity-65" : ""}" style="font-size: ${fontSize};">
                 ${escapeHtml(sampleText)}
               </div>
               ${isGated ? `
-                <div class="absolute inset-0 bg-white/80 backdrop-blur-md rounded-xl flex flex-col items-center justify-center gap-2 z-10 p-4 shadow-2xs">
-                  <span class="text-xs font-semibold text-zinc-800">Blind Pronunciation Test — Prompt is hidden until revealed</span>
-                  <div class="px-3.5 py-1.5 text-xs bg-zinc-900 text-white rounded-lg font-medium shadow-sm flex items-center gap-1.5 select-none">
-                    <span>Reveal Prompt Transcript</span>
-                    <span class="text-[10px] text-zinc-400 font-mono">(Space)</span>
+                <div class="absolute inset-0 bg-transparent rounded-xl flex items-center justify-center z-10 p-4 pointer-events-none">
+                  <div class="px-3.5 py-1.5 text-xs bg-zinc-900/90 text-white rounded-full font-medium shadow-sm flex items-center gap-1.5 backdrop-blur-xs select-none">
+                    <svg class="w-3.5 h-3.5 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                    <span>Click to reveal</span>
                   </div>
                 </div>
               ` : ""}
@@ -3400,6 +3461,33 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         const rubricJson = await rubricResp.json();
         const rubricId = rubricJson.rubric_id;
 
+        // 3.5. Ensure all local browser audio files (blob) are saved to server disk
+        const localBlobItems = state.wizardData.items.filter(it => it.base64 && (!it.audio_url || it.audio_url.startsWith("blob:")));
+        if (localBlobItems.length > 0) {
+          showToast(`Saving ${localBlobItems.length} audio sample(s) permanently to server...`, "info");
+          for (let i = 0; i < localBlobItems.length; i++) {
+            const it = localBlobItems[i];
+            try {
+              const upResp = await adminFetch("/api/upload-audio", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  filename: it.filename || `sample_${i + 1}.wav`,
+                  data_base64: it.base64
+                })
+              });
+              if (upResp.ok) {
+                const upData = await upResp.json();
+                if (upData.url) {
+                  it.audio_url = upData.url;
+                }
+              }
+            } catch (err) {
+              console.warn("Failed to upload audio sample to server:", it.filename, err);
+            }
+          }
+        }
+
         // 4. Create Suite with per-item model mapping
         const suiteId = `suite-${Date.now()}`;
         const suiteItemsPayload = state.wizardData.items.map((it, idx) => {
@@ -3408,7 +3496,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           const mName = it.model_name || (fallbackModel ? fallbackModel.name : "Candidate Voice");
 
           return {
-            item_key: it.item_key || `ITEM-${idx + 1}`,
+            item_key: it.item_key || (it.filename ? it.filename.replace(/\.[^/.]+$/, "") : `ITEM-${idx + 1}`),
             source_text: it.source_text || it.text || it.filename,
             text: it.text || it.reference_transcript || it.filename,
             reference_transcript: it.reference_transcript || it.text || "",
@@ -3874,6 +3962,83 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
   let studyToDelete = null;
 
   function setupStudiesManagement() {
+    // 1-Click Backup Export
+    if (el.btnExportBackup) {
+      el.btnExportBackup.addEventListener("click", async () => {
+        try {
+          el.btnExportBackup.disabled = true;
+          el.btnExportBackup.classList.add("opacity-60");
+          showToast("Packaging database and audio files into backup zip...", "info");
+
+          const resp = await adminFetch("/api/admin/export-backup");
+          if (!resp.ok) {
+            const err = await resp.json().catch(() => ({}));
+            throw new Error(err.error || "Failed to download backup.");
+          }
+
+          const blob = await resp.blob();
+          const downloadUrl = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = downloadUrl;
+          const dStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+          a.download = `audio_studio_backup_${dStr}.zip`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(downloadUrl);
+
+          showToast("Complete backup (.zip) downloaded successfully!", "success");
+        } catch (err) {
+          showToast("Export backup failed: " + err.message, "error");
+        } finally {
+          el.btnExportBackup.disabled = false;
+          el.btnExportBackup.classList.remove("opacity-60");
+        }
+      });
+    }
+
+    // 1-Click Backup Restore
+    if (el.btnImportBackupTrigger && el.inputRestoreBackup) {
+      el.btnImportBackupTrigger.addEventListener("click", () => {
+        el.inputRestoreBackup.click();
+      });
+
+      el.inputRestoreBackup.addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!confirm(`Restore Audio Studio from "${file.name}"? This will restore your database and all audio files.`)) {
+          el.inputRestoreBackup.value = "";
+          return;
+        }
+
+        try {
+          showToast("Restoring database and audio from backup...", "info");
+          const base64Str = await readFileAsBase64(file);
+
+          const resp = await adminFetch("/api/admin/import-backup", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              zip_base64: base64Str
+            })
+          });
+
+          const res = await resp.json();
+          if (resp.ok && res.success) {
+            showToast(`Restore complete! Found ${res.studies_count || 0} studies.`, "success");
+            await refreshCampaignsList();
+          } else {
+            throw new Error(res.error || "Restore failed.");
+          }
+        } catch (err) {
+          showToast("Restore failed: " + err.message, "error");
+        } finally {
+          el.inputRestoreBackup.value = "";
+        }
+      });
+    }
+
     if (el.studiesSearchInput) {
       el.studiesSearchInput.addEventListener("input", () => {
         renderStudiesView();

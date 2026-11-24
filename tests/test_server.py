@@ -1009,5 +1009,70 @@ class StudioServerTestCase(unittest.TestCase):
         self.assertIn('id="delete-study-prompt-name"', html)
 
 
+    def test_backup_export_and_import_cycle(self):
+        """Verify admin backup export produces valid zip archive and import restores successfully."""
+        import zipfile
+        import io
+        import base64
+
+        # 1. Test GET /api/admin/export-backup
+        req_export = Request(f"http://127.0.0.1:{TEST_PORT}/api/admin/export-backup", headers={"X-Admin-PIN": "2026"})
+        try:
+            with urlopen(req_export) as resp:
+                self.assertEqual(resp.status, 200)
+                self.assertEqual(resp.headers.get("Content-Type"), "application/zip")
+                zip_bytes = resp.read()
+        except HTTPError as e:
+            print("ERROR BODY:", e.read().decode())
+            raise
+
+        # Validate that the downloaded zip file has valid zip structure
+        zip_buf = io.BytesIO(zip_bytes)
+        with zipfile.ZipFile(zip_buf, "r") as zf:
+            namelist = zf.namelist()
+            self.assertTrue(len(namelist) > 0)
+            self.assertIn("workbench.db", namelist)
+
+        # 2. Test POST /api/admin/import-backup
+        zip_b64 = base64.b64encode(zip_bytes).decode("ascii")
+        req_import = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/admin/import-backup",
+            data=json.dumps({"zip_base64": zip_b64}).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(req_import) as resp:
+            self.assertEqual(resp.status, 200)
+            res_data = json.loads(resp.read().decode("utf-8"))
+            self.assertTrue(res_data.get("success"))
+            self.assertIn("studies_count", res_data)
+
+
+    def test_campaign_safe_in_place_update(self):
+        """Verify POST /api/campaigns/update allows non-destructive live updates to study instructions and name."""
+        req_update = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/campaigns/update",
+            data=json.dumps({
+                "campaign_id": "camp-dev23-4models",
+                "name": "Capstone-Sprint2-Updated",
+                "instructions": "Listen carefully to consonant boundaries."
+            }).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(req_update) as resp:
+            self.assertEqual(resp.status, 200)
+            res_data = json.loads(resp.read().decode("utf-8"))
+            self.assertTrue(res_data.get("success"))
+
+        # Verify update in GET /api/campaigns
+        req_get = Request(f"http://127.0.0.1:{TEST_PORT}/api/campaigns")
+        with urlopen(req_get) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            campaigns = data.get("campaigns", data if isinstance(data, list) else [])
+            found = next((c for c in campaigns if c["id"] == "camp-dev23-4models"), None)
+            self.assertIsNotNone(found)
+            self.assertEqual(found["name"], "Capstone-Sprint2-Updated")
+            self.assertEqual(found["instructions"], "Listen carefully to consonant boundaries.")
+
+
 if __name__ == "__main__":
     unittest.main()

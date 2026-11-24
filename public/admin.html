@@ -192,6 +192,31 @@
         </a>
       </div>
 
+      <!-- 1-Click Backup & Migration -->
+      <div class="flex items-center gap-1.5">
+        <button
+          id="btn-export-backup"
+          type="button"
+          class="px-2.5 py-1 text-xs border border-zinc-200 rounded-lg text-zinc-700 bg-white hover:bg-zinc-50 cursor-pointer transition font-medium flex items-center gap-1.5 shadow-2xs"
+          title="Download complete project backup with database and audio files"
+        >
+          <svg class="w-3.5 h-3.5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          <span class="hidden md:inline">Export Backup (.zip)</span>
+          <span class="md:hidden">Backup</span>
+        </button>
+        <button
+          id="btn-import-backup-trigger"
+          type="button"
+          class="px-2.5 py-1 text-xs border border-zinc-200 rounded-lg text-zinc-700 bg-white hover:bg-zinc-50 cursor-pointer transition font-medium flex items-center gap-1.5 shadow-2xs"
+          title="Restore database and audio files from backup zip"
+        >
+          <svg class="w-3.5 h-3.5 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12"/></svg>
+          <span class="hidden md:inline">Restore Backup</span>
+          <span class="md:hidden">Restore</span>
+        </button>
+        <input type="file" id="input-restore-backup" accept=".zip" class="hidden" />
+      </div>
+
       <button
         id="btn-admin-lock"
         class="px-2.5 py-1 text-xs border border-zinc-200 rounded-lg text-zinc-600 hover:bg-zinc-100 cursor-pointer transition font-medium flex items-center gap-1.5"

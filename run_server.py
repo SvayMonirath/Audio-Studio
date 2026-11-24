@@ -18,9 +18,10 @@ from urllib.parse import urlparse, parse_qs
 from datetime import datetime
 
 # Import database module
+import database
 from database import (
     get_connection, init_db, seed_project_khmer_speech,
-    save_admin, verify_admin_credentials
+    save_admin, verify_admin_credentials, DEFAULT_DB_PATH
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -322,9 +323,9 @@ class StudioHandler(BaseHTTPRequestHandler):
 
                 sql = "SELECT * FROM test_items"
                 if suite_id:
-                    rows = cur.execute(sql + " WHERE suite_id = ? ORDER BY item_key ASC", (suite_id,)).fetchall()
+                    rows = cur.execute(sql + " WHERE suite_id = ? ORDER BY rowid ASC", (suite_id,)).fetchall()
                 else:
-                    rows = cur.execute(sql + " ORDER BY item_key ASC").fetchall()
+                    rows = cur.execute(sql + " ORDER BY rowid ASC").fetchall()
 
                 items = []
                 for r in rows:
@@ -592,6 +593,50 @@ class StudioHandler(BaseHTTPRequestHandler):
                 self.wfile.write(csv_data)
                 return
 
+            if path == "/api/admin/export-backup":
+                if not self.is_authenticated_admin():
+                    self.send_json_response({"error": "Admin authentication required. Please provide X-Admin-PIN header."}, status=401)
+                    return
+
+                import zipfile, io, os, shutil
+                from datetime import datetime
+
+                zip_buffer = io.BytesIO()
+                db_file = getattr(database, "DEFAULT_DB_PATH", DEFAULT_DB_PATH)
+
+                # Force WAL checkpoint to flush all data into main file
+                try:
+                    cur.execute("PRAGMA wal_checkpoint(FULL);")
+                except Exception:
+                    pass
+
+                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+                    if os.path.exists(db_file):
+                        zip_file.write(db_file, "workbench.db")
+
+                    uploads_dir = os.path.join(PUBLIC_DIR, "uploads")
+                    if os.path.exists(uploads_dir):
+                        for root, _, files in os.walk(uploads_dir):
+                            for file in files:
+                                if file.startswith("."):
+                                    continue
+                                file_path = os.path.join(root, file)
+                                rel_path = os.path.relpath(file_path, PUBLIC_DIR)
+                                zip_file.write(file_path, rel_path)
+
+                zip_data = zip_buffer.getvalue()
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"audio_studio_backup_{timestamp}.zip"
+
+                self.send_response(200)
+                self.send_header("Content-Type", "application/zip")
+                self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+                self.send_header("Content-Length", str(len(zip_data)))
+                self.send_cors_headers()
+                self.end_headers()
+                self.wfile.write(zip_data)
+                return
+
             self.send_error(404, "API endpoint not found")
 
         except Exception as e:
@@ -694,13 +739,87 @@ class StudioHandler(BaseHTTPRequestHandler):
                 return
 
             admin_endpoints = {
-                "/api/campaigns", "/api/campaigns/status", "/api/models",
+                "/api/campaigns", "/api/campaigns/status", "/api/campaigns/update", "/api/models",
                 "/api/suites", "/api/rubrics", "/api/upload-audio",
-                "/api/upload-batch", "/api/seed/capstone", "/api/projects"
+                "/api/upload-batch", "/api/seed/capstone", "/api/projects",
+                "/api/admin/import-backup"
             }
             if path in admin_endpoints:
                 if not self.is_authenticated_admin():
                     self.send_json_response({"error": "Admin authentication required. Please provide X-Admin-PIN header."}, status=401)
+                    return
+
+            if path == "/api/campaigns/update":
+                c_id = payload.get("campaign_id") or payload.get("id")
+                if not c_id:
+                    self.send_json_response({"error": "campaign_id is required."}, status=400)
+                    return
+                updates = []
+                params = []
+                if "name" in payload and payload["name"].strip():
+                    updates.append("name = ?")
+                    params.append(payload["name"].strip())
+                if "instructions" in payload:
+                    updates.append("instructions = ?")
+                    params.append(payload["instructions"])
+                if "ui_config" in payload:
+                    conf = payload["ui_config"]
+                    updates.append("ui_config_json = ?")
+                    params.append(json.dumps(conf) if not isinstance(conf, str) else conf)
+                if not updates:
+                    self.send_json_response({"error": "No valid fields provided to update."}, status=400)
+                    return
+                params.append(c_id)
+                cur.execute(f"UPDATE campaigns SET {', '.join(updates)} WHERE id = ?", params)
+                conn.commit()
+                self.send_json_response({"success": True, "campaign_id": c_id, "message": "Campaign updated successfully."})
+                return
+
+            if path == "/api/admin/import-backup":
+                zip_b64 = payload.get("zip_base64") or payload.get("file_data")
+                if not zip_b64:
+                    self.send_json_response({"error": "Missing zip_base64 in payload."}, status=400)
+                    return
+
+                import zipfile, io, base64, shutil
+                try:
+                    zip_bytes = base64.b64decode(zip_b64)
+                    zip_buffer = io.BytesIO(zip_bytes)
+
+                    with zipfile.ZipFile(zip_buffer, "r") as zip_file:
+                        for member in zip_file.namelist():
+                            if member.startswith("/") or ".." in member:
+                                self.send_json_response({"error": "Malicious zip entry detected."}, status=400)
+                                return
+
+                        conn.close()
+
+                        db_dest = getattr(database, "DEFAULT_DB_PATH", DEFAULT_DB_PATH)
+                        if os.path.exists(db_dest):
+                            shutil.copy2(db_dest, db_dest + ".bak")
+
+                        for member in zip_file.namelist():
+                            if member == "workbench.db":
+                                with open(db_dest, "wb") as f_out:
+                                    f_out.write(zip_file.read(member))
+                            elif member.startswith("uploads/"):
+                                target_path = os.path.join(PUBLIC_DIR, member)
+                                os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                                with open(target_path, "wb") as f_out:
+                                    f_out.write(zip_file.read(member))
+
+                    conn = get_connection()
+                    cur = conn.cursor()
+                    studies_cnt = cur.execute("SELECT COUNT(*) as cnt FROM campaigns").fetchone()["cnt"]
+
+                    self.send_json_response({
+                        "success": True,
+                        "message": "Backup restored successfully.",
+                        "studies_count": studies_cnt
+                    })
+                    return
+                except Exception as err:
+                    self.send_json_response({"error": f"Failed to restore backup: {str(err)}"}, status=500)
                     return
 
             if path == "/api/campaigns/status":

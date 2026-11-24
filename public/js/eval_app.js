@@ -726,8 +726,25 @@
       }
       modelsMap[mId].total++;
       if (isCompleted) modelsMap[mId].completed++;
-      const modelRelativeIndex = modelsMap[mId].items.length + 1;
-      modelsMap[mId].items.push({ item: it, globalIndex: idx, modelRelativeIndex });
+      modelsMap[mId].items.push({ item: it, globalIndex: idx });
+    });
+
+    // Naturally sort items within each model by item_key or filename numeric index
+    Object.values(modelsMap).forEach(m => {
+      m.items.sort((a, b) => {
+        const keyA = `${a.item.item_key || ""} ${a.item.filename || ""}`;
+        const keyB = `${b.item.item_key || ""} ${b.item.filename || ""}`;
+        const matchA = keyA.match(/\b(?:W|Word|KH|ITEM)[-_]?0*(\d+)\b/i);
+        const matchB = keyB.match(/\b(?:W|Word|KH|ITEM)[-_]?0*(\d+)\b/i);
+        if (matchA && matchB) {
+          return parseInt(matchA[1], 10) - parseInt(matchB[1], 10);
+        }
+        return (a.item.item_key || "").localeCompare(b.item.item_key || "", undefined, { numeric: true });
+      });
+      // Assign clean sequential model-relative index (1 to N)
+      m.items.forEach((entry, idx) => {
+        entry.modelRelativeIndex = idx + 1;
+      });
     });
 
     const unratedCount = total - completedCount;
@@ -805,8 +822,12 @@
         const keyOrFilename = `${it.item_key || ""} ${it.filename || ""}`;
         const wMatch = keyOrFilename.match(/\bW(?:ord)?[-_]?0*(\d+)\b/i);
         const khMatch = keyOrFilename.match(/\bKH[-_]?0*(\d+)\b/i);
+        const mObj = modelsMap[resolveItemModelId(it)];
+        const maxModelItems = mObj ? mObj.total : 200;
+
         if (wMatch) {
-          cellText = `${parseInt(wMatch[1], 10)}`;
+          const parsed = parseInt(wMatch[1], 10);
+          cellText = (parsed > 0 && parsed <= maxModelItems) ? `${parsed}` : `${modelRelativeIndex || globalIndex + 1}`;
         } else if (khMatch) {
           cellText = `${parseInt(khMatch[1], 10)}`;
         } else if (modelRelativeIndex !== undefined) {
@@ -814,7 +835,7 @@
         }
 
         cell.innerHTML = `<span>${cellText}</span>`;
-        cell.title = `${mName || "Model"} • #${cellText} (${it.item_key || it.filename || `Sample ${globalIndex + 1}`})\n${it.source_text || it.text || ""}\nStatus: ${isCompleted ? "Completed" : "Unrated"}`;
+        cell.title = `${mName || "Model"} • #${cellText} (${it.item_key || it.filename || `Sample ${modelRelativeIndex || globalIndex + 1}`})\n${it.source_text || it.text || ""}\nStatus: ${isCompleted ? "Completed" : "Unrated"}`;
 
         cell.addEventListener("click", async () => {
           if (globalIndex !== state.currentIndex) {
@@ -1295,12 +1316,37 @@
 
   // Resolve audio file URL
   function resolveAudioUrl(item) {
-    if (item.audio_url) return item.audio_url;
-
     if (item.audio_files_json) {
       try {
         const filesObj = typeof item.audio_files_json === "string" ? JSON.parse(item.audio_files_json) : item.audio_files_json;
         if (filesObj.url) return filesObj.url;
+
+        // 1. Match currently active model tab/filter
+        if (state.selectedModelFilter && state.selectedModelFilter !== "all") {
+          if (filesObj[state.selectedModelFilter]) {
+            return filesObj[state.selectedModelFilter]?.url || filesObj[state.selectedModelFilter];
+          }
+          // Search by model_id attribute inside entries
+          for (const k of Object.keys(filesObj)) {
+            if (filesObj[k]?.model_id === state.selectedModelFilter) {
+              return filesObj[k]?.url || filesObj[k];
+            }
+          }
+        }
+
+        // 2. Match item's own model_id
+        if (item.model_id) {
+          if (filesObj[item.model_id]) {
+            return filesObj[item.model_id]?.url || filesObj[item.model_id];
+          }
+          for (const k of Object.keys(filesObj)) {
+            if (filesObj[k]?.model_id === item.model_id) {
+              return filesObj[k]?.url || filesObj[k];
+            }
+          }
+        }
+
+        // 3. Fallback to first available model audio
         const keys = Object.keys(filesObj);
         if (keys.length > 0) {
           const targetKey = keys[0];
@@ -1308,6 +1354,8 @@
         }
       } catch (e) {}
     }
+
+    if (item.audio_url) return item.audio_url;
     return null;
   }
 
@@ -1610,6 +1658,64 @@
     return "";
   }
 
+  // Offline Resilience & Auto-Sync Engine
+  const OFFLINE_EVAL_QUEUE_KEY = "audio_studio_offline_eval_queue_v1";
+
+  function getOfflineQueue() {
+    try {
+      const raw = localStorage.getItem(OFFLINE_EVAL_QUEUE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function queueOfflineEvaluation(payload) {
+    try {
+      const queue = getOfflineQueue();
+      const filtered = queue.filter(q => !(q.campaign_id === payload.campaign_id && q.item_id === payload.item_id && q.rater_id === payload.rater_id));
+      filtered.push(payload);
+      localStorage.setItem(OFFLINE_EVAL_QUEUE_KEY, JSON.stringify(filtered));
+    } catch (e) {
+      console.warn("Could not save to offline queue:", e);
+    }
+  }
+
+  async function flushOfflineQueue() {
+    const queue = getOfflineQueue();
+    if (queue.length === 0) return;
+
+    const remaining = [];
+    let synced = 0;
+
+    for (const item of queue) {
+      try {
+        const resp = await fetch("/api/evaluations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(item)
+        });
+        if (resp.ok) {
+          synced++;
+        } else {
+          remaining.push(item);
+        }
+      } catch (e) {
+        remaining.push(item);
+      }
+    }
+
+    try {
+      localStorage.setItem(OFFLINE_EVAL_QUEUE_KEY, JSON.stringify(remaining));
+      if (synced > 0) {
+        showToast(`Auto-synced ${synced} saved offline evaluation(s).`, "success");
+      }
+    } catch (e) {}
+  }
+
+  window.addEventListener("online", flushOfflineQueue);
+  setInterval(flushOfflineQueue, 15000);
+
   // Auto-save current ratings if user is jumping to another item
   async function autoSaveCurrentItem() {
     const metrics = state.campaign.metrics || [];
@@ -1718,38 +1824,40 @@
       });
 
       if (!resp.ok) {
-        const errData = await resp.json();
-        throw new Error(errData.error || "Failed to save evaluation");
-      }
-
-      state.existingEvaluations[item.id] = payload;
-
-      // Check if there are other unrated items
-      const nextUnrated = state.items.findIndex((it, idx) => idx > state.currentIndex && !state.existingEvaluations[it.id]);
-
-      if (nextUnrated !== -1) {
-        state.currentIndex = nextUnrated;
-        renderCurrentItem();
-        renderSidebar();
-      } else if (state.currentIndex < state.items.length - 1) {
-        state.currentIndex++;
-        renderCurrentItem();
-        renderSidebar();
-      } else {
-        // If all items are completed, finish!
-        const anyUnrated = state.items.findIndex(it => !state.existingEvaluations[it.id]);
-        if (anyUnrated === -1) {
-          showCompletionScreen();
-        } else {
-          state.currentIndex = anyUnrated;
-          renderCurrentItem();
-          renderSidebar();
-        }
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.error || `Server status ${resp.status}`);
       }
     } catch (err) {
-      showToast("Error saving evaluation: " + err.message, "error");
+      console.warn("Network evaluation save error; saving to local device queue:", err);
+      queueOfflineEvaluation(payload);
+      showToast("Offline mode: Saved safely on your device. Will auto-sync when online.", "info");
     } finally {
       el.btnNextItem.disabled = false;
+    }
+
+    state.existingEvaluations[item.id] = payload;
+
+    // Check if there are other unrated items
+    const nextUnrated = state.items.findIndex((it, idx) => idx > state.currentIndex && !state.existingEvaluations[it.id]);
+
+    if (nextUnrated !== -1) {
+      state.currentIndex = nextUnrated;
+      renderCurrentItem();
+      renderSidebar();
+    } else if (state.currentIndex < state.items.length - 1) {
+      state.currentIndex++;
+      renderCurrentItem();
+      renderSidebar();
+    } else {
+      // If all items are completed, finish!
+      const anyUnrated = state.items.findIndex(it => !state.existingEvaluations[it.id]);
+      if (anyUnrated === -1) {
+        showCompletionScreen();
+      } else {
+        state.currentIndex = anyUnrated;
+        renderCurrentItem();
+        renderSidebar();
+      }
     }
   }
 

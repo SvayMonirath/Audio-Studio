@@ -176,7 +176,8 @@ class AudioDSPEngine {
     source.connect(this.gainNode);
 
     const offset = Math.min(this.pausedAt, buffer.duration - 0.05);
-    source.start(0, Math.max(0, offset));
+    const now = this.audioCtx.currentTime;
+    source.start(now, Math.max(0, offset));
 
     source.onended = () => {
       if (this.isPlaying && this.getCurrentTime() >= buffer.duration - 0.05) {
@@ -194,7 +195,7 @@ class AudioDSPEngine {
       this.sourceNodeB = source;
     }
 
-    this.startTime = this.audioCtx.currentTime - (offset / this.playbackRate);
+    this.startTime = now - (offset / this.playbackRate);
     this.isPlaying = true;
     this.startProgressTracker();
   }
@@ -251,8 +252,11 @@ class AudioDSPEngine {
     if (!this.isPlaying) {
       return this.pausedAt;
     }
-    const elapsed = (this.audioCtx.currentTime - this.startTime) * this.playbackRate;
-    return Math.min(elapsed, this.duration);
+    // Compensate for hardware acoustic latency so waveform cursor matches what human ears hear precisely
+    const latency = (this.audioCtx?.outputLatency || 0) + (this.audioCtx?.baseLatency || 0);
+    const rawElapsed = (this.audioCtx.currentTime - this.startTime) * this.playbackRate;
+    const elapsed = rawElapsed - (latency * this.playbackRate);
+    return Math.max(0, Math.min(elapsed, this.duration));
   }
 
   startProgressTracker() {
