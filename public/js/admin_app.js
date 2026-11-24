@@ -393,6 +393,11 @@
     wizBtnStep4Prev: document.getElementById("wiz-btn-step4-prev"),
 
     // Results
+    analyticsEmptyState: document.getElementById("analytics-empty-state"),
+    analyticsDataContent: document.getElementById("analytics-data-content"),
+    btnCopyEmptyResultsLink: document.getElementById("btn-copy-empty-results-link"),
+    chartMosComparison: document.getElementById("chart-mos-comparison"),
+    chartDefectDistribution: document.getElementById("chart-defect-distribution"),
     analyticsCampaignSelect: document.getElementById("analytics-campaign-select"),
     btnExportCsv: document.getElementById("btn-export-csv"),
     statTotalEvals: document.getElementById("stat-total-evals"),
@@ -3516,6 +3521,22 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
 
   // Analytics & MOS Engine
   function setupAnalytics() {
+    if (el.btnCopyEmptyResultsLink) {
+      el.btnCopyEmptyResultsLink.addEventListener("click", async () => {
+        const campId = el.analyticsCampaignSelect.value;
+        if (!campId) return;
+        const url = `${window.location.origin}/eval.html?campaign_id=${encodeURIComponent(campId)}`;
+        try {
+          await navigator.clipboard.writeText(url);
+          el.btnCopyEmptyResultsLink.textContent = "Copied!";
+          showToast("Evaluation study link copied!", "success");
+          setTimeout(() => { el.btnCopyEmptyResultsLink.textContent = "Copy Study Link"; }, 2000);
+        } catch (e) {
+          showToast(`Study URL: ${url}`, "info");
+        }
+      });
+    }
+
     el.analyticsCampaignSelect.addEventListener("change", () => {
       loadAnalyticsData();
     });
@@ -3583,6 +3604,16 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
 
       el.statTotalEvals.textContent = data.total_evaluations || 0;
       el.statTotalRaters.textContent = data.total_raters || 0;
+
+      const totalEvals = data.total_evaluations || 0;
+      if (totalEvals === 0) {
+        if (el.analyticsEmptyState) el.analyticsEmptyState.classList.remove("hidden");
+        if (el.analyticsDataContent) el.analyticsDataContent.classList.add("hidden");
+        return;
+      } else {
+        if (el.analyticsEmptyState) el.analyticsEmptyState.classList.add("hidden");
+        if (el.analyticsDataContent) el.analyticsDataContent.classList.remove("hidden");
+      }
 
       // Extract model statistics (supports both array and keyed object formats)
       const modelsList = data.model_statistics || (Array.isArray(data.model_performance) ? data.model_performance : Object.values(data.model_performance || {}));
@@ -3677,6 +3708,11 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
 
       // Defect Breakdown Table
       const defects = data.defects_summary || data.defects_breakdown || [];
+
+      // Render Visual SVG Charts
+      renderMosComparisonChart(modelsList);
+      renderDefectDistributionChart(defects);
+
       el.analyticsDefectsTbody.innerHTML = "";
 
       if (defects.length === 0) {
@@ -3726,6 +3762,121 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     } catch (err) {
       console.warn("Analytics load error:", err);
     }
+  }
+
+  function renderMosComparisonChart(modelsList) {
+    if (!el.chartMosComparison) return;
+    if (!modelsList || modelsList.length === 0) {
+      el.chartMosComparison.innerHTML = `<div class="text-xs text-zinc-400 py-10">No model comparison data available</div>`;
+      return;
+    }
+
+    const chartWidth = 480;
+    const chartHeight = 200;
+    const padding = { top: 25, right: 30, bottom: 45, left: 45 };
+    const innerWidth = chartWidth - padding.left - padding.right;
+    const innerHeight = chartHeight - padding.top - padding.bottom;
+
+    const count = modelsList.length;
+    const barWidth = Math.min(50, Math.floor(innerWidth / (count * 1.6)));
+    const step = innerWidth / count;
+
+    // Y-scale: 1.0 to 5.0
+    const yScale = (val) => {
+      const clamped = Math.max(1, Math.min(5, val));
+      return padding.top + innerHeight - ((clamped - 1) / 4) * innerHeight;
+    };
+
+    let svg = `<svg viewBox="0 0 ${chartWidth} ${chartHeight}" class="w-full h-auto max-h-[220px]" style="font-family: inherit;">`;
+
+    // Horizontal grid lines (1 to 5)
+    for (let s = 1; s <= 5; s++) {
+      const y = yScale(s);
+      svg += `
+        <line x1="${padding.left}" y1="${y}" x2="${chartWidth - padding.right}" y2="${y}" stroke="#E4E4E7" stroke-width="1" stroke-dasharray="${s === 1 ? 'none' : '3,3'}" />
+        <text x="${padding.left - 8}" y="${y + 3}" text-anchor="end" font-size="10" fill="#71717A" font-family="monospace">${s}.0</text>
+      `;
+    }
+
+    // Bars and CI ticks
+    modelsList.forEach((m, idx) => {
+      const name = m.model_name || "Sample";
+      const summary = m.summary || {};
+      const nat = summary.naturalness || summary[Object.keys(summary)[0]] || {};
+      const mean = nat.mean !== undefined && nat.mean !== null ? nat.mean : 0;
+      const ciLower = nat.ci_lower !== undefined ? nat.ci_lower : mean;
+      const ciUpper = nat.ci_upper !== undefined ? nat.ci_upper : mean;
+
+      const x = padding.left + (idx * step) + (step / 2) - (barWidth / 2);
+      const centerX = x + (barWidth / 2);
+      const barY = yScale(mean);
+      const barH = yScale(1) - barY;
+
+      // Bar
+      svg += `
+        <rect x="${x}" y="${barY}" width="${barWidth}" height="${barH}" rx="4" fill="#18181B" opacity="0.9">
+          <title>${escapeHtml(name)}: MOS ${mean.toFixed(2)} (CI [${ciLower}, ${ciUpper}])</title>
+        </rect>
+      `;
+
+      // 95% Confidence Interval Error Bars (if N > 1)
+      if (ciUpper > ciLower && ciUpper > 1) {
+        const topY = yScale(ciUpper);
+        const botY = yScale(ciLower);
+        const tickWidth = 8;
+        svg += `
+          <line x1="${centerX}" y1="${botY}" x2="${centerX}" y2="${topY}" stroke="#059669" stroke-width="2" />
+          <line x1="${centerX - tickWidth / 2}" y1="${topY}" x2="${centerX + tickWidth / 2}" y2="${topY}" stroke="#059669" stroke-width="2" />
+          <line x1="${centerX - tickWidth / 2}" y1="${botY}" x2="${centerX + tickWidth / 2}" y2="${botY}" stroke="#059669" stroke-width="2" />
+        `;
+      }
+
+      // Mean score label on top
+      svg += `
+        <text x="${centerX}" y="${Math.max(16, barY - 6)}" text-anchor="middle" font-size="11" font-weight="bold" fill="#18181B" font-family="monospace">${mean.toFixed(2)}</text>
+      `;
+
+      // Model label on bottom
+      const truncName = name.length > 12 ? name.slice(0, 10) + "…" : name;
+      svg += `
+        <text x="${centerX}" y="${chartHeight - 12}" text-anchor="middle" font-size="10" font-weight="500" fill="#3F3F46">${escapeHtml(truncName)}</text>
+      `;
+    });
+
+    svg += `</svg>`;
+    el.chartMosComparison.innerHTML = svg;
+  }
+
+  function renderDefectDistributionChart(defects) {
+    if (!el.chartDefectDistribution) return;
+    if (!defects || defects.length === 0) {
+      el.chartDefectDistribution.innerHTML = `<div class="text-xs text-zinc-400 py-10">No speech defects flagged</div>`;
+      return;
+    }
+
+    // Top defects up to 6 for clean visual hierarchy
+    const sorted = [...defects].sort((a, b) => b.count - a.count).slice(0, 6);
+    const maxCount = Math.max(1, ...sorted.map(d => d.count));
+
+    let html = `<div class="w-full space-y-2.5 py-2">`;
+    sorted.forEach(d => {
+      const label = d.name_en || d.error_code || "Defect";
+      const count = d.count || 0;
+      const pct = Math.round((count / maxCount) * 100);
+      html += `
+        <div class="space-y-1">
+          <div class="flex items-center justify-between text-[11px]">
+            <span class="font-semibold text-zinc-800 truncate max-w-[240px]">${escapeHtml(label)}</span>
+            <span class="font-mono font-bold text-zinc-900">${count} (${pct}%)</span>
+          </div>
+          <div class="w-full bg-zinc-100 h-2.5 rounded-full overflow-hidden">
+            <div class="bg-red-500 h-full rounded-full transition-all duration-300" style="width: ${pct}%"></div>
+          </div>
+        </div>
+      `;
+    });
+    html += `</div>`;
+    el.chartDefectDistribution.innerHTML = html;
   }
 
   // Active Studies Management View & Delete Flow

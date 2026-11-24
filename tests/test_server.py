@@ -989,5 +989,16 @@ class StudioServerTestCase(unittest.TestCase):
             self.assertEqual(e.code, 403)
 
 
+    def test_results_and_scores_chart_containers(self):
+        """Verify Results & Scores view contains visual chart containers and empty state."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            html = f.read()
+        self.assertIn('id="chart-mos-comparison"', html)
+        self.assertIn('id="chart-defect-distribution"', html)
+        self.assertIn('id="analytics-empty-state"', html)
+        self.assertIn('id="analytics-data-content"', html)
+
+
 if __name__ == "__main__":
     unittest.main()
