@@ -413,10 +413,9 @@
       el.toggleSpeed.textContent = `${next}x`;
     });
 
-    // Audio DSP progress updates
+    // Audio DSP progress updates (time display; 60fps playhead handled inside DSP engine)
     window.dspEngine.onProgressCallback = (currentTime, duration) => {
       el.audioTimeLabel.textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`;
-      window.dspEngine.renderWaveform(el.waveformCanvas, "A");
     };
 
     window.dspEngine.onEndedCallback = () => {
@@ -727,7 +726,8 @@
       }
       modelsMap[mId].total++;
       if (isCompleted) modelsMap[mId].completed++;
-      modelsMap[mId].items.push({ item: it, globalIndex: idx });
+      const modelRelativeIndex = modelsMap[mId].items.length + 1;
+      modelsMap[mId].items.push({ item: it, globalIndex: idx, modelRelativeIndex });
     });
 
     const unratedCount = total - completedCount;
@@ -792,23 +792,29 @@
     if (el.sidebarMatrixGrid) {
       el.sidebarMatrixGrid.innerHTML = "";
 
-      // Helper function to create interactive matrix cell
-      const createCell = (it, globalIndex, mName) => {
+      // Helper function to create interactive matrix cell with model-relative word index
+      const createCell = (it, globalIndex, mName, modelRelativeIndex) => {
         const isCompleted = !!state.existingEvaluations[it.id];
         const isActive = globalIndex === state.currentIndex;
         const cell = document.createElement("button");
         cell.type = "button";
         cell.className = `matrix-cell ${isActive ? "active" : ""} ${isCompleted ? "completed" : ""}`;
 
-        // Extract clean sentence number: KH01 -> "01"
-        let cellText = `${globalIndex + 1}`;
-        if (it.item_key && it.item_key.includes("KH")) {
-          const match = it.item_key.match(/KH(\d+)/i);
-          if (match) cellText = match[1];
+        // Extract clean word/sentence index: W001 -> "1", KH01 -> "1", or fallback to sequential index in this model
+        let cellText = `${modelRelativeIndex || globalIndex + 1}`;
+        const keyOrFilename = `${it.item_key || ""} ${it.filename || ""}`;
+        const wMatch = keyOrFilename.match(/\bW(?:ord)?[-_]?0*(\d+)\b/i);
+        const khMatch = keyOrFilename.match(/\bKH[-_]?0*(\d+)\b/i);
+        if (wMatch) {
+          cellText = `${parseInt(wMatch[1], 10)}`;
+        } else if (khMatch) {
+          cellText = `${parseInt(khMatch[1], 10)}`;
+        } else if (modelRelativeIndex !== undefined) {
+          cellText = `${modelRelativeIndex}`;
         }
 
         cell.innerHTML = `<span>${cellText}</span>`;
-        cell.title = `${mName || "Model"} • ${it.item_key || `Sample ${globalIndex + 1}`}\n${it.source_text || it.text || ""}\nStatus: ${isCompleted ? "Completed" : "Unrated"}`;
+        cell.title = `${mName || "Model"} • #${cellText} (${it.item_key || it.filename || `Sample ${globalIndex + 1}`})\n${it.source_text || it.text || ""}\nStatus: ${isCompleted ? "Completed" : "Unrated"}`;
 
         cell.addEventListener("click", async () => {
           if (globalIndex !== state.currentIndex) {
@@ -828,7 +834,7 @@
           el.matrixActiveModelLabel.textContent = `All Models (${Object.keys(modelsMap).length} Groups • ${total} Items)`;
         }
 
-        // Render each model as a distinct section with clear header and 23 items
+        // Render each model as a distinct section with clear header and items
         Object.values(modelsMap).forEach(m => {
           const groupDiv = document.createElement("div");
           groupDiv.className = "model-grid-section space-y-1.5";
@@ -845,12 +851,12 @@
           gridDiv.className = "matrix-grid";
 
           let renderedCount = 0;
-          m.items.forEach(({ item, globalIndex }) => {
+          m.items.forEach(({ item, globalIndex, modelRelativeIndex }) => {
             const isCompleted = !!state.existingEvaluations[item.id];
             if (state.sidebarFilter === "unrated" && isCompleted) return;
             if (state.sidebarFilter === "completed" && !isCompleted) return;
 
-            gridDiv.appendChild(createCell(item, globalIndex, m.name));
+            gridDiv.appendChild(createCell(item, globalIndex, m.name, modelRelativeIndex));
             renderedCount++;
           });
 
@@ -860,22 +866,22 @@
           }
         });
       } else {
-        // Render single selected model 23-cell grid
+        // Render single selected model grid with model-relative indexing (1..N)
         const selectedModel = modelsMap[state.selectedModelFilter];
         if (el.matrixActiveModelLabel) {
-          el.matrixActiveModelLabel.textContent = selectedModel ? `${selectedModel.name} (${selectedModel.total} Sentences)` : "Model Samples";
+          el.matrixActiveModelLabel.textContent = selectedModel ? `${selectedModel.name} (${selectedModel.total} Samples)` : "Model Samples";
         }
 
         const gridDiv = document.createElement("div");
         gridDiv.className = "matrix-grid";
 
         const mItems = selectedModel ? selectedModel.items : [];
-        mItems.forEach(({ item, globalIndex }) => {
+        mItems.forEach(({ item, globalIndex, modelRelativeIndex }) => {
           const isCompleted = !!state.existingEvaluations[item.id];
           if (state.sidebarFilter === "unrated" && isCompleted) return;
           if (state.sidebarFilter === "completed" && !isCompleted) return;
 
-          gridDiv.appendChild(createCell(item, globalIndex, selectedModel ? selectedModel.name : "Model"));
+          gridDiv.appendChild(createCell(item, globalIndex, selectedModel ? selectedModel.name : "Model", modelRelativeIndex));
         });
 
         el.sidebarMatrixGrid.appendChild(gridDiv);
@@ -1174,19 +1180,19 @@
       if (el.phoneFilterWrapper) el.phoneFilterWrapper.classList.add("hidden");
     }
 
-    // 2. Blind-Gated Presentation (Blur Prompt until revealed)
+    // 2. Blind-Gated Presentation (Subtle Blur Prompt until revealed)
     const isBlindGated = uiConfig?.presentation?.blind_gating || false;
     if (isBlindGated && !isAsr) {
-      if (el.rawKhmerContent) el.rawKhmerContent.classList.add("filter", "blur-md", "select-none");
+      if (el.rawKhmerContent) el.rawKhmerContent.classList.add("blurred");
       if (el.promptGatingOverlay) el.promptGatingOverlay.classList.remove("hidden");
-      if (el.btnRevealPrompt) {
-        el.btnRevealPrompt.onclick = () => {
-          if (el.rawKhmerContent) el.rawKhmerContent.classList.remove("filter", "blur-md", "select-none");
-          if (el.promptGatingOverlay) el.promptGatingOverlay.classList.add("hidden");
-        };
-      }
+      const revealPrompt = () => {
+        if (el.rawKhmerContent) el.rawKhmerContent.classList.remove("blurred");
+        if (el.promptGatingOverlay) el.promptGatingOverlay.classList.add("hidden");
+      };
+      if (el.btnRevealPrompt) el.btnRevealPrompt.onclick = revealPrompt;
+      if (el.promptGatingOverlay) el.promptGatingOverlay.onclick = revealPrompt;
     } else {
-      if (el.rawKhmerContent) el.rawKhmerContent.classList.remove("filter", "blur-md", "select-none");
+      if (el.rawKhmerContent) el.rawKhmerContent.classList.remove("blurred");
       if (el.promptGatingOverlay) el.promptGatingOverlay.classList.add("hidden");
     }
 

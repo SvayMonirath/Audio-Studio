@@ -438,11 +438,17 @@
           >
             <div
               id="dropzone-loading-overlay"
-              class="hidden absolute inset-0 bg-white/90 backdrop-blur-xs rounded-2xl flex flex-col items-center justify-center gap-3 z-10 transition-opacity"
+              class="hidden absolute inset-0 bg-white/95 backdrop-blur-xs rounded-2xl flex flex-col items-center justify-center gap-3 z-10 transition-opacity"
             >
               <div id="dropzone-spinner" class="w-8 h-8 border-3 border-zinc-200 border-t-zinc-900 rounded-full animate-spin"></div>
               <div id="dropzone-loading-text" class="text-xs font-semibold text-zinc-900">
                 Processing files...
+              </div>
+              <div class="w-56 bg-zinc-100 rounded-full h-2 overflow-hidden border border-zinc-200/80">
+                <div id="dropzone-progress-bar" class="bg-zinc-900 h-full rounded-full transition-all duration-150" style="width: 0%"></div>
+              </div>
+              <div id="dropzone-progress-percent" class="text-[11px] font-mono font-semibold text-zinc-500">
+                0%
               </div>
             </div>
             <input

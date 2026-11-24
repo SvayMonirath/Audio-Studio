@@ -156,8 +156,13 @@ class AudioDSPEngine {
     }
   }
 
-  play() {
+  async play() {
     this.ensureContext();
+    if (this.audioCtx && this.audioCtx.state === "suspended") {
+      try {
+        await this.audioCtx.resume();
+      } catch (e) {}
+    }
     if (this.isPlaying) return;
 
     const buffer = this.activeCandidate === "A" ? this.audioBufferA : (this.audioBufferB || this.audioBufferA);
@@ -408,11 +413,6 @@ class AudioDSPEngine {
       const rect = canvas.getBoundingClientRect();
       startX = clientX - rect.left;
       currentX = startX;
-
-      if (this.waveformMode === "scrub") {
-        const time = getTimeFromX(startX);
-        this.seek(time);
-      }
     };
 
     const handleMove = (clientX) => {
@@ -420,13 +420,7 @@ class AudioDSPEngine {
       const rect = canvas.getBoundingClientRect();
       currentX = Math.max(0, Math.min(rect.width, clientX - rect.left));
 
-      if (this.waveformMode === "scrub") {
-        hasDragged = true;
-        const time = getTimeFromX(currentX);
-        this.seek(time);
-        return;
-      }
-
+      // Drag threshold of 6px distinguishes click vs drag-to-tag
       if (Math.abs(currentX - startX) > 6) {
         hasDragged = true;
         const time1 = getTimeFromX(startX);
@@ -443,17 +437,8 @@ class AudioDSPEngine {
       if (!isMouseDown) return;
       isMouseDown = false;
 
-      if (this.waveformMode === "scrub") {
-        if (hasDragged) {
-          const time = getTimeFromX(currentX);
-          this.seek(time);
-        }
-        this.renderWaveform(canvas, bufferLetter);
-        return;
-      }
-
       if (hasDragged && this.activeSelection) {
-        // Selection finished
+        // Drag gesture finished: open defect region popover
         if (typeof this.onRegionSelected === "function") {
           const rect = canvas.getBoundingClientRect();
           this.onRegionSelected({
@@ -461,12 +446,12 @@ class AudioDSPEngine {
             endSec: this.activeSelection.endSec,
             startMs: Math.round(this.activeSelection.startSec * 1000),
             endMs: Math.round(this.activeSelection.endSec * 1000),
-            clientX: clientX,
+            clientX: clientX !== undefined ? clientX : rect.left + currentX,
             clientY: clientY !== undefined ? clientY : rect.bottom + 8
           });
         }
       } else {
-        // Simple click / tap -> Seek or select existing region
+        // Quick click / tap without dragging -> Seek or select existing region
         const clickTime = getTimeFromX(startX);
         
         // Check if clicked inside an existing defect region
@@ -474,7 +459,7 @@ class AudioDSPEngine {
         if (hitRegion && typeof this.onRegionClick === "function") {
           this.onRegionClick(hitRegion);
         } else {
-          // Clear active selection on click outside
+          // Clear active selection on click outside and seek
           this.activeSelection = null;
           this.seek(clickTime);
         }
@@ -548,13 +533,14 @@ class AudioDSPEngine {
     this.attachWaveformEvents(canvas, bufferLetter);
 
     const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    const displayWidth = rect.width || 400;
-    const displayHeight = rect.height || 48;
+    const displayWidth = canvas.clientWidth || 400;
+    const displayHeight = canvas.clientHeight || 48;
 
-    if (canvas.width !== Math.round(displayWidth * dpr) || canvas.height !== Math.round(displayHeight * dpr)) {
-      canvas.width = Math.round(displayWidth * dpr);
-      canvas.height = Math.round(displayHeight * dpr);
+    const targetW = Math.round(displayWidth * dpr);
+    const targetH = Math.round(displayHeight * dpr);
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
     }
 
     const ctx = canvas.getContext("2d");

@@ -12,27 +12,27 @@
 (function () {
   "use strict";
 
-  // 19 Standardized Clinical Speech Error Taxonomies (Strictly English without Khmer descriptions)
+  // 19 Standardized Clinical Speech Error Taxonomies (Clear, self-explanatory English definitions)
   const CLINICAL_ERROR_CODES_19 = [
-    { code: "C_DEL", label: "Consonant Deletion", category: "phonetic", dot: "#EF4444" },
-    { code: "C_SUB", label: "Consonant Substitution", category: "phonetic", dot: "#F97316" },
-    { code: "V_DEL_INS", label: "Vowel Error", category: "phonetic", dot: "#DC2626" },
-    { code: "CLIP_TRUNC", label: "Word Truncation", category: "acoustic", dot: "#EA580C" },
-    { code: "CODE", label: "Code-Switching Failure", category: "multilingual", dot: "#B91C1C" },
-    { code: "GLITCH", label: "Digital Glitch", category: "acoustic", dot: "#E11D48" },
-    { code: "ELONG", label: "Syllable Elongation", category: "prosody", dot: "#F59E0B" },
-    { code: "PROM", label: "Inappropriate Loudness", category: "acoustic", dot: "#D97706" },
-    { code: "PROS", label: "Bad Prosody / Cadence", category: "prosody", dot: "#84CC16" },
-    { code: "SILENCE", label: "Dead Silence", category: "acoustic", dot: "#64748B" },
-    { code: "SEG", label: "Awkward Pause", category: "prosody", dot: "#06B6D4" },
-    { code: "INCONSIST", label: "Voice Inconsistency", category: "acoustic", dot: "#8B5CF6" },
-    { code: "LEX_SUB", label: "Lexical Substitution", category: "lexical", dot: "#A855F7" },
-    { code: "REPETITION", label: "Stutter / Repetition", category: "fluency", dot: "#EC4899" },
-    { code: "REG_FAIL", label: "Register Error", category: "phonetic", dot: "#6366F1" },
-    { code: "SUB_FAIL", label: "Subscript Error", category: "phonetic", dot: "#3B82F6" },
-    { code: "NASAL_FAIL", label: "Nasal Error", category: "phonetic", dot: "#0EA5E9" },
-    { code: "DIALECT", label: "Non-Standard Accent", category: "phonetic", dot: "#10B981" },
-    { code: "NONE", label: "Clean Audio", category: "quality", dot: "#059669" }
+    { code: "C_DEL", label: "Consonant Deletion", desc: "A consonant sound was dropped or skipped entirely", category: "Phonetic", dot: "#EF4444" },
+    { code: "C_SUB", label: "Consonant Substitution", desc: "A consonant was pronounced as a different letter", category: "Phonetic", dot: "#F97316" },
+    { code: "V_DEL_INS", label: "Vowel Sound Error", desc: "A vowel was altered, substituted, or misspoken", category: "Phonetic", dot: "#DC2626" },
+    { code: "CLIP_TRUNC", label: "Word Cut Off (Truncation)", desc: "The word was cut short or faded out abruptly", category: "Acoustic", dot: "#EA580C" },
+    { code: "CODE", label: "Foreign Word Failure", desc: "English/foreign borrowed word failed to pronounce", category: "Language", dot: "#B91C1C" },
+    { code: "GLITCH", label: "Digital Glitch / Static", desc: "Robotic buzz, clicks, pops, or digital noise burst", category: "Acoustic", dot: "#E11D48" },
+    { code: "ELONG", label: "Syllable Drawn Out", desc: "A syllable is unnaturally stretched or held too long", category: "Rhythm", dot: "#F59E0B" },
+    { code: "PROM", label: "Sudden Volume Spike", desc: "Volume jumps unnaturally loud or soft mid-word", category: "Acoustic", dot: "#D97706" },
+    { code: "PROS", label: "Unnatural Voice Rhythm", desc: "Robotic cadence, monotone melody, or flat delivery", category: "Intonation", dot: "#84CC16" },
+    { code: "SILENCE", label: "Dead Silence Gap", desc: "Unnatural empty gap of dead silence mid-sentence", category: "Acoustic", dot: "#64748B" },
+    { code: "SEG", label: "Awkward Pause Gap", desc: "Hesitation or pause where speech should flow smoothly", category: "Rhythm", dot: "#06B6D4" },
+    { code: "INCONSIST", label: "Voice Tone Shift", desc: "Speaker pitch or voice character changes mid-sentence", category: "Voice", dot: "#8B5CF6" },
+    { code: "LEX_SUB", label: "Wrong Word Spoken", desc: "A completely different dictionary word was spoken", category: "Lexical", dot: "#A855F7" },
+    { code: "REPETITION", label: "Stutter / Repetition", desc: "A syllable or word stuttered or repeated itself", category: "Fluency", dot: "#EC4899" },
+    { code: "REG_FAIL", label: "Khmer Register Error", desc: "First-series (a-series) vs second-series (o-series) mistake", category: "Khmer Specific", dot: "#6366F1" },
+    { code: "SUB_FAIL", label: "Subscript Consonant Error", desc: "Khmer subscript (cherng) was omitted or mispronounced", category: "Khmer Specific", dot: "#3B82F6" },
+    { code: "NASAL_FAIL", label: "Nasal Sound Error", desc: "Nasal marker (nikahit / bantoc) mispronounced", category: "Khmer Specific", dot: "#0EA5E9" },
+    { code: "DIALECT", label: "Unusual Accent / Dialect", desc: "Pronunciation has an unfamiliar regional accent", category: "Accent", dot: "#10B981" },
+    { code: "NONE", label: "Clean Speech Sample", desc: "Zero defects detected in this audio sample", category: "Quality", dot: "#059669" }
   ];
 
   // State
@@ -77,6 +77,7 @@
   let updateWizardNav = () => {};
   let goToStep = () => {};
   let renderModelsChips = () => {};
+  let renderItemsTable = () => {};
   let renderCanvas = () => {};
   let renderInspector = () => {};
   let updateSmartGuide = () => {};
@@ -335,6 +336,8 @@
     dropzoneUnified: document.getElementById("dropzone-unified"),
     dropzoneLoadingOverlay: document.getElementById("dropzone-loading-overlay"),
     dropzoneLoadingText: document.getElementById("dropzone-loading-text"),
+    dropzoneProgressBar: document.getElementById("dropzone-progress-bar"),
+    dropzoneProgressPercent: document.getElementById("dropzone-progress-percent"),
     multiFileInput: document.getElementById("multi-file-input"),
     btnToggleLocalFolder: document.getElementById("btn-toggle-local-folder"),
     boxLinkFolder: document.getElementById("box-link-folder"),
@@ -859,7 +862,10 @@
       el.step3.classList.toggle("hidden", stepNumber !== 3);
       el.step4.classList.toggle("hidden", stepNumber !== 4);
 
-      if (stepNumber === 3) {
+      if (stepNumber === 2) {
+        renderItemsTable();
+        renderModelsChips();
+      } else if (stepNumber === 3) {
         renderCanvas();
         renderInspector();
         updateSmartGuide();
@@ -1132,13 +1138,21 @@
     renderModelsChips();
 
     // Dropzone Loading Overlay Control
-    function setDropzoneLoading(loading, message = "Processing files...") {
+    function setDropzoneLoading(loading, message = "Processing files...", percent = null) {
       if (!el.dropzoneLoadingOverlay || !el.dropzoneUnified) return;
       if (loading) {
         if (el.dropzoneLoadingText) el.dropzoneLoadingText.textContent = message;
+        if (el.dropzoneProgressBar) {
+          el.dropzoneProgressBar.style.width = percent !== null ? `${Math.min(100, Math.max(0, percent))}%` : "100%";
+        }
+        if (el.dropzoneProgressPercent) {
+          el.dropzoneProgressPercent.textContent = percent !== null ? `${Math.round(percent)}%` : "Working...";
+        }
         el.dropzoneLoadingOverlay.classList.remove("hidden");
         el.dropzoneUnified.classList.add("pointer-events-none");
       } else {
+        if (el.dropzoneProgressBar) el.dropzoneProgressBar.style.width = "0%";
+        if (el.dropzoneProgressPercent) el.dropzoneProgressPercent.textContent = "0%";
         el.dropzoneLoadingOverlay.classList.add("hidden");
         el.dropzoneUnified.classList.remove("pointer-events-none");
       }
@@ -1157,15 +1171,14 @@
       const total = audioFilesToProcess.length;
       if (total === 0) return;
 
-      setDropzoneLoading(true, `Reading audio samples (1 of ${total})...`);
+      setDropzoneLoading(true, `Reading audio samples (1 of ${total})...`, 5);
 
       let added = 0;
       try {
         for (let i = 0; i < total; i++) {
           const file = audioFilesToProcess[i];
-          if (el.dropzoneLoadingText) {
-            el.dropzoneLoadingText.textContent = `Reading audio samples (${i + 1} of ${total})...`;
-          }
+          const pct = Math.round(((i + 1) / total) * 100);
+          setDropzoneLoading(true, `Reading audio samples (${i + 1} of ${total})...`, pct);
 
           const base64Str = await readFileAsBase64(file);
           const blobUrl = URL.createObjectURL(file);
@@ -1547,14 +1560,22 @@
       if (!file) return;
 
       setDropzoneLoading(true, "Reading and parsing CSV transcript...");
+      if (el.dropzoneProgressBar) el.dropzoneProgressBar.style.width = "20%";
+      if (el.dropzoneProgressPercent) el.dropzoneProgressPercent.textContent = "20%";
       return new Promise((resolve) => {
         const reader = new FileReader();
-        reader.onload = (evt) => {
+        reader.onload = async (evt) => {
           try {
+            setDropzoneLoading(true, "Parsing CSV columns and rows...", 50);
+            await new Promise(r => setTimeout(r, 40));
             const content = evt.target.result;
             const parsedRows = parseCsvSmart(content);
             if (parsedRows) {
+              setDropzoneLoading(true, `Reconciling ${parsedRows.length} rows with audio...`, 80);
+              await new Promise(r => setTimeout(r, 40));
               reconcileAudioAndText(parsedRows);
+              setDropzoneLoading(true, "Pairing complete!", 100);
+              await new Promise(r => setTimeout(r, 120));
             }
           } finally {
             setDropzoneLoading(false);
@@ -1900,7 +1921,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     }
   }
 
-  function renderItemsTable() {
+  renderItemsTable = function() {
     if (!el.itemsCountBadge || !el.itemsPreviewTbody) return;
     el.itemsCountBadge.textContent = state.wizardData.items.length;
     el.itemsPreviewTbody.innerHTML = "";
@@ -2967,9 +2988,9 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         `;
         defectPanel.appendChild(panelHeader);
 
-        // Compact Scrollable Chip Grid for 19 Defect Categories
+        // Single-Column Scrollable List for 19 Defect Categories with Clear Plain-English Explanations
         const chipsGrid = document.createElement("div");
-        chipsGrid.className = "grid grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1";
+        chipsGrid.className = "flex flex-col gap-1.5 max-h-72 overflow-y-auto pr-1";
 
         function updateDefectChips() {
           chipsGrid.innerHTML = "";
@@ -2981,11 +3002,14 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
               <div class="defect-checkbox">
                 ${isChecked ? `<svg class="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>` : ""}
               </div>
-              <div class="flex items-center gap-1.5 min-w-0 flex-1">
-                <span class="w-2 h-2 rounded-full shrink-0" style="background-color: ${dt.dot}"></span>
-                <span class="font-medium text-xs text-zinc-800 truncate" title="${escapeHtml(dt.label)} (${escapeHtml(dt.code)})">${escapeHtml(dt.label)}</span>
+              <div class="flex flex-col min-w-0 flex-1">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full shrink-0" style="background-color: ${dt.dot}"></span>
+                  <span class="font-bold text-xs text-zinc-900">${escapeHtml(dt.label)}</span>
+                  <span class="text-[10px] font-mono text-zinc-400 bg-zinc-100 px-1.5 py-0.2 rounded font-semibold ml-auto">${escapeHtml(dt.code)}</span>
+                </div>
+                <div class="text-[11px] text-zinc-500 mt-0.5 leading-snug">${escapeHtml(dt.desc || "")}</div>
               </div>
-              <span class="text-[10px] font-mono text-zinc-400 shrink-0 ml-1">${escapeHtml(dt.code)}</span>
             `;
             chip.addEventListener("click", () => {
               if (isChecked) {
@@ -3003,7 +3027,6 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
               // Sync campaign defectTypes
               state.wizardData.defectTypes = allDefectCategories.filter(c => selected.allowed_defect_codes.includes(c.code));
               updateDefectChips();
-              refreshDefaultDefectDropdown();
             });
             chipsGrid.appendChild(chip);
           });
@@ -3016,47 +3039,13 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           selected.allowed_defect_codes = allDefectCategories.map(c => c.code);
           state.wizardData.defectTypes = [...allDefectCategories];
           updateDefectChips();
-          refreshDefaultDefectDropdown();
         });
         panelHeader.querySelector("#btn-defect-clear-all").addEventListener("click", () => {
           selected.allowed_defect_codes = ["C_DEL"];
           selected.default_defect_code = "C_DEL";
           state.wizardData.defectTypes = allDefectCategories.filter(c => c.code === "C_DEL");
           updateDefectChips();
-          refreshDefaultDefectDropdown();
         });
-
-        // Default Defect Tag Selector Container
-        const defaultDefectWrapper = document.createElement("div");
-        defaultDefectWrapper.id = "insp-default-defect-mount";
-
-        function refreshDefaultDefectDropdown() {
-          defaultDefectWrapper.innerHTML = "";
-          const activeOpts = allDefectCategories
-            .filter(c => selected.allowed_defect_codes.includes(c.code))
-            .map(c => ({
-              value: c.code,
-              label: `${c.label} (${c.code})`,
-              desc: `Default when rater drags across waveform`
-            }));
-          if (activeOpts.length === 0) {
-            activeOpts.push({ value: "C_DEL", label: "Consonant Deletion (C_DEL)" });
-          }
-          const defaultSelect = createCustomDropdown({
-            id: "insp-audio-default-defect",
-            value: selected.default_defect_code || activeOpts[0].value,
-            options: activeOpts,
-            label: "Default Pre-Selected Tag",
-            helpText: "Default category active when raters hold and drag across the waveform.",
-            onChange: (val) => {
-              selected.default_defect_code = val;
-              state.wizardData.ui_config.default_defect_code = val;
-            }
-          });
-          defaultDefectWrapper.appendChild(defaultSelect);
-        }
-        refreshDefaultDefectDropdown();
-        defectPanel.appendChild(defaultDefectWrapper);
 
         defectSection.appendChild(defectPanel);
         container.appendChild(defectSection);
