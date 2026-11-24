@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Database Schema & Relational Models · Audio Studio Docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Public+Sans:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body data-root="./" data-page="data-models.html">
+  <header class="site-header">
+    <div class="site-header-left">
+      <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle navigation">
+        <span>☰</span> <span>Menu</span>
+      </button>
+      <a href="index.html" class="site-title-link">Audio Studio Engineering Documentation</a>
+    </div>
+    <div class="site-header-right">
+      <button type="button" class="theme-toggle" id="theme-toggle">🌓 Auto</button>
+    </div>
+  </header>
+
+  <div class="site-layout">
+    <div class="sidebar-backdrop" aria-hidden="true"></div>
+    <aside class="site-sidebar" id="site-sidebar"></aside>
+
+    <main class="site-main">
+      <div class="wrap">
+        <header>
+          <div class="eyebrow">Specifications · Relational Schema</div>
+          <h1>Database Schema &amp; Data Models</h1>
+          <p class="meta prose">Full specification of SQLite tables in <code>workbench.db</code>, relational foreign key constraints, column data types, and indexing rules.</p>
+        </header>
+
+        <!-- Integrity Rules -->
+        <section id="schema-rules">
+          <h2>1. Database Invariants &amp; Pragma Rules</h2>
+          <p class="prose">
+            The database layer is defined in <code>database.py:30-165</code>. Every connection opened by the server executes:
+          </p>
+          <pre><code>PRAGMA foreign_keys = ON;
+PRAGMA journal_mode = WAL;</code></pre>
+          <p class="prose">
+            <strong>Foreign Key Cascades:</strong> Deleting a study (<code>campaigns</code>) or test suite automatically cascades to delete associated evaluations, defect tags, and rater scores without leaving orphaned records in the database.
+          </p>
+        </section>
+
+        <!-- Core Tables -->
+        <section id="table-campaigns" style="margin-top: 40px;">
+          <h2>2. Table: <code>campaigns</code> (Active Evaluation Studies)</h2>
+          <p class="prose">Stores high-level evaluation studies, linking a prompt suite, scoring rubric, and UI component layout.</p>
+          <div class="scroll">
+            <table class="wide">
+              <thead>
+                <tr>
+                  <th class="col-sm">Column Name</th>
+                  <th class="col-sm">Type</th>
+                  <th class="col-status">Key</th>
+                  <th class="col-sm">Default / Null</th>
+                  <th class="col-lg">Physical Responsibility &amp; Relationships</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-pk">PK</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>Unique campaign identifier (e.g. <code>camp-dev23-4models</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>project_id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-fk">FK</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>References <code>projects(id) ON DELETE CASCADE</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>name</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td>—</td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>Human-readable study title (e.g. <code>Khmer Natural Voice Benchmark</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>suite_id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-fk">FK</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>References <code>test_suites(id) ON DELETE CASCADE</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>rubric_id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-fk">FK</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>References <code>rubrics(id) ON DELETE CASCADE</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>ui_config_json</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td>—</td>
+                  <td><code>NULL</code></td>
+                  <td>JSON payload defining Step 3 canvas blocks, speeds, blind gating, and filters.</td>
+                </tr>
+                <tr>
+                  <td><code>is_active</code></td>
+                  <td><span class="type-tag">INTEGER</span></td>
+                  <td>—</td>
+                  <td><code>1</code></td>
+                  <td>Binary status flag (<code>1</code> = Active for raters, <code>0</code> = Paused/Closed).</td>
+                </tr>
+                <tr>
+                  <td><code>created_at</code></td>
+                  <td><span class="type-tag">TIMESTAMP</span></td>
+                  <td>—</td>
+                  <td><code>CURRENT_TIMESTAMP</code></td>
+                  <td>UTC timestamp when study was created.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Table: evaluations -->
+        <section id="table-evaluations" style="margin-top: 40px;">
+          <h2>3. Table: <code>evaluations</code> (Rater Score Records)</h2>
+          <p class="prose">Stores individual evaluator submissions for each test item and speech model candidate.</p>
+          <div class="scroll">
+            <table class="wide">
+              <thead>
+                <tr>
+                  <th class="col-sm">Column Name</th>
+                  <th class="col-sm">Type</th>
+                  <th class="col-status">Key</th>
+                  <th class="col-sm">Default / Null</th>
+                  <th class="col-lg">Physical Responsibility &amp; Relationships</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-pk">PK</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>Unique evaluation identifier (e.g. <code>eval-1795451589-9812</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>campaign_id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-fk">FK</span> <span class="schema-badge col-idx">IDX</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>References <code>campaigns(id) ON DELETE CASCADE</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>rater_id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-fk">FK</span> <span class="schema-badge col-idx">IDX</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>References <code>raters(id) ON DELETE CASCADE</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>item_id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-fk">FK</span> <span class="schema-badge col-idx">IDX</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>References <code>test_items(id) ON DELETE CASCADE</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>model_id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-fk">FK</span> <span class="schema-badge col-idx">IDX</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>References <code>models(id) ON DELETE CASCADE</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>scores_json</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td>—</td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>JSON map of rubric dimensions to integer scores (e.g. <code>{"naturalness":5}</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>blind_transcript</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td>—</td>
+                  <td><code>NULL</code></td>
+                  <td>Text submitted by listener reporting perceived differences from prompt.</td>
+                </tr>
+                <tr>
+                  <td><code>duration_seconds</code></td>
+                  <td><span class="type-tag">REAL</span></td>
+                  <td>—</td>
+                  <td><code>NULL</code></td>
+                  <td>Time in seconds the evaluator spent listening and rating this item.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Table: defect_tags -->
+        <section id="table-defects" style="margin-top: 40px;">
+          <h2>4. Table: <code>defect_tags</code> (Acoustic Glitch Annotations)</h2>
+          <p class="prose">Stores fine-grained timestamped defect regions and flagged word tokens.</p>
+          <div class="scroll">
+            <table class="wide">
+              <thead>
+                <tr>
+                  <th class="col-sm">Column Name</th>
+                  <th class="col-sm">Type</th>
+                  <th class="col-status">Key</th>
+                  <th class="col-sm">Default / Null</th>
+                  <th class="col-lg">Physical Responsibility &amp; Relationships</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-pk">PK</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>Unique defect tag identifier.</td>
+                </tr>
+                <tr>
+                  <td><code>evaluation_id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-fk">FK</span> <span class="schema-badge col-idx">IDX</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>References <code>evaluations(id) ON DELETE CASCADE</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>error_code</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td>—</td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>Taxonomy code: <code>MISPRON</code>, <code>NOISE</code>, <code>UNNAT_PAUSE</code>, <code>ROBOTIC</code>, <code>PITCH</code>, <code>OTHER</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>word_text</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td>—</td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>Khmer word token or acoustic region label.</td>
+                </tr>
+                <tr>
+                  <td><code>time_start_ms</code></td>
+                  <td><span class="type-tag">REAL</span></td>
+                  <td>—</td>
+                  <td><code>NULL</code></td>
+                  <td>Start timestamp in milliseconds on the waveform.</td>
+                </tr>
+                <tr>
+                  <td><code>time_end_ms</code></td>
+                  <td><span class="type-tag">REAL</span></td>
+                  <td>—</td>
+                  <td><code>NULL</code></td>
+                  <td>End timestamp in milliseconds on the waveform.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Other Supporting Tables -->
+        <section id="supporting-tables" style="margin-top: 40px;">
+          <h2>5. Supporting Metadata Tables</h2>
+          <div class="scroll">
+            <table class="wide">
+              <thead>
+                <tr>
+                  <th class="col-sm">Table Name</th>
+                  <th class="col-sm">Primary Key</th>
+                  <th class="col-auto">Core Stored Data</th>
+                  <th class="col-sm">Source Location</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>projects</code></td>
+                  <td><code>id (TEXT)</code></td>
+                  <td>Parent workspace and language metadata (e.g. Khmer language <code>km</code>).</td>
+                  <td><code>database.py:31</code></td>
+                </tr>
+                <tr>
+                  <td><code>test_suites</code></td>
+                  <td><code>id (TEXT)</code></td>
+                  <td>Named prompt groups containing audio and transcript items.</td>
+                  <td><code>database.py:39</code></td>
+                </tr>
+                <tr>
+                  <td><code>test_items</code></td>
+                  <td><code>id (TEXT)</code></td>
+                  <td>Individual test sentences, phonetic IPA targets, and audio filenames.</td>
+                  <td><code>database.py:47</code></td>
+                </tr>
+                <tr>
+                  <td><code>models</code></td>
+                  <td><code>id (TEXT)</code></td>
+                  <td>Speech model candidates (VITS, Kokoro, FastSpeech2, Ground Truth).</td>
+                  <td><code>database.py:65</code></td>
+                </tr>
+                <tr>
+                  <td><code>rubrics</code></td>
+                  <td><code>id (TEXT)</code></td>
+                  <td>Evaluation scale criteria (ACR 1-5 Likert scales, dimensions JSON).</td>
+                  <td><code>database.py:81</code></td>
+                </tr>
+                <tr>
+                  <td><code>taxonomies</code></td>
+                  <td><code>id (TEXT)</code></td>
+                  <td>Standardized defect categories with English and Khmer definitions.</td>
+                  <td><code>database.py:92</code></td>
+                </tr>
+                <tr>
+                  <td><code>raters</code></td>
+                  <td><code>id (TEXT)</code></td>
+                  <td>Unique evaluator names, pseudonyms, and rater roles.</td>
+                  <td><code>database.py:117</code></td>
+                </tr>
+                <tr>
+                  <td><code>admins</code></td>
+                  <td><code>id (TEXT)</code></td>
+                  <td>Salted and hashed administrator passwords for study management.</td>
+                  <td><code>database.py:150</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <footer class="site-footer">
+          <p>Audio Studio Technical Documentation · CADT Year 3 Capstone</p>
+        </footer>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/nav.js"></script>
+  <script src="assets/site.js"></script>
+</body>
+</html>

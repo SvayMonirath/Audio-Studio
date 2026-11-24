@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>System Topology & Hardware/Software Architecture · Audio Studio Docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Public+Sans:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body data-root="./" data-page="architecture.html">
+  <header class="site-header">
+    <div class="site-header-left">
+      <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle navigation">
+        <span>☰</span> <span>Menu</span>
+      </button>
+      <a href="index.html" class="site-title-link">Audio Studio Engineering Documentation</a>
+    </div>
+    <div class="site-header-right">
+      <button type="button" class="theme-toggle" id="theme-toggle">🌓 Auto</button>
+    </div>
+  </header>
+
+  <div class="site-layout">
+    <div class="sidebar-backdrop" aria-hidden="true"></div>
+    <aside class="site-sidebar" id="site-sidebar"></aside>
+
+    <main class="site-main">
+      <div class="wrap">
+        <header>
+          <div class="eyebrow">System Architecture · Topology</div>
+          <h1>System Topology & Component Architecture</h1>
+          <p class="meta prose">Physical layout of the software across client browsers, edge ingress, server threads, Web Audio DSP pipelines, and local database storage.</p>
+        </header>
+
+        <!-- Interactive SVG Topology Diagram -->
+        <section id="system-topology">
+          <h2>1. End-to-End System Topology Diagram</h2>
+          <p class="prose">
+            The diagram below illustrates the exact pathways through which network requests, audio streams, and database writes flow. Use the controls to zoom, pan, or expand the diagram to full screen.
+          </p>
+
+          <figure class="fig" id="fig-diagram">
+            <div class="fig-tools" role="toolbar" aria-label="Diagram size">
+              <button type="button" data-z="out" aria-label="Zoom out">−</button>
+              <span class="z-val" aria-live="polite">Fit</span>
+              <button type="button" data-z="in" aria-label="Zoom in">+</button>
+              <button type="button" data-z="fit">Fit width</button>
+              <button type="button" data-z="full">Full screen</button>
+            </div>
+            <div class="fig-scroll" tabindex="0">
+              <svg class="dg" data-w="1100" viewBox="0 0 1100 580" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                    <polygon points="0 0, 8 3, 0 6" style="fill:var(--muted)"/>
+                  </marker>
+                  <marker id="arrow-acc" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                    <polygon points="0 0, 8 3, 0 6" style="fill:var(--accent)"/>
+                  </marker>
+                </defs>
+                <rect class="bg" width="1100" height="580" rx="8"/>
+
+                <!-- Tier 1: Client Browsers -->
+                <rect class="panel" x="30" y="30" width="300" height="520" rx="8"/>
+                <text class="nm big" x="45" y="60">TIER 1: Client Browsers</text>
+                <text class="sub" x="45" y="80">Zero-build vanilla ES6+ &amp; Web Audio</text>
+
+                <!-- Box 1A: Evaluator Portal -->
+                <rect class="box" x="45" y="105" width="270" height="195" rx="6"/>
+                <text class="nm" x="60" y="130">Evaluator Portal (eval.html)</text>
+                <text class="sub" x="60" y="150">• Rater Onboarding (Pseudonym)</text>
+                <text class="sub" x="60" y="170">• Zero-Scroll Matrix Navigation</text>
+                <text class="sub" x="60" y="190">• Interactive 76px Waveform Deck</text>
+                <text class="sub" x="60" y="210">• Hold-and-Drag Defect Tagging</text>
+                <text class="sub" x="60" y="230">• Khmer Word Pill Glitch Highlighter</text>
+                <text class="sub" x="60" y="250">• Likert 1-5 Scoring &amp; Live Diff</text>
+                <text class="sub" x="60" y="275" style="fill:var(--accent);">Source: public/js/eval_app.js</text>
+
+                <!-- Box 1B: Researcher Portal -->
+                <rect class="box" x="45" y="325" width="270" height="205" rx="6"/>
+                <text class="nm" x="60" y="350">Admin Creator (admin.html)</text>
+                <text class="sub" x="60" y="370">• 4-Step Modular Study Wizard</text>
+                <text class="sub" x="60" y="390">• Unified Audio/CSV Dropzone</text>
+                <text class="sub" x="60" y="410">• WYSIWYG Playground Canvas</text>
+                <text class="sub" x="60" y="430">• Full Card Drag-and-Drop Reorder</text>
+                <text class="sub" x="60" y="450">• Live Results &amp; MOS 95% CI</text>
+                <text class="sub" x="60" y="470">• CSV Audit Log Exports</text>
+                <text class="sub" x="60" y="495" style="fill:var(--accent);">Source: public/js/admin_app.js</text>
+
+                <!-- Tier 2: Ingress & Edge -->
+                <rect class="panel" x="360" y="30" width="180" height="520" rx="8"/>
+                <text class="nm big" x="375" y="60">TIER 2: Ingress</text>
+                <text class="sub" x="375" y="80">TLS termination &amp; proxy</text>
+
+                <rect class="box" x="375" y="105" width="150" height="195" rx="6"/>
+                <text class="nm" x="390" y="130">Cloudflare Edge</text>
+                <text class="sub" x="390" y="155">• Global Anycast PoP</text>
+                <text class="sub" x="390" y="175">• Automatic SSL/TLS</text>
+                <text class="sub" x="390" y="195">• Mobile HTTPS</text>
+                <text class="sub" x="390" y="215">• Range Request Proxy</text>
+                <text class="sub" x="390" y="235">• Static Asset Cache</text>
+
+                <rect class="box" x="375" y="325" width="150" height="205" rx="6"/>
+                <text class="nm" x="390" y="350">cloudflared</text>
+                <text class="sub" x="390" y="375">• Outbound TLS Tunnel</text>
+                <text class="sub" x="390" y="395">• Zero Port Forwarding</text>
+                <text class="sub" x="390" y="415">• NAT/Firewall Bypass</text>
+                <text class="sub" x="390" y="435">• Local Proxy to 8080</text>
+                <text class="sub" x="390" y="495" style="fill:var(--accent);">/usr/local/bin</text>
+
+                <!-- Tier 3: Core Application -->
+                <rect class="panel" x="570" y="30" width="270" height="520" rx="8"/>
+                <text class="nm big" x="585" y="60">TIER 3: Core Application</text>
+                <text class="sub" x="585" y="80">Python 3 Threading Server</text>
+
+                <rect class="box focal" x="585" y="105" width="240" height="425" rx="6"/>
+                <text class="nm" x="600" y="130">run_server.py (Server Engine)</text>
+                
+                <text class="sub" x="600" y="160"><strong>ThreadingHTTPServer</strong></text>
+                <text class="sub" x="600" y="180">• Thread-per-request concurrency</text>
+                <text class="sub" x="600" y="200">• Port binding &amp; reuse (8080)</text>
+
+                <text class="sub" x="600" y="230"><strong>HTTP Range Streamer</strong></text>
+                <text class="sub" x="600" y="250">• Parses Range: bytes=start-end</text>
+                <text class="sub" x="600" y="270">• Returns HTTP 206 Partial Content</text>
+                <text class="sub" x="600" y="290">• Content-Range: bytes S-E/Total</text>
+
+                <text class="sub" x="600" y="320"><strong>Security &amp; PIN Gate</strong></text>
+                <text class="sub" x="600" y="340">• Validates X-Admin-PIN header</text>
+                <text class="sub" x="600" y="360">• Bearer pin-&lt;token&gt; check</text>
+                <text class="sub" x="600" y="380">• Unauthenticated rater routes</text>
+
+                <text class="sub" x="600" y="410"><strong>REST API Dispatcher</strong></text>
+                <text class="sub" x="600" y="430">• /api/evaluations (Submit ratings)</text>
+                <text class="sub" x="600" y="450">• /api/campaigns (Manage studies)</text>
+                <text class="sub" x="600" y="470">• /api/admin/summary (MOS stats)</text>
+                <text class="sub" x="600" y="490">• /api/upload-audio (Base64 file)</text>
+
+                <!-- Tier 4: Storage & Assets -->
+                <rect class="panel" x="870" y="30" width="200" height="520" rx="8"/>
+                <text class="nm big" x="885" y="60">TIER 4: Storage</text>
+                <text class="sub" x="885" y="80">Local SSD persistence</text>
+
+                <rect class="box" x="885" y="105" width="170" height="195" rx="6"/>
+                <text class="nm" x="900" y="130">SQLite 3 Database</text>
+                <text class="sub" x="900" y="155"><strong>workbench.db</strong></text>
+                <text class="sub" x="900" y="180">• 10 Relational Tables</text>
+                <text class="sub" x="900" y="200">• Foreign Keys Enforced</text>
+                <text class="sub" x="900" y="220">• Full ACID Safety</text>
+                <text class="sub" x="900" y="240">• Parameterized SQL</text>
+                <text class="sub" x="900" y="275" style="fill:var(--accent);">database.py</text>
+
+                <rect class="box" x="885" y="325" width="170" height="205" rx="6"/>
+                <text class="nm" x="900" y="350">Audio Asset Files</text>
+                <text class="sub" x="900" y="155"><strong>audio/ directory</strong></text>
+                <text class="sub" x="900" y="380">• Benchmark WAV files</text>
+                <text class="sub" x="900" y="400">• audio/uploads/ (User files)</text>
+                <text class="sub" x="900" y="420">• public/uploads/ (Cache)</text>
+                <text class="sub" x="900" y="440">• 16-bit PCM WAV &amp; MP3</text>
+                <text class="sub" x="900" y="495" style="fill:var(--accent);">Zero cloud upload</text>
+
+                <!-- Connecting Arrows -->
+                <line class="ln acc" x1="315" y1="200" x2="375" y2="200" marker-end="url(#arrow-acc)"/>
+                <line class="ln" x1="525" y1="200" x2="585" y2="200" marker-end="url(#arrow)"/>
+                <line class="ln" x1="525" y1="420" x2="585" y2="420" marker-end="url(#arrow)"/>
+                <line class="ln acc" x1="315" y1="420" x2="375" y2="420" marker-end="url(#arrow-acc)"/>
+                <line class="ln" x1="825" y1="200" x2="885" y2="200" marker-end="url(#arrow)"/>
+                <line class="ln" x1="825" y1="420" x2="885" y2="420" marker-end="url(#arrow)"/>
+              </svg>
+            </div>
+            <figcaption>Physical subsystem architecture: client applications, Cloudflare edge ingress, multi-threaded server engine, and local NVMe storage.</figcaption>
+          </figure>
+        </section>
+
+        <!-- Detailed Tier Breakdown -->
+        <section id="tier-breakdown">
+          <h2>2. Detailed Subsystem Responsibilities</h2>
+          
+          <div class="grid2">
+            <div class="box">
+              <h3>Tier 1: Client Applications &amp; DSP</h3>
+              <p class="prose">
+                The frontend runs completely in the user's browser without external CDNs. It uses the Web Audio API to create a sound processing graph:
+              </p>
+              <ul>
+                <li><strong>Buffer Decoding:</strong> Audio files are fetched and decoded into 32-bit floating point audio buffers in memory.</li>
+                <li><strong>Telephone Simulation:</strong> When toggled on, audio routes through a Biquad bandpass filter (highpass at 300 Hz, lowpass at 3400 Hz) to simulate telephony call center acoustics.</li>
+                <li><strong>Dynamic Waveform:</strong> HTML5 Canvas renders vertical peak bars, active playheads, and defect highlight overlays at 60 frames per second.</li>
+              </ul>
+            </div>
+            <div class="box">
+              <h3>Tier 2: Ingress &amp; Edge Network</h3>
+              <p class="prose">
+                Provides a secure bridge between mobile evaluators on the internet and the local host computer:
+              </p>
+              <ul>
+                <li><strong>Automatic HTTPS:</strong> Terminating SSL/TLS at Cloudflare ensures mobile browsers allow Web Audio playback without security restrictions.</li>
+                <li><strong>Outbound Connection:</strong> <code>cloudflared</code> establishes an outbound TCP/TLS session on port 7844. No incoming firewall ports or router NAT settings are opened.</li>
+                <li><strong>Zero Billing Risk:</strong> Cloudflare Tunnel free tier has no data transfer quotas, eliminating overage charges.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="grid2" style="margin-top: 20px;">
+            <div class="box">
+              <h3>Tier 3: Core Application Engine</h3>
+              <p class="prose">
+                <code>run_server.py</code> acts as the single backend process:
+              </p>
+              <ul>
+                <li><strong>Multi-Threaded Server:</strong> Built on <code>http.server.ThreadingHTTPServer</code>. Each incoming request spawns a lightweight thread, allowing multiple evaluators to stream audio simultaneously.</li>
+                <li><strong>HTTP Range Handler:</strong> Implements RFC 7233 byte-range parsing. Requests with <code>Range: bytes=0-1024</code> return HTTP 206 with exact byte boundaries.</li>
+                <li><strong>Admin Authorization:</strong> Verifies <code>X-Admin-PIN</code> header on all state mutations, while keeping public evaluation submission open for friction-free rating.</li>
+              </ul>
+            </div>
+            <div class="box">
+              <h3>Tier 4: Storage &amp; Persistence</h3>
+              <p class="prose">
+                All data is saved locally on the host computer's hard drive:
+              </p>
+              <ul>
+                <li><strong>Relational Integrity:</strong> <code>workbench.db</code> operates with <code>PRAGMA foreign_keys = ON;</code> to prevent orphaned evaluation records or missing item references.</li>
+                <li><strong>Safe Audio Directories:</strong> Uploaded audio files are validated and stored under <code>public/uploads/</code> and <code>audio/uploads/</code> with unique timestamps to prevent file overwrites.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <footer class="site-footer">
+          <p>Audio Studio Technical Documentation · CADT Year 3 Capstone</p>
+        </footer>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/nav.js"></script>
+  <script src="assets/site.js"></script>
+</body>
+</html>

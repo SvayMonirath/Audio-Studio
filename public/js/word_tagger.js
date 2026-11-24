@@ -38,13 +38,22 @@ class WordTagger {
       categories[cat].push(tax);
     }
 
+    const catLabels = {
+      pronunciation: "Pronunciation Mistakes",
+      glitch: "Audio Glitches & Noise",
+      pacing: "Speed & Rhythm",
+      missing: "Cut-off & Missing Audio",
+      clean: "Clean Audio"
+    };
+
     for (const [cat, items] of Object.entries(categories)) {
       const group = document.createElement("optgroup");
-      group.label = cat.toUpperCase();
+      group.label = catLabels[cat.toLowerCase()] || cat.toUpperCase();
       for (const item of items) {
         const opt = document.createElement("option");
         opt.value = item.code;
-        opt.textContent = `${item.code} — ${item.name_en} (${item.name_km})`;
+        opt.textContent = `${item.name_en || item.code} (${item.code})`;
+        opt.title = item.description || "";
         opt.dataset.color = item.badge_color || "#EF4444";
         group.appendChild(opt);
       }

@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>System Overview & Architecture Decisions · Audio Studio Docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Public+Sans:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body data-root="./" data-page="index.html">
+  <header class="site-header">
+    <div class="site-header-left">
+      <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle navigation">
+        <span>☰</span> <span>Menu</span>
+      </button>
+      <a href="index.html" class="site-title-link">Audio Studio Engineering Documentation</a>
+    </div>
+    <div class="site-header-right">
+      <button type="button" class="theme-toggle" id="theme-toggle">🌓 Auto</button>
+    </div>
+  </header>
+
+  <div class="site-layout">
+    <div class="sidebar-backdrop" aria-hidden="true"></div>
+    <aside class="site-sidebar" id="site-sidebar"></aside>
+
+    <main class="site-main">
+      <div class="wrap">
+        <header>
+          <div class="eyebrow">System Architecture · Overview</div>
+          <h1>Audio Studio System Overview & ADRs</h1>
+          <p class="meta prose">A self-contained platform for evaluating, scoring, and comparing speech synthesis (TTS) and speech recognition (ASR) machine learning models for the Khmer language.</p>
+        </header>
+
+        <!-- Plain-English Mental Model -->
+        <section id="mental-model">
+          <h2>1. What Audio Studio Does</h2>
+          <p class="prose">
+            Audio Studio solves a specific problem in speech machine learning research: evaluating how well speech models pronounce words and recognize natural human speech. Automated metrics (such as Word Error Rate or acoustic loss numbers) do not accurately reflect whether a computer-generated voice sounds natural or mispronounces tone and syllables in Khmer.
+          </p>
+          <p class="prose">
+            The platform provides two primary interfaces that communicate with a single Python standard library backend and a local SQLite database:
+          </p>
+          <div class="grid2">
+            <div class="box">
+              <h3>Admin & Researcher Portal</h3>
+              <p class="prose"><strong>Path:</strong> <code>public/admin.html</code></p>
+              <ul>
+                <li><strong>Study Creator:</strong> A 4-step wizard to upload WAV audio files, match transcripts via CSV, assemble modular test components on an interactive canvas, and launch evaluation campaigns.</li>
+                <li><strong>Active Studies:</strong> Manage live evaluation studies, inspect evaluator completion rates, toggle study status, or delete campaigns.</li>
+                <li><strong>Results & Analytics:</strong> Compute Mean Opinion Scores (MOS) with 95% confidence intervals, rater consensus agreements, and export full CSV audit ledgers.</li>
+              </ul>
+            </div>
+            <div class="box">
+              <h3>Rater & Evaluator Portal</h3>
+              <p class="prose"><strong>Path:</strong> <code>public/eval.html</code></p>
+              <ul>
+                <li><strong>Frictionless Registration:</strong> Evaluators enter their name or pseudonym; no account or password creation required.</li>
+                <li><strong>Audio Waveform Deck:</strong> Interactive 76px waveform canvas with playback scrubbing, speed controls (0.8x, 1.0x, 1.2x), and telephone call audio simulation (8 kHz bandpass filter).</li>
+                <li><strong>Hold-and-Drag Defect Tagging:</strong> Listeners drag across the waveform or click Khmer word pills to flag mispronunciations, awkward pauses, and robotic buzzes.</li>
+                <li><strong>Listening Verification:</strong> Evaluators type what they actually heard to generate real-time visual text diffs against expected transcripts.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- Technology Stack -->
+        <section id="tech-stack">
+          <h2>2. Technology Stack & Hard Constraints</h2>
+          <div class="scroll">
+            <table class="wide">
+              <thead>
+                <tr>
+                  <th class="col-sm">Subsystem</th>
+                  <th class="col-sm">Technology</th>
+                  <th class="col-status">External Pip Dependencies</th>
+                  <th class="col-lg">Physical Responsibility in Codebase</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>HTTP Server & Routing</strong></td>
+                  <td>Python 3 <code>http.server.ThreadingHTTPServer</code></td>
+                  <td><span class="tag ok">0 (Standard Library)</span></td>
+                  <td>Receives incoming HTTP requests, serves static HTML/CSS/JS, streams audio via byte-range requests, and dispatches JSON REST endpoints (<code>run_server.py:16-35</code>).</td>
+                </tr>
+                <tr>
+                  <td><strong>Database & State</strong></td>
+                  <td>SQLite 3 (<code>sqlite3</code> module)</td>
+                  <td><span class="tag ok">0 (Standard Library)</span></td>
+                  <td>Stores study configurations, item metadata, evaluator sessions, rubric scores, and defect timestamps in <code>workbench.db</code> (<code>database.py:30-165</code>).</td>
+                </tr>
+                <tr>
+                  <td><strong>Frontend UI</strong></td>
+                  <td>Pure Vanilla JavaScript (ES6+), HTML5, Tailwind CSS</td>
+                  <td><span class="tag ok">0 (Zero Build / No Bundler)</span></td>
+                  <td>Executes directly in any browser over <code>file://</code> or HTTP. No Node.js build step, Webpack, or Babel required.</td>
+                </tr>
+                <tr>
+                  <td><strong>Audio Processing</strong></td>
+                  <td>Web Audio API & HTML5 Canvas</td>
+                  <td><span class="tag ok">0 (Native Browser API)</span></td>
+                  <td>Dual-channel audio decoding, real-time Biquad bandpass filter simulation, peak extraction, and dynamic 60fps waveform rendering (<code>public/js/audio_dsp.js</code>).</td>
+                </tr>
+                <tr>
+                  <td><strong>Public Ingress</strong></td>
+                  <td>Cloudflare Tunnel (<code>cloudflared</code>)</td>
+                  <td><span class="tag ok">0 (Standalone Binary)</span></td>
+                  <td>Establishes an outbound TLS tunnel to Cloudflare edge network, giving evaluators an instant HTTPS URL with zero router configuration (<code>run_server.py:1088-1115</code>).</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Architectural Decision Records (ADRs) -->
+        <section id="adrs">
+          <h2>3. Architectural Decision Records (ADRs)</h2>
+
+          <article class="endpoint-card" style="margin-bottom: 24px;">
+            <div class="endpoint-header">
+              <span class="method method-get">ADR-01</span>
+              <code class="endpoint-path">Zero Third-Party Python Dependencies</code>
+              <span class="pill">Accepted Invariant</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Decision:</strong> The backend must run completely on Python's built-in standard library without installing packages via <code>pip</code>.</p>
+              <p class="prose"><strong>Rationale:</strong> Audio Studio is an academic thesis and research platform. Avoiding third-party dependencies eliminates dependency drift, broken virtual environments, C-extension build failures, and security vulnerabilities. Any computer with Python 3.8+ can clone the repository and run <code>python3 run_server.py</code> in under two seconds.</p>
+            </div>
+          </article>
+
+          <article class="endpoint-card" style="margin-bottom: 24px;">
+            <div class="endpoint-header">
+              <span class="method method-get">ADR-02</span>
+              <code class="endpoint-path">Single-File Local SQLite Persistence with Enforced Foreign Keys</code>
+              <span class="pill">Accepted Invariant</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Decision:</strong> Use a local SQLite file (<code>workbench.db</code>) with <code>PRAGMA foreign_keys = ON;</code> and parameterized SQL queries.</p>
+              <p class="prose"><strong>Rationale:</strong> Academic evaluations require absolute data durability without managing separate database servers (PostgreSQL or MySQL). SQLite commits transactions directly to the local solid-state drive with full ACID reliability. Deleting a test campaign automatically cascades to remove related evaluations and defect tags cleanly.</p>
+            </div>
+          </article>
+
+          <article class="endpoint-card" style="margin-bottom: 24px;">
+            <div class="endpoint-header">
+              <span class="method method-get">ADR-03</span>
+              <code class="endpoint-path">Cloudflare Tunnel Outbound Host Ingress for $0 Zero-Risk Public Hosting</code>
+              <span class="pill">Accepted Invariant</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Decision:</strong> Expose the local server to public evaluators using Cloudflare Tunnel (via <code>run_server.py --share</code>) rather than deploying to free cloud containers (such as Render or Koyeb).</p>
+              <p class="prose"><strong>Rationale:</strong> Free cloud container tiers use ephemeral filesystems that erase all local file changes when an idle instance sleeps. Hosting on a local machine via Cloudflare Tunnel guarantees that the SQLite database and physical WAV audio files are never wiped, requires no credit card, and eliminates 50-second cold-start connection timeouts.</p>
+            </div>
+          </article>
+
+          <article class="endpoint-card">
+            <div class="endpoint-header">
+              <span class="method method-get">ADR-04</span>
+              <code class="endpoint-path">HTTP 206 Partial Content Range Streaming for Audio Assets</code>
+              <span class="pill">Accepted Invariant</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Decision:</strong> Implement native byte-range parsing in <code>run_server.py</code> to support HTTP <code>Range: bytes=start-end</code> headers.</p>
+              <p class="prose"><strong>Rationale:</strong> Modern desktop and mobile browsers require HTTP 206 Partial Content responses to scrub through audio timelines and calculate duration metadata before the entire file finishes downloading. Without range request support, mobile browsers stall when loading uncompressed WAV audio.</p>
+            </div>
+          </article>
+        </section>
+
+        <!-- System Invariants -->
+        <section id="invariants">
+          <h2>4. Repository Invariants Checklist</h2>
+          <div class="scroll">
+            <table class="wide">
+              <thead>
+                <tr>
+                  <th class="col-sm">Invariant</th>
+                  <th class="col-status">Verification Gate</th>
+                  <th class="col-lg">Enforcement Mechanism</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Zero Pip Packages</strong></td>
+                  <td><span class="tag ok">Enforced</span></td>
+                  <td><code>scripts/validate_package.py</code> verifies zero third-party packages are imported.</td>
+                </tr>
+                <tr>
+                  <td><strong>Automated Test Suite</strong></td>
+                  <td><span class="tag ok">Enforced</span></td>
+                  <td>24 automated tests run in under 2 seconds via <code>python3 -m unittest discover -s tests -v</code>.</td>
+                </tr>
+                <tr>
+                  <td><strong>Admin PIN Boundaries</strong></td>
+                  <td><span class="tag ok">Enforced</span></td>
+                  <td>All administrative API routes (<code>/api/admin/*</code>) require <code>X-Admin-PIN</code> or Bearer token header.</td>
+                </tr>
+                <tr>
+                  <td><strong>Parameterized SQL</strong></td>
+                  <td><span class="tag ok">Enforced</span></td>
+                  <td>All database statements use <code>?</code> positional parameter placeholders to prevent SQL injection.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <footer class="site-footer">
+          <p>Audio Studio Technical Documentation · CADT Year 3 Capstone</p>
+        </footer>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/nav.js"></script>
+  <script src="assets/site.js"></script>
+</body>
+</html>

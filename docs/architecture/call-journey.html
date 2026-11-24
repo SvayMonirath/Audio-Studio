@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Request Lifecycles & Data Journeys · Audio Studio Docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Public+Sans:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body data-root="./" data-page="call-journey.html">
+  <header class="site-header">
+    <div class="site-header-left">
+      <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle navigation">
+        <span>☰</span> <span>Menu</span>
+      </button>
+      <a href="index.html" class="site-title-link">Audio Studio Engineering Documentation</a>
+    </div>
+    <div class="site-header-right">
+      <button type="button" class="theme-toggle" id="theme-toggle">🌓 Auto</button>
+    </div>
+  </header>
+
+  <div class="site-layout">
+    <div class="sidebar-backdrop" aria-hidden="true"></div>
+    <aside class="site-sidebar" id="site-sidebar"></aside>
+
+    <main class="site-main">
+      <div class="wrap">
+        <header>
+          <div class="eyebrow">System Architecture · Lifecycles</div>
+          <h1>Request Lifecycles & Data Journeys</h1>
+          <p class="meta prose">Chronological execution pathways, step timing budgets, and failure handling across client, tunnel, server threads, and the SQLite database.</p>
+        </header>
+
+        <!-- Journey 1: Evaluation Submission -->
+        <section id="journey-evaluation">
+          <h2>Journey 1: Evaluator Scoring & Defect Submission Flow</h2>
+          <p class="prose">
+            Triggers when an evaluator selects Likert scores, highlights mispronounced words or waveform defect regions, types perceived speech differences, and clicks <strong>Submit & Next</strong> on <code>eval.html</code>.
+          </p>
+
+          <figure class="fig" id="fig-seq-eval">
+            <div class="fig-tools" role="toolbar" aria-label="Diagram size">
+              <button type="button" data-z="out" aria-label="Zoom out">−</button>
+              <span class="z-val" aria-live="polite">Fit</span>
+              <button type="button" data-z="in" aria-label="Zoom in">+</button>
+              <button type="button" data-z="fit">Fit width</button>
+              <button type="button" data-z="full">Full screen</button>
+            </div>
+            <div class="fig-scroll" tabindex="0">
+              <svg class="dg" data-w="1000" viewBox="0 0 1000 460" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                    <polygon points="0 0, 8 3, 0 6" style="fill:var(--muted)"/>
+                  </marker>
+                  <marker id="arrow-acc" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                    <polygon points="0 0, 8 3, 0 6" style="fill:var(--accent)"/>
+                  </marker>
+                </defs>
+                <rect class="bg" width="1000" height="460" rx="8"/>
+
+                <!-- Participants Headers -->
+                <rect class="box" x="50" y="25" width="180" height="45" rx="4"/>
+                <text class="nm" x="140" y="52" text-anchor="middle">1. Evaluator Client</text>
+                <text class="sub" x="140" y="65" text-anchor="middle">Browser (eval_app.js)</text>
+
+                <rect class="box" x="290" y="25" width="180" height="45" rx="4"/>
+                <text class="nm" x="380" y="52" text-anchor="middle">2. Cloudflare Ingress</text>
+                <text class="sub" x="380" y="65" text-anchor="middle">Edge &amp; cloudflared</text>
+
+                <rect class="box focal" x="530" y="25" width="180" height="45" rx="4"/>
+                <text class="nm" x="620" y="52" text-anchor="middle">3. Server Engine</text>
+                <text class="sub" x="620" y="65" text-anchor="middle">run_server.py Thread</text>
+
+                <rect class="box" x="770" y="25" width="180" height="45" rx="4"/>
+                <text class="nm" x="860" y="52" text-anchor="middle">4. SQLite Database</text>
+                <text class="sub" x="860" y="65" text-anchor="middle">workbench.db</text>
+
+                <!-- Lifelines -->
+                <line class="ln" x1="140" y1="70" x2="140" y2="430" stroke-dasharray="4"/>
+                <line class="ln" x1="380" y1="70" x2="380" y2="430" stroke-dasharray="4"/>
+                <line class="ln" x1="620" y1="70" x2="620" y2="430" stroke-dasharray="4"/>
+                <line class="ln" x1="860" y1="70" x2="860" y2="430" stroke-dasharray="4"/>
+
+                <!-- Step 1: Payload Construction -->
+                <rect class="box" x="70" y="95" width="280" height="48" rx="4"/>
+                <text class="sub" x="80" y="112" style="font-weight:700; fill:var(--accent);">STEP 1 · Client Assembly</text>
+                <text class="sub" x="80" y="130">Packs scores, defect regions, and diff text into JSON</text>
+                <line class="ln acc" x1="140" y1="145" x2="380" y2="145" marker-end="url(#arrow-acc)"/>
+
+                <!-- Step 2: Edge Forward -->
+                <rect class="box" x="310" y="160" width="280" height="48" rx="4"/>
+                <text class="sub" x="320" y="177" style="font-weight:700;">STEP 2 · Edge Forwarding</text>
+                <text class="sub" x="320" y="195">Cloudflare routes POST /api/evaluations to port 8080</text>
+                <line class="ln acc" x1="380" y1="210" x2="620" y2="210" marker-end="url(#arrow-acc)"/>
+
+                <!-- Step 3: Thread Dispatch & Validation -->
+                <rect class="box focal" x="550" y="225" width="280" height="48" rx="4"/>
+                <text class="sub" x="560" y="242" style="font-weight:700; fill:var(--accent);">STEP 3 · Validation</text>
+                <text class="sub" x="560" y="260">ThreadingHTTPServer validates rater, item, &amp; scores</text>
+                <line class="ln" x1="620" y1="275" x2="860" y2="275" marker-end="url(#arrow)"/>
+
+                <!-- Step 4: Atomic SQLite Commit -->
+                <rect class="box" x="720" y="290" width="260" height="48" rx="4"/>
+                <text class="sub" x="730" y="307" style="font-weight:700;">STEP 4 · Database Commit</text>
+                <text class="sub" x="730" y="325">INSERT INTO evaluations + defect_tags inside TX</text>
+                <line class="ln" x1="860" y1="340" x2="620" y2="340" marker-end="url(#arrow)"/>
+
+                <!-- Step 5: HTTP 201 Response -->
+                <rect class="box" x="310" y="355" width="280" height="48" rx="4"/>
+                <text class="sub" x="320" y="372" style="font-weight:700; fill:var(--ok);">STEP 5 · Success Response</text>
+                <text class="sub" x="320" y="390">Returns HTTP 201 Created with JSON evaluation ID</text>
+                <line class="ln" x1="620" y1="405" x2="140" y2="405" marker-end="url(#arrow)"/>
+              </svg>
+            </div>
+            <figcaption>Sequence diagram of rating evaluation submission and atomic database persistence.</figcaption>
+          </figure>
+
+          <div class="scroll">
+            <table class="wide">
+              <thead>
+                <tr>
+                  <th class="col-sm">Step</th>
+                  <th class="col-sm">Timing Budget</th>
+                  <th class="col-sm">Subsystem</th>
+                  <th class="col-lg">Concrete Operation &amp; Failure Mode</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Step 1</strong></td>
+                  <td>&lt; 5 ms</td>
+                  <td><code>eval_app.js:1540</code></td>
+                  <td>Gathers form inputs, Likert ratings, and defect regions into payload. Fails with UI warning if required scale is empty.</td>
+                </tr>
+                <tr>
+                  <td><strong>Step 2</strong></td>
+                  <td>15 - 40 ms</td>
+                  <td>Cloudflare Tunnel</td>
+                  <td>Encrypted transit over outbound TLS socket. Fails with HTTP 502 if local host computer is asleep.</td>
+                </tr>
+                <tr>
+                  <td><strong>Step 3</strong></td>
+                  <td>&lt; 2 ms</td>
+                  <td><code>run_server.py:976</code></td>
+                  <td>Extracts JSON body, checks payload validity, and generates unique evaluation ID (<code>eval-[timestamp]-[hash]</code>).</td>
+                </tr>
+                <tr>
+                  <td><strong>Step 4</strong></td>
+                  <td>4 - 8 ms</td>
+                  <td><code>database.py:124</code></td>
+                  <td>Executes parameterized <code>INSERT</code> into <code>evaluations</code> table. Uses <code>executemany</code> for defect regions. Rolls back cleanly if foreign key is invalid.</td>
+                </tr>
+                <tr>
+                  <td><strong>Step 5</strong></td>
+                  <td>10 - 25 ms</td>
+                  <td>HTTP Response</td>
+                  <td>Sends HTTP 201 with <code>{"success": true, "id": "..."}</code>. Frontend automatically navigates to next audio item.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Journey 2: HTTP Range Audio Streaming -->
+        <section id="journey-audio-streaming" style="margin-top: 40px;">
+          <h2>Journey 2: HTTP 206 Partial Content Audio Range Streaming</h2>
+          <p class="prose">
+            Triggers when a listener loads an audio sample, drags the playhead, or auditions an acoustic defect slice. Modern browsers require byte-range requests to support instant seeking without downloading the whole audio file first.
+          </p>
+
+          <div class="scroll">
+            <table class="wide">
+              <thead>
+                <tr>
+                  <th class="col-sm">Phase</th>
+                  <th class="col-sm">HTTP Request / Response</th>
+                  <th class="col-lg">Physical Code Execution &amp; Header Structure</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>1. Client Initial Probe</strong></td>
+                  <td><code>GET /audio/model_a/KH01.wav</code><br><code>Range: bytes=0-</code></td>
+                  <td>Browser requests initial audio header to inspect sample rate (22050 Hz / 44100 Hz) and compute duration.</td>
+                </tr>
+                <tr>
+                  <td><strong>2. Server Range Parse</strong></td>
+                  <td><code>run_server.py:175-220</code></td>
+                  <td>Server reads physical file on disk (<code>os.path.getsize</code>), parses byte range, opens binary file, and seeks to byte offset.</td>
+                </tr>
+                <tr>
+                  <td><strong>3. Partial Content Delivery</strong></td>
+                  <td><code>HTTP/1.1 206 Partial Content</code></td>
+                  <td>
+                    Sends headers:<br>
+                    <code>Content-Range: bytes 0-1048575/2458920</code><br>
+                    <code>Accept-Ranges: bytes</code><br>
+                    <code>Content-Type: audio/wav</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td><strong>4. Timeline Scrubbing</strong></td>
+                  <td><code>Range: bytes=1200000-2400000</code></td>
+                  <td>When rater drags playhead to middle of waveform, browser requests only the targeted slice, preventing playback buffer stalls.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Journey 3: Study Creation -->
+        <section id="journey-study-creation" style="margin-top: 40px;">
+          <h2>Journey 3: Study Creation, CSV Matching &amp; Canvas Serialization</h2>
+          <p class="prose">
+            Triggers in <code>admin.html</code> when a researcher defines a study, uploads audio and paired transcripts, customizes UI components, and launches a campaign.
+          </p>
+          <div class="grid2">
+            <div class="box">
+              <h3>File Reconciliation Logic</h3>
+              <p class="prose"><strong>Source:</strong> <code>public/js/admin_app.js:1060</code></p>
+              <ul>
+                <li><strong>Filename Normalization:</strong> Strips folder paths and extensions (e.g., <code>KH01.wav</code> &rarr; <code>kh01</code>).</li>
+                <li><strong>Safe Pairing:</strong> Matches CSV transcript rows against uploaded audio items by exact filename, stem, or prefix.</li>
+                <li><strong>Pending CSV Buffer:</strong> If CSV is uploaded before audio files, rows are buffered in memory and matched automatically when audio files arrive.</li>
+              </ul>
+            </div>
+            <div class="box">
+              <h3>Modular UI Config Serialization</h3>
+              <p class="prose"><strong>Source:</strong> <code>public/js/admin_app.js:2560</code></p>
+              <ul>
+                <li><strong>Canvas Block Array:</strong> Serializes playground components (Audio Player, Prompt Text, Word Tagger, Rubric, Transcription) into <code>ui_config_json</code>.</li>
+                <li><strong>Dynamic Presentation:</strong> Stores font size (<code>24px</code>/<code>32px</code>/<code>40px</code>), blind-gating blur state, and default defect error codes.</li>
+                <li><strong>Database Persistence:</strong> Saved directly to <code>campaigns.ui_config_json</code> in SQLite for 1:1 runtime rendering in <code>eval.html</code>.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <footer class="site-footer">
+          <p>Audio Studio Technical Documentation · CADT Year 3 Capstone</p>
+        </footer>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/nav.js"></script>
+  <script src="assets/site.js"></script>
+</body>
+</html>

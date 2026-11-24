@@ -517,9 +517,12 @@
       } else if (e.code === "ArrowRight") {
         e.preventDefault();
         navigateItem(1);
-      } else if (["1", "2", "3", "4", "5"].includes(e.key)) {
+      } else if (e.code === "KeyP" && e.shiftKey) {
         e.preventDefault();
-        const score = parseInt(e.key, 10);
+        togglePhoneFilter();
+      } else if (["0", "1", "2", "3", "4", "5"].includes(e.key)) {
+        e.preventDefault();
+        const num = parseInt(e.key, 10);
         const metrics = state.campaign?.metrics || [];
         // Target first unanswered metric, or first metric if all filled
         let targetMetric = metrics.find(m => {
@@ -531,7 +534,15 @@
         }
         if (targetMetric) {
           const k = targetMetric.key || targetMetric.id || targetMetric.name;
-          state.currentScores[k] = score;
+          const isBinary = targetMetric.type === "binary_pass_fail" || targetMetric.type === "binary" || (targetMetric.scale_min === 0 && targetMetric.scale_max === 1);
+          if (isBinary) {
+            if (num === 1) state.currentScores[k] = 1;
+            else if (num === 0 || num === 2) state.currentScores[k] = 0;
+          } else {
+            if (num >= (targetMetric.scale_min || 1) && num <= (targetMetric.scale_max || 5)) {
+              state.currentScores[k] = num;
+            }
+          }
           if (navigator.vibrate) navigator.vibrate(10);
           updateRubricPillSelection();
         }
@@ -1189,7 +1200,11 @@
     }
 
     // 1. DSP 8 kHz Phone Filter Toggle
-    if (uiConfig?.dsp?.phone_filter_8khz) {
+    const hasPhoneMetric = (state.campaign?.metrics || []).some(m => {
+      const k = (m.key || m.id || m.name || "").toLowerCase();
+      return k.includes("phone") || k.includes("telephone");
+    });
+    if (uiConfig?.dsp?.phone_filter_8khz || hasPhoneMetric) {
       if (el.phoneFilterWrapper) el.phoneFilterWrapper.classList.remove("hidden");
       if (el.btnPhoneFilterToggle) {
         el.btnPhoneFilterToggle.onchange = (e) => {
@@ -1225,7 +1240,7 @@
       if (words.length > 0) {
         el.wordPillsContainer.classList.remove("hidden");
         el.wordPillsContainer.innerHTML = words.map((w, wIdx) => `
-          <button type="button" class="px-2 py-0.5 rounded-lg border border-zinc-200 bg-white hover:bg-amber-50 hover:border-amber-400 text-xs font-khmer text-zinc-800 transition cursor-pointer word-pill-btn" data-word="${escapeHtml(w)}" data-widx="${wIdx}">
+          <button type="button" class="px-2 py-0.5 rounded-lg text-xs font-khmer transition cursor-pointer word-pill-btn word-pill-amber" data-word="${escapeHtml(w)}" data-widx="${wIdx}">
             ${escapeHtml(w)}
           </button>
         `).join("");
@@ -1359,6 +1374,14 @@
     return null;
   }
 
+  // Toggle 8 kHz Phone Filter Helper
+  function togglePhoneFilter() {
+    if (!el.btnPhoneFilterToggle) return;
+    el.btnPhoneFilterToggle.checked = !el.btnPhoneFilterToggle.checked;
+    window.dspEngine.setPhoneFilter(el.btnPhoneFilterToggle.checked);
+    showToast(el.btnPhoneFilterToggle.checked ? "8 kHz Telephone Bandpass Filter active." : "8 kHz Telephone Filter bypassed.", "info");
+  }
+
   // Render dynamic rubric criteria
   function renderRubricForm() {
     el.ratingFormContainer.innerHTML = "";
@@ -1367,13 +1390,15 @@
       { key: "pronunciation", label_en: "Pronunciation Accuracy", desc: "Are vowels and consonants pronounced correctly?" }
     ];
 
-    const minScale = state.campaign.scale_min || 1;
-    const maxScale = state.campaign.scale_max || 5;
+    const defaultMinScale = state.campaign.scale_min || 1;
+    const defaultMaxScale = state.campaign.scale_max || 5;
 
     for (const metric of metrics) {
       const metricKey = metric.key || metric.id || metric.name;
       const titleEn = metric.label_en || metric.label || metric.name || metricKey;
       const descEn = metric.desc_en || metric.desc || "";
+      const isBinary = metric.type === "binary_pass_fail" || metric.type === "binary" || (metric.scale_min === 0 && metric.scale_max === 1);
+      const isPhoneMetric = (metricKey || "").toLowerCase().includes("phone") || (metricKey || "").toLowerCase().includes("telephone");
 
       const row = document.createElement("div");
       row.className = "rating-criterion-row p-4 bg-white border border-zinc-200 rounded-2xl flex flex-col justify-between gap-3 shadow-sm hover:border-zinc-400 transition";
@@ -1384,43 +1409,87 @@
 
       headerDiv.innerHTML = `
         <div class="min-w-0">
-          <div class="criterion-title text-sm sm:text-base font-bold text-zinc-900 leading-snug tracking-tight">${escapeHtml(titleEn)}</div>
+          <div class="flex items-center gap-2">
+            <div class="criterion-title text-sm sm:text-base font-bold text-zinc-900 leading-snug tracking-tight">${escapeHtml(titleEn)}</div>
+            ${isBinary ? `<span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-zinc-100 text-zinc-700 uppercase tracking-wider font-mono">Pass / Fail</span>` : ""}
+            ${isPhoneMetric ? `<span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-blue-50 text-blue-700 border border-blue-200">8 kHz Telephony</span>` : ""}
+          </div>
           ${descEn && descEn !== titleEn ? `<div class="criterion-desc text-xs text-zinc-500 mt-0.5">${escapeHtml(descEn)}</div>` : ""}
+          ${isPhoneMetric ? `<div class="text-[11px] text-blue-600 font-medium mt-1 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>Toggle the 8 kHz Telephone filter above (or Shift+P) to audition phone sound.</div>` : ""}
         </div>
       `;
 
       const controlsDiv = document.createElement("div");
       controlsDiv.className = "flex flex-col gap-1.5 pt-1";
 
-      const anchorsDiv = document.createElement("div");
-      anchorsDiv.className = "flex justify-between w-full text-xs text-zinc-500 font-semibold px-1";
-      anchorsDiv.innerHTML = `
-        <span><strong class="font-mono text-zinc-800">1:</strong> Poor</span>
-        <span><strong class="font-mono text-zinc-800">${maxScale}:</strong> Excellent</span>
-      `;
+      if (isBinary) {
+        // Binary Pass / Fail Controls
+        const scaleDiv = document.createElement("div");
+        scaleDiv.className = "scale-selector flex gap-3";
 
-      const scaleDiv = document.createElement("div");
-      scaleDiv.className = "scale-selector flex gap-2";
-
-      for (let s = minScale; s <= maxScale; s++) {
-        const pill = document.createElement("button");
-        pill.type = "button";
-        pill.className = "score-pill flex-1 min-h-[52px] h-[52px] text-lg font-extrabold rounded-xl border-2 border-zinc-200 bg-zinc-50 hover:border-zinc-900 hover:bg-white text-zinc-900 transition-all cursor-pointer flex items-center justify-center shadow-2xs";
-        pill.textContent = s;
-        pill.dataset.score = s;
-        pill.dataset.metricKey = metricKey;
-
-        pill.addEventListener("click", () => {
-          state.currentScores[metricKey] = s;
+        const passPill = document.createElement("button");
+        passPill.type = "button";
+        passPill.className = "score-pill score-pill-pass flex-1 min-h-[52px] h-[52px] text-base font-bold rounded-xl border-2 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-2xs";
+        passPill.innerHTML = `<span>Pass</span> <span class="text-xs opacity-75 font-mono font-normal">[1]</span>`;
+        passPill.dataset.score = "1";
+        passPill.dataset.metricKey = metricKey;
+        passPill.addEventListener("click", () => {
+          state.currentScores[metricKey] = 1;
           if (navigator.vibrate) navigator.vibrate(10);
           updateRubricPillSelection();
         });
 
-        scaleDiv.appendChild(pill);
+        const failPill = document.createElement("button");
+        failPill.type = "button";
+        failPill.className = "score-pill score-pill-fail flex-1 min-h-[52px] h-[52px] text-base font-bold rounded-xl border-2 transition-all cursor-pointer flex items-center justify-center gap-2 shadow-2xs";
+        failPill.innerHTML = `<span>Fail</span> <span class="text-xs opacity-75 font-mono font-normal">[0]</span>`;
+        failPill.dataset.score = "0";
+        failPill.dataset.metricKey = metricKey;
+        failPill.addEventListener("click", () => {
+          state.currentScores[metricKey] = 0;
+          if (navigator.vibrate) navigator.vibrate(10);
+          updateRubricPillSelection();
+        });
+
+        scaleDiv.appendChild(passPill);
+        scaleDiv.appendChild(failPill);
+        controlsDiv.appendChild(scaleDiv);
+      } else {
+        // Continuous 1..5 Scale Controls
+        const minScale = metric.scale_min || defaultMinScale;
+        const maxScale = metric.scale_max || defaultMaxScale;
+
+        const anchorsDiv = document.createElement("div");
+        anchorsDiv.className = "flex justify-between w-full text-xs text-zinc-500 font-semibold px-1";
+        anchorsDiv.innerHTML = `
+          <span><strong class="font-mono text-zinc-800">1:</strong> Poor</span>
+          <span><strong class="font-mono text-zinc-800">${maxScale}:</strong> Excellent</span>
+        `;
+
+        const scaleDiv = document.createElement("div");
+        scaleDiv.className = "scale-selector flex gap-2";
+
+        for (let s = minScale; s <= maxScale; s++) {
+          const pill = document.createElement("button");
+          pill.type = "button";
+          pill.className = "score-pill flex-1 min-h-[52px] h-[52px] text-lg font-extrabold rounded-xl border-2 border-zinc-200 bg-zinc-50 hover:border-zinc-900 hover:bg-white text-zinc-900 transition-all cursor-pointer flex items-center justify-center shadow-2xs";
+          pill.textContent = s;
+          pill.dataset.score = s;
+          pill.dataset.metricKey = metricKey;
+
+          pill.addEventListener("click", () => {
+            state.currentScores[metricKey] = s;
+            if (navigator.vibrate) navigator.vibrate(10);
+            updateRubricPillSelection();
+          });
+
+          scaleDiv.appendChild(pill);
+        }
+
+        controlsDiv.appendChild(anchorsDiv);
+        controlsDiv.appendChild(scaleDiv);
       }
 
-      controlsDiv.appendChild(anchorsDiv);
-      controlsDiv.appendChild(scaleDiv);
       row.appendChild(headerDiv);
       row.appendChild(controlsDiv);
       el.ratingFormContainer.appendChild(row);
@@ -1486,44 +1555,83 @@
     const defectTypes = (state.campaign?.defect_types && state.campaign.defect_types.length > 0)
       ? state.campaign.defect_types
       : [
-          { code: "C_DEL", label: "Consonant Deletion" },
-          { code: "C_SUB", label: "Consonant Substitution" },
-          { code: "V_DEL_INS", label: "Vowel Error" },
-          { code: "CLIP_TRUNC", label: "Word Truncation" },
-          { code: "CODE", label: "Code-Switching Failure" },
-          { code: "GLITCH", label: "Digital Glitch" },
-          { code: "ELONG", label: "Syllable Elongation" },
-          { code: "PROM", label: "Inappropriate Loudness" },
-          { code: "PROS", label: "Bad Prosody / Cadence" },
-          { code: "SILENCE", label: "Dead Silence" },
-          { code: "SEG", label: "Awkward Pause" },
-          { code: "INCONSIST", label: "Voice Inconsistency" },
-          { code: "LEX_SUB", label: "Lexical Substitution" },
-          { code: "REPETITION", label: "Stutter / Repetition" },
-          { code: "REG_FAIL", label: "Register Error" },
-          { code: "SUB_FAIL", label: "Subscript Error" },
-          { code: "NASAL_FAIL", label: "Nasal Error" },
-          { code: "DIALECT", label: "Non-Standard Accent" },
-          { code: "NONE", label: "Clean Audio" }
+          { code: "C_DEL", label: "Dropped Consonant", category: "pronunciation", desc: "Skipped consonant sound" },
+          { code: "C_SUB", label: "Wrong Consonant", category: "pronunciation", desc: "Substituted wrong consonant" },
+          { code: "V_DEL_INS", label: "Dropped/Wrong Vowel", category: "pronunciation", desc: "Missed or altered vowel (e.g. ឲ្យ)" },
+          { code: "SUB_FAIL", label: "Slurred Subscript", category: "pronunciation", desc: "Subscript cluster (ជើងអក្សរ) slurred" },
+          { code: "REG_FAIL", label: "Wrong Vowel Register", category: "pronunciation", desc: "Swapped First/Second-series vowel tone" },
+          { code: "NASAL_FAIL", label: "Nasal Sound Error", category: "pronunciation", desc: "Distorted nasal sound" },
+          { code: "LEX_SUB", label: "Wrong Word", category: "pronunciation", desc: "Spoke different word entirely" },
+          { code: "DIALECT", label: "Non-Standard Accent", category: "pronunciation", desc: "Differs from Phnom Penh accent" },
+
+          { code: "GLITCH", label: "Robotic Buzz / Pop", category: "glitch", desc: "Digital pop, buzz, or static click" },
+          { code: "PROM", label: "Sudden Loud Burst", category: "glitch", desc: "Unnaturally loud syllable" },
+          { code: "INCONSIST", label: "Voice Tone Drift", category: "glitch", desc: "Pitch or speaker timbre shifted abruptly" },
+
+          { code: "PROS", label: "Rushed / Bad Rhythm", category: "pacing", desc: "Rushed or unnatural cadence" },
+          { code: "ELONG", label: "Dragged Syllable", category: "pacing", desc: "Unnaturally slow or dragged out" },
+          { code: "SEG", label: "Awkward Pause", category: "pacing", desc: "Robotic gap inside a word" },
+          { code: "REPETITION", label: "Stutter / Repeat", category: "pacing", desc: "Repeated sound or word" },
+
+          { code: "CLIP_TRUNC", label: "Cut-off Ending", category: "missing", desc: "Cut off before word finished" },
+          { code: "CODE", label: "English Word Failed", category: "missing", desc: "Silent or static on English loanword" },
+          { code: "SILENCE", label: "Dead Silence Gap", category: "missing", desc: "Unexpected silence mid-turn" },
+          { code: "NONE", label: "Clean Audio", category: "clean", desc: "Clear, natural pronunciation" }
         ];
 
+    const catLabels = {
+      pronunciation: "Pronunciation Mistakes",
+      glitch: "Audio Glitches & Noise",
+      pacing: "Speed & Rhythm",
+      missing: "Cut-off & Missing Audio",
+      clean: "Clean Audio"
+    };
+
     el.popoverChipGroup.innerHTML = "";
-    defectTypes.forEach((dt, idx) => {
-      const chip = document.createElement("button");
-      chip.type = "button";
-      chip.className = `defect-chip ${idx === 0 ? "selected" : ""}`;
-      chip.dataset.code = dt.code;
 
-      const labelEn = dt.label || dt.name || dt.code;
-      chip.innerHTML = `<span class="font-medium text-xs">${escapeHtml(labelEn)}</span> <span class="text-[10px] text-zinc-400 font-mono">(${escapeHtml(dt.code)})</span>`;
+    // Group defect types by category
+    const grouped = {};
+    defectTypes.forEach(dt => {
+      const cat = (dt.category || "pronunciation").toLowerCase();
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(dt);
+    });
 
-      chip.addEventListener("click", () => {
-        el.popoverChipGroup.querySelectorAll(".defect-chip").forEach(c => c.classList.remove("selected"));
-        chip.classList.add("selected");
+    let firstChip = null;
+    for (const [cat, chips] of Object.entries(grouped)) {
+      const catHeader = document.createElement("div");
+      catHeader.className = "w-full text-[10px] font-bold text-zinc-600 uppercase tracking-wider pt-2 pb-1 border-b border-zinc-100 flex items-center justify-between";
+      catHeader.textContent = catLabels[cat] || cat.toUpperCase();
+      el.popoverChipGroup.appendChild(catHeader);
+
+      const chipsWrap = document.createElement("div");
+      chipsWrap.className = "flex flex-wrap gap-1.5 w-full pt-1 pb-1.5";
+
+      chips.forEach((dt) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "defect-chip";
+        chip.dataset.code = dt.code;
+        if (!firstChip) {
+          firstChip = chip;
+          chip.classList.add("selected");
+        }
+
+        const labelEn = dt.label || dt.name || dt.code;
+        const desc = dt.desc || dt.description || "";
+        chip.title = desc ? `${labelEn}: ${desc}` : labelEn;
+        chip.innerHTML = `<span class="font-medium text-xs">${escapeHtml(labelEn)}</span> <span class="text-[10px] text-zinc-500 font-mono">(${escapeHtml(dt.code)})</span>`;
+
+        chip.addEventListener("click", () => {
+          el.popoverChipGroup.querySelectorAll(".defect-chip").forEach(c => c.classList.remove("selected"));
+          chip.classList.add("selected");
+        });
+
+        chipsWrap.appendChild(chip);
       });
 
-      el.popoverChipGroup.appendChild(chip);
-    });
+      el.popoverChipGroup.appendChild(chipsWrap);
+    }
   }
 
   // Popover Position & Display

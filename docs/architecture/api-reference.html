@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>REST API Reference & Endpoint Contracts · Audio Studio Docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Public+Sans:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body data-root="./" data-page="api-reference.html">
+  <header class="site-header">
+    <div class="site-header-left">
+      <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle navigation">
+        <span>☰</span> <span>Menu</span>
+      </button>
+      <a href="index.html" class="site-title-link">Audio Studio Engineering Documentation</a>
+    </div>
+    <div class="site-header-right">
+      <button type="button" class="theme-toggle" id="theme-toggle">🌓 Auto</button>
+    </div>
+  </header>
+
+  <div class="site-layout">
+    <div class="sidebar-backdrop" aria-hidden="true"></div>
+    <aside class="site-sidebar" id="site-sidebar"></aside>
+
+    <main class="site-main">
+      <div class="wrap">
+        <header>
+          <div class="eyebrow">Specifications · Contracts</div>
+          <h1>REST API Reference &amp; Endpoint Contracts</h1>
+          <p class="meta prose">Complete technical specification of all HTTP routes implemented in <code>run_server.py</code>, including payload schemas, required headers, and physical code locations.</p>
+        </header>
+
+        <!-- Authentication Boundary -->
+        <section id="auth-overview">
+          <h2>1. Authentication &amp; Boundary Policy</h2>
+          <div class="scroll">
+            <table class="wide">
+              <thead>
+                <tr>
+                  <th class="col-sm">Access Tier</th>
+                  <th class="col-sm">Authentication Mechanism</th>
+                  <th class="col-lg">Target Endpoints &amp; Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Public Rater Tier</strong></td>
+                  <td>None (Open Access)</td>
+                  <td><code>GET /eval.html</code>, <code>GET /api/campaigns</code>, <code>GET /api/items</code>, <code>POST /api/raters</code>, <code>POST /api/evaluations</code>. Enables friction-free evaluation for research participants.</td>
+                </tr>
+                <tr>
+                  <td><strong>Admin Researcher Tier</strong></td>
+                  <td><code>X-Admin-PIN</code> header or <code>Authorization: Bearer pin-&lt;token&gt;</code></td>
+                  <td><code>/api/admin/*</code>, <code>POST /api/suites</code>, <code>POST /api/campaigns</code>, <code>POST /api/upload-audio</code>, <code>DELETE /api/campaigns</code>. Restricts study deletion, raw audio injection, and data exports.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Evaluation Endpoints -->
+        <section id="eval-endpoints" style="margin-top: 40px;">
+          <h2>2. Evaluator &amp; Rater Endpoints</h2>
+
+          <!-- POST /api/raters -->
+          <article class="endpoint-card" style="margin-bottom: 24px;">
+            <div class="endpoint-header">
+              <span class="method method-post">POST</span>
+              <code class="endpoint-path">/api/raters</code>
+              <span class="pill">Public</span>
+              <span class="endpoint-desc">Registers a new evaluator or retrieves existing session</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Source:</strong> <code>run_server.py:955</code></p>
+              <div class="scroll">
+                <table class="wide">
+                  <thead>
+                    <tr>
+                      <th class="col-sm">Field</th>
+                      <th class="col-sm">Type</th>
+                      <th class="col-status">Status</th>
+                      <th class="col-lg">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>name</code></td>
+                      <td><span class="type-tag">String</span></td>
+                      <td><span class="tag crit">Required</span></td>
+                      <td>Unique name or pseudonym of the evaluator (e.g. <code>Sokha P.</code>).</td>
+                    </tr>
+                    <tr>
+                      <td><code>role</code></td>
+                      <td><span class="type-tag">String</span></td>
+                      <td><span class="tag ok">Optional</span></td>
+                      <td>Role classification (defaults to <code>Evaluator</code>).</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="prose" style="margin-top: 10px;"><strong>Response (201 Created):</strong></p>
+              <pre><code>{
+  "id": "rater-1795451589-a195",
+  "name": "Sokha P.",
+  "role": "Evaluator",
+  "created_at": "2026-11-24 10:00:00"
+}</code></pre>
+            </div>
+          </article>
+
+          <!-- POST /api/evaluations -->
+          <article class="endpoint-card" style="margin-bottom: 24px;">
+            <div class="endpoint-header">
+              <span class="method method-post">POST</span>
+              <code class="endpoint-path">/api/evaluations</code>
+              <span class="pill">Public</span>
+              <span class="endpoint-desc">Submits ratings, perceived speech differences, and acoustic defect tags</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Source:</strong> <code>run_server.py:976</code></p>
+              <div class="scroll">
+                <table class="wide">
+                  <thead>
+                    <tr>
+                      <th class="col-sm">Field</th>
+                      <th class="col-sm">Type</th>
+                      <th class="col-status">Status</th>
+                      <th class="col-lg">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>campaign_id</code></td>
+                      <td><span class="type-tag">String</span></td>
+                      <td><span class="tag crit">Required</span></td>
+                      <td>Foreign key referencing <code>campaigns.id</code>.</td>
+                    </tr>
+                    <tr>
+                      <td><code>rater_id</code></td>
+                      <td><span class="type-tag">String</span></td>
+                      <td><span class="tag crit">Required</span></td>
+                      <td>Foreign key referencing <code>raters.id</code>.</td>
+                    </tr>
+                    <tr>
+                      <td><code>item_id</code></td>
+                      <td><span class="type-tag">String</span></td>
+                      <td><span class="tag crit">Required</span></td>
+                      <td>Foreign key referencing <code>test_items.id</code>.</td>
+                    </tr>
+                    <tr>
+                      <td><code>model_id</code></td>
+                      <td><span class="type-tag">String</span></td>
+                      <td><span class="tag crit">Required</span></td>
+                      <td>Foreign key referencing <code>models.id</code>.</td>
+                    </tr>
+                    <tr>
+                      <td><code>scores</code></td>
+                      <td><span class="type-tag">Object</span></td>
+                      <td><span class="tag crit">Required</span></td>
+                      <td>Map of rubric metric keys to integer scores (e.g. <code>{"naturalness": 4, "clarity": 5}</code>).</td>
+                    </tr>
+                    <tr>
+                      <td><code>defects</code></td>
+                      <td><span class="type-tag">Array</span></td>
+                      <td><span class="tag ok">Optional</span></td>
+                      <td>Array of defect objects containing <code>time_start_ms</code>, <code>time_end_ms</code>, and <code>error_code</code>.</td>
+                    </tr>
+                    <tr>
+                      <td><code>blind_transcript</code></td>
+                      <td><span class="type-tag">String</span></td>
+                      <td><span class="tag ok">Optional</span></td>
+                      <td>What the evaluator heard if speech differed from the prompt transcript.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </article>
+
+          <!-- GET /api/items -->
+          <article class="endpoint-card">
+            <div class="endpoint-header">
+              <span class="method method-get">GET</span>
+              <code class="endpoint-path">/api/items?campaign_id={id}</code>
+              <span class="pill">Public</span>
+              <span class="endpoint-desc">Retrieves all audio items and transcripts assigned to a study</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Source:</strong> <code>run_server.py:314</code></p>
+              <p class="prose">Returns full list of test items with audio streaming URLs, verbatim Khmer transcripts, target phonetic challenges, and model candidate assignments.</p>
+            </div>
+          </article>
+        </section>
+
+        <!-- Admin Endpoints -->
+        <section id="admin-endpoints" style="margin-top: 40px;">
+          <h2>3. Administrative &amp; Creator Endpoints</h2>
+
+          <!-- POST /api/suites -->
+          <article class="endpoint-card" style="margin-bottom: 24px;">
+            <div class="endpoint-header">
+              <span class="method method-post">POST</span>
+              <code class="endpoint-path">/api/suites</code>
+              <span class="pill">Admin PIN</span>
+              <span class="endpoint-desc">Creates a new test prompt suite with paired audio items</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Source:</strong> <code>run_server.py:796</code></p>
+              <p class="prose">Accepts suite name and an array of items containing item keys, Khmer text transcripts, and audio asset paths.</p>
+            </div>
+          </article>
+
+          <!-- POST /api/campaigns -->
+          <article class="endpoint-card" style="margin-bottom: 24px;">
+            <div class="endpoint-header">
+              <span class="method method-post">POST</span>
+              <code class="endpoint-path">/api/campaigns</code>
+              <span class="pill">Admin PIN</span>
+              <span class="endpoint-desc">Deploys an active study with modular UI canvas configuration</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Source:</strong> <code>run_server.py:739</code></p>
+              <p class="prose">Links a test suite and scoring rubric, persisting <code>ui_config_json</code> (card layout, speeds, blind gating, and telephone filter settings).</p>
+            </div>
+          </article>
+
+          <!-- GET /api/admin/summary -->
+          <article class="endpoint-card" style="margin-bottom: 24px;">
+            <div class="endpoint-header">
+              <span class="method method-get">GET</span>
+              <code class="endpoint-path">/api/admin/summary?campaign_id={id}</code>
+              <span class="pill">Admin PIN</span>
+              <span class="endpoint-desc">Computes consensus scores, MOS with 95% CI, and defect statistics</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Source:</strong> <code>run_server.py:412</code></p>
+              <p class="prose">Calculates statistical metrics across all rater evaluations: Mean Opinion Score, standard deviation, 95% Student's t-distribution confidence intervals, and defect frequency counts.</p>
+            </div>
+          </article>
+
+          <!-- GET /api/admin/export.csv -->
+          <article class="endpoint-card">
+            <div class="endpoint-header">
+              <span class="method method-get">GET</span>
+              <code class="endpoint-path">/api/admin/export.csv?campaign_id={id}</code>
+              <span class="pill">Admin PIN</span>
+              <span class="endpoint-desc">Exports raw evaluation audit ledger as downloadable CSV</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Source:</strong> <code>run_server.py:550</code></p>
+              <p class="prose">Streams full tabular evaluation data including item keys, model IDs, rater names, individual rubric scores, timestamps, and acoustic defect tags for thesis paper analysis.</p>
+            </div>
+          </article>
+        </section>
+
+        <!-- Audio Streaming Endpoint -->
+        <section id="audio-endpoints" style="margin-top: 40px;">
+          <h2>4. Binary Audio Streaming Endpoint</h2>
+          <article class="endpoint-card">
+            <div class="endpoint-header">
+              <span class="method method-get">GET</span>
+              <code class="endpoint-path">/audio/{model_or_folder}/{filename}</code>
+              <span class="pill">Public</span>
+              <span class="endpoint-desc">Streams WAV/MP3 files with HTTP 206 Partial Content support</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Source:</strong> <code>run_server.py:175-220</code></p>
+              <p class="prose">Inspects request headers for <code>Range: bytes=start-end</code>. Returns HTTP 206 with <code>Content-Range</code> and <code>Accept-Ranges: bytes</code>, enabling waveform scrubbing and fast seeking.</p>
+            </div>
+          </article>
+        </section>
+
+        <footer class="site-footer">
+          <p>Audio Studio Technical Documentation · CADT Year 3 Capstone</p>
+        </footer>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/nav.js"></script>
+  <script src="assets/site.js"></script>
+</body>
+</html>
