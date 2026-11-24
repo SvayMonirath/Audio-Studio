@@ -3818,15 +3818,15 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           </div>
           <div class="flex items-center gap-2">
             <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${camp.is_active ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-zinc-100 text-zinc-600 border border-zinc-200"}">
-              ${camp.is_active ? "Active" : "Archived"}
+              ${camp.is_active ? "Active" : "Concluded"}
             </span>
             <button
               type="button"
-              class="btn-toggle-status text-[11px] px-2 py-0.5 border border-zinc-200 rounded-lg text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 cursor-pointer"
+              class="btn-toggle-status text-[11px] px-2.5 py-1 border border-zinc-200 rounded-lg text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 cursor-pointer font-medium transition"
               data-id="${camp.id}"
               data-active="${camp.is_active ? "1" : "0"}"
             >
-              ${camp.is_active ? "Archive" : "Activate"}
+              ${camp.is_active ? "Close Study" : "Reopen Study"}
             </button>
           </div>
         </div>
@@ -3905,7 +3905,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           if (!resp.ok) throw new Error("Failed to update status.");
           camp.is_active = newStatus ? 1 : 0;
           renderStudiesView();
-          showToast(`Study marked as ${newStatus ? "Active" : "Archived"}.`, "success");
+          showToast(`Study marked as ${newStatus ? "Active" : "Concluded"}.`, "success");
         } catch (err) {
           showToast("Error updating status: " + err.message, "error");
         }

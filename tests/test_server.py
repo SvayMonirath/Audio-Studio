@@ -933,6 +933,61 @@ class StudioServerTestCase(unittest.TestCase):
         self.assertIn('id="tab-btn-wizard-text"', html)
         self.assertIn('id="tab-wizard-indicator-dot"', html)
 
+    def test_inactive_study_rater_submission_blocked(self):
+        """Verify raters cannot submit evaluations to a closed/inactive campaign."""
+        # 1. Create a campaign
+        suite_id = "suite-dev23"
+        rubric_id = "rubric-veaja-p85"
+        req = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/campaigns",
+            data=json.dumps({
+                "project_id": "proj-veaja-khmer",
+                "name": "Test Inactive Study",
+                "suite_id": suite_id,
+                "rubric_id": rubric_id,
+                "instructions": "Test"
+            }).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        res = urlopen(req)
+        c_id = json.loads(res.read().decode("utf-8"))["campaign_id"]
+
+        # 2. Toggle status to closed (is_active = 0)
+        req_status = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/campaigns/status",
+            data=json.dumps({"campaign_id": c_id, "is_active": 0}).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        urlopen(req_status)
+
+        # 3. Register a rater
+        rater_id = f"rater-closed-{int(time.time() * 1000)}"
+        req_rater = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/raters",
+            data=json.dumps({"id": rater_id, "name": "Closed Study Tester"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        urlopen(req_rater)
+
+        # 4. Attempt to submit evaluation to closed campaign
+        eval_payload = {
+            "campaign_id": c_id,
+            "rater_id": rater_id,
+            "item_id": "item-dev23-KH01-voxcpm2",
+            "model_id": "model-voxcpm2",
+            "scores": {"naturalness": 4}
+        }
+        req_eval = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/evaluations",
+            data=json.dumps(eval_payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        try:
+            urlopen(req_eval)
+            self.fail("Expected HTTP 403 Forbidden when submitting to closed study")
+        except HTTPError as e:
+            self.assertEqual(e.code, 403)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -13,7 +13,7 @@ import argparse
 import subprocess
 import mimetypes
 import uuid
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from datetime import datetime
 
@@ -30,7 +30,7 @@ BENCHMARK_AUDIO_DIR = os.path.join(BASE_DIR, "audio")
 # Configurable Admin PINs for team access
 DEFAULT_ADMIN_PINS = set([p.strip() for p in os.environ.get("ADMIN_PINS", "2026,1234,veaja,cadt").split(",") if p.strip()])
 
-class ReusableHTTPServer(HTTPServer):
+class ReusableHTTPServer(ThreadingHTTPServer):
     allow_reuse_address = True
 
 class StudioHandler(BaseHTTPRequestHandler):
@@ -989,6 +989,12 @@ class StudioHandler(BaseHTTPRequestHandler):
                     self.send_json_response({"error": "campaign_id, rater_id, item_id, and model_id are required."}, status=400)
                     return
 
+                # Check if campaign is active
+                c_check = cur.execute("SELECT is_active FROM campaigns WHERE id = ?", (campaign_id,)).fetchone()
+                if c_check and c_check["is_active"] == 0:
+                    self.send_json_response({"error": "This study has concluded and is no longer accepting new submissions."}, status=403)
+                    return
+
                 # Ensure rater and model exist to satisfy foreign key constraints
                 r_check = cur.execute("SELECT id FROM raters WHERE id = ?", (rater_id,)).fetchone()
                 if not r_check:
@@ -1070,8 +1076,14 @@ class StudioHandler(BaseHTTPRequestHandler):
             conn.close()
 
 def start_server(port=8080, share=False):
-    # Ensure database is seeded
-    seed_project_khmer_speech()
+    # Ensure database is initialized; only auto-seed if no campaigns exist
+    init_db()
+    conn = get_connection()
+    cur = conn.cursor()
+    campaign_count = cur.execute("SELECT COUNT(*) as cnt FROM campaigns").fetchone()["cnt"]
+    conn.close()
+    if campaign_count == 0:
+        seed_project_khmer_speech()
 
     server_address = ("", port)
     httpd = ReusableHTTPServer(server_address, StudioHandler)
