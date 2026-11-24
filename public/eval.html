@@ -224,18 +224,32 @@
         </div>
 
         <!-- Middle: Verbatim Khmer Transcript (TTS Mode) -->
-        <div id="tts-transcript-container" class="py-1 relative">
-          <div class="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 mb-1">Transcript to Evaluate</div>
-          <div id="raw-khmer-content" class="raw-khmer-text text-xl font-khmer text-zinc-900 select-text leading-relaxed transition-all duration-200">
-            Loading transcript...
+        <div id="tts-transcript-container" class="py-2 relative">
+          <div class="flex items-center justify-between mb-1">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Transcript to Evaluate • អត្ថបទសម្រាប់វាយតម្លៃ</div>
+            <span class="text-[10px] font-mono text-zinc-400">Word Display</span>
           </div>
-          <!-- Blind-Gating Reveal Overlay -->
-          <div id="prompt-gating-overlay" class="hidden absolute inset-0 bg-transparent rounded-xl flex items-center justify-center z-10 p-2 cursor-pointer transition-all duration-200">
-            <button type="button" id="btn-reveal-prompt" class="px-3.5 py-1.5 bg-zinc-900/90 hover:bg-zinc-900 text-white text-xs font-semibold rounded-full shadow-sm backdrop-blur-xs transition flex items-center gap-1.5 hover:shadow-md cursor-pointer select-none">
-              <svg class="w-3.5 h-3.5 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-              <span>Click to reveal</span>
-            </button>
+          <div class="p-4 sm:p-5 bg-zinc-50/80 border border-zinc-200/80 rounded-2xl relative overflow-hidden shadow-2xs">
+            <div id="raw-khmer-content" class="raw-khmer-text text-3xl sm:text-4xl font-bold font-khmer text-zinc-900 select-text leading-relaxed transition-all duration-200 tracking-wide">
+              Loading transcript...
+            </div>
+            <!-- Blind-Gating Reveal Overlay -->
+            <div id="prompt-gating-overlay" class="hidden absolute inset-0 bg-white/70 backdrop-blur-md rounded-2xl flex items-center justify-center z-10 p-2 cursor-pointer transition-all duration-200">
+              <button type="button" id="btn-reveal-prompt" class="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold rounded-full shadow-md transition flex items-center gap-2 cursor-pointer select-none">
+                <svg class="w-4 h-4 text-zinc-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                <span>Click to reveal Khmer prompt</span>
+              </button>
+            </div>
           </div>
+        </div>
+
+        <!-- 8 kHz Telephone Simulation Active Banner -->
+        <div id="phone-filter-active-banner" class="hidden my-2 p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-semibold flex items-center justify-between shadow-2xs">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+            <span>8 kHz Telephone Simulation Active (300 Hz – 3,400 Hz Bandpass + 1.8 kHz Resonance)</span>
+          </div>
+          <span class="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">ITU-T P.85 Audition Mode</span>
         </div>
 
         <!-- ASR Side-by-Side Visual Diff Container (ASR Mode) -->
@@ -432,12 +446,12 @@
         </div>
 
         <!-- Inline Note Field (Desktop / Tablet only to preserve mobile tap targets) -->
-        <div class="hidden md:block flex-1 max-w-md">
+        <div class="hidden md:block flex-1 max-w-xl">
           <input
             type="text"
             id="eval-notes-input"
             placeholder="Add optional note or defect comment on this sample..."
-            class="w-full text-xs text-zinc-900 px-3 py-1.5 bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900"
+            class="w-full text-sm text-zinc-900 px-3.5 py-2 bg-zinc-50 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:bg-white shadow-2xs transition"
           />
         </div>
 

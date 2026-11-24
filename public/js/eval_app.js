@@ -146,6 +146,7 @@
 
     // Instructions Modal
     phoneFilterWrapper: document.getElementById("phone-filter-wrapper"),
+    phoneFilterActiveBanner: document.getElementById("phone-filter-active-banner"),
     btnPhoneFilterToggle: document.getElementById("btn-phone-filter-toggle"),
     promptGatingOverlay: document.getElementById("prompt-gating-overlay"),
     btnRevealPrompt: document.getElementById("btn-reveal-prompt"),
@@ -1208,12 +1209,12 @@
       if (el.phoneFilterWrapper) el.phoneFilterWrapper.classList.remove("hidden");
       if (el.btnPhoneFilterToggle) {
         el.btnPhoneFilterToggle.onchange = (e) => {
-          window.dspEngine.setPhoneFilter(e.target.checked);
-          showToast(e.target.checked ? "8 kHz Telephone Bandpass Filter active." : "8 kHz Telephone Filter bypassed.", "info");
+          togglePhoneFilter(e.target.checked);
         };
       }
     } else {
       if (el.phoneFilterWrapper) el.phoneFilterWrapper.classList.add("hidden");
+      if (el.phoneFilterActiveBanner) el.phoneFilterActiveBanner.classList.add("hidden");
     }
 
     // 2. Blind-Gated Presentation (Subtle Blur Prompt until revealed)
@@ -1375,11 +1376,27 @@
   }
 
   // Toggle 8 kHz Phone Filter Helper
-  function togglePhoneFilter() {
+  function togglePhoneFilter(forcedState) {
     if (!el.btnPhoneFilterToggle) return;
-    el.btnPhoneFilterToggle.checked = !el.btnPhoneFilterToggle.checked;
-    window.dspEngine.setPhoneFilter(el.btnPhoneFilterToggle.checked);
-    showToast(el.btnPhoneFilterToggle.checked ? "8 kHz Telephone Bandpass Filter active." : "8 kHz Telephone Filter bypassed.", "info");
+    const nextState = typeof forcedState === "boolean" ? forcedState : !el.btnPhoneFilterToggle.checked;
+    el.btnPhoneFilterToggle.checked = nextState;
+    window.dspEngine.setPhoneFilter(nextState);
+
+    // Update Banner & Pill visuals
+    if (el.phoneFilterActiveBanner) {
+      if (nextState) el.phoneFilterActiveBanner.classList.remove("hidden");
+      else el.phoneFilterActiveBanner.classList.add("hidden");
+    }
+    if (el.phoneFilterWrapper) {
+      if (nextState) {
+        el.phoneFilterWrapper.classList.add("bg-amber-100", "border-amber-400", "ring-2", "ring-amber-300");
+        el.phoneFilterWrapper.classList.remove("bg-amber-50", "border-amber-300");
+      } else {
+        el.phoneFilterWrapper.classList.remove("bg-amber-100", "border-amber-400", "ring-2", "ring-amber-300");
+        el.phoneFilterWrapper.classList.add("bg-amber-50", "border-amber-300");
+      }
+    }
+    showToast(nextState ? "8 kHz Telephone Bandpass Filter active (300 Hz – 3,400 Hz)." : "8 kHz Telephone Filter bypassed.", "info");
   }
 
   // Render dynamic rubric criteria
