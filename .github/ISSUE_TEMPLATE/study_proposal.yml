@@ -1,0 +1,61 @@
+name: Speech Evaluation Study Proposal
+description: Propose and specify a new speech evaluation experiment or diagnostic campaign
+title: "[Study]: <Study Name>"
+labels: ["study", "evaluation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to specify a new Khmer speech evaluation campaign in Audio Studio before ingesting audio or launching to raters.
+  - type: input
+    id: study_name
+    attributes:
+      label: Study Name
+      description: What is the formal name of this study?
+      placeholder: e.g. Sprint 3 — 200-Word Isolated Vocabulary Diagnostic
+    validations:
+      required: true
+  - type: textarea
+    id: objective
+    attributes:
+      label: Research Hypothesis & Objective
+      description: What scientific question or model comparison does this study address?
+      placeholder: e.g. Compare pronunciation accuracy between VoxCPM2 Step 6 and Meta MMS on difficult Khmer consonant clusters.
+    validations:
+      required: true
+  - type: textarea
+    id: models_and_corpora
+    attributes:
+      label: Target Models & Evaluation Utterances
+      description: List candidate models, checkpoint steps, and the audio dataset.
+      placeholder: |
+        - Candidate Models: VoxCPM2 Step 6, Meta MMS Tuned
+        - Corpus: 200 high-frequency restaurant ordering vocabulary words
+        - Total Items: 400 (200 words x 2 models)
+    validations:
+      required: true
+  - type: dropdown
+    id: metric_type
+    attributes:
+      label: Evaluation Rubric & Rating Scale
+      description: Select the scoring scale type for this study.
+      options:
+        - "Binary Pass (1) / Fail (0) [Diagnostic Screening]"
+        - "1–5 Point MOS Scale [ITU-T P.85 Multi-Dimensional]"
+        - "Pairwise A/B Preference (MUSHRA / CCR)"
+    validations:
+      required: true
+  - type: checkboxes
+    id: audio_conditions
+    attributes:
+      label: Audio Simulation Conditions
+      options:
+        - label: "Requires 8 kHz Narrowband Telephone Simulation Audition"
+        - label: "Word-level Glitch Highlighter enabled"
+        - label: "Listener Hearing ('What did you hear?') transcription input enabled"
+  - type: input
+    id: rater_target
+    attributes:
+      label: Target Rater Pool
+      description: How many listener evaluations per audio item are targeted?
+      placeholder: e.g. 5 native Khmer raters per item (2,000 total ratings)

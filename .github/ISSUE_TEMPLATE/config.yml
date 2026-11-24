@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Audio Studio Documentation
+    url: https://github.com/SvayMonirath/Audio-Studio/tree/development/docs
+    about: Read architecture documents, ADRs, and operating model guidelines.

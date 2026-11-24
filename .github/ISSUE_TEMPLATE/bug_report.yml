@@ -1,0 +1,54 @@
+name: Bug Report
+description: Report a broken audio playback feature, UI error, or server defect
+title: "[Bug]: <Short description>"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting an issue in Audio Studio! Please provide concrete steps so we can reproduce and fix it.
+  - type: input
+    id: audio_item
+    attributes:
+      label: Affected Audio Item or Study (if applicable)
+      placeholder: e.g. camp-vocab-200 / Item W42 / KH05.wav
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: What exact sequence triggers the bug?
+      placeholder: |
+        1. Open http://localhost:8080/eval.html?campaign_id=camp-vocab-200
+        2. Play audio sample
+        3. Press Shift + P to toggle telephone filter
+        4. Observe waveform behavior
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should have happened?
+      placeholder: Audio continues playing through the 8 kHz bandpass filter.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What happened instead?
+      placeholder: Audio playback paused unexpectedly and console logged error.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment & Browser
+      placeholder: macOS 15.2 / Chrome 131 / Python 3.11.8
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Terminal or Console Logs
+      placeholder: Paste any error traceback or console output here.
