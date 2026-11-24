@@ -406,6 +406,11 @@
     statTotalEvals: document.getElementById("stat-total-evals"),
     statTotalRaters: document.getElementById("stat-total-raters"),
     statMeanMos: document.getElementById("stat-mean-mos"),
+    statMeanLabel: document.getElementById("stat-mean-label"),
+    chartMosTitle: document.getElementById("chart-mos-title"),
+    chartMosSubtitle: document.getElementById("chart-mos-subtitle"),
+    chartMosBadge: document.getElementById("chart-mos-badge"),
+    analyticsScorecardTitle: document.getElementById("analytics-scorecard-title"),
     analyticsMosThead: document.getElementById("analytics-mos-thead"),
     analyticsMosTbody: document.getElementById("analytics-mos-tbody"),
     analyticsDefectsTbody: document.getElementById("analytics-defects-tbody"),
@@ -3805,8 +3810,36 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           el.analyticsMosTbody.appendChild(tr);
         });
 
-        const avgMos = allMeans.length > 0 ? (allMeans.reduce((a, b) => a + b, 0) / allMeans.length).toFixed(2) : "0.00";
-        el.statMeanMos.textContent = avgMos;
+        const isBinaryStudy = (activeCampaign && (activeCampaign.protocol_type === "binary" || activeCampaign.scale_max === 1)) ||
+                              modelsList.some(m => Object.values(m.summary || {}).some(s => s.is_binary));
+
+        if (isBinaryStudy) {
+          let totalPass = 0;
+          let totalTested = 0;
+          modelsList.forEach(m => {
+            Object.values(m.summary || {}).forEach(s => {
+              if (s.is_binary && s.n) {
+                totalPass += (s.pass_count || 0);
+                totalTested += s.n;
+              }
+            });
+          });
+          const overallPassRate = totalTested > 0 ? Math.round((totalPass / totalTested) * 100) : 0;
+          if (el.statMeanLabel) el.statMeanLabel.textContent = "Overall Pass Rate";
+          if (el.statMeanMos) el.statMeanMos.textContent = `${overallPassRate}%`;
+          if (el.chartMosTitle) el.chartMosTitle.textContent = "Model Accuracy Comparison";
+          if (el.chartMosSubtitle) el.chartMosSubtitle.textContent = "Percentage of correct pronunciations per model";
+          if (el.chartMosBadge) el.chartMosBadge.textContent = "Pass Rate (%)";
+          if (el.analyticsScorecardTitle) el.analyticsScorecardTitle.textContent = "Model Accuracy & Pass Rates";
+        } else {
+          const avgMos = allMeans.length > 0 ? (allMeans.reduce((a, b) => a + b, 0) / allMeans.length).toFixed(2) : "0.00";
+          if (el.statMeanLabel) el.statMeanLabel.textContent = "Average Score (1 to 5)";
+          if (el.statMeanMos) el.statMeanMos.textContent = avgMos;
+          if (el.chartMosTitle) el.chartMosTitle.textContent = "Model MOS Comparison (1–5)";
+          if (el.chartMosSubtitle) el.chartMosSubtitle.textContent = "Mean naturalness score with 95% confidence intervals";
+          if (el.chartMosBadge) el.chartMosBadge.textContent = "95% CI Error Ticks";
+          if (el.analyticsScorecardTitle) el.analyticsScorecardTitle.textContent = "Average Scores by Audio Model / Sample";
+        }
       }
 
       // Defect Breakdown Table
@@ -4222,7 +4255,12 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           </span>
         </td>
         <td class="p-3">
-          <div class="font-semibold text-zinc-900">${escapeHtml(ev.rater_name || "Anonymous")}</div>
+          <div class="font-semibold text-zinc-900 flex items-center gap-1.5">
+            <span>${escapeHtml(ev.rater_name || "Anonymous")}</span>
+            <button type="button" class="btn-rename-rater text-zinc-400 hover:text-zinc-700 p-0.5 rounded hover:bg-zinc-100 transition cursor-pointer" data-rater-id="${escapeHtml(ev.rater_id || "")}" data-rater-name="${escapeHtml(ev.rater_name || "")}" title="Rename evaluator">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            </button>
+          </div>
           <div class="text-[10px] text-zinc-400 font-mono">${(ev.created_at || "").slice(0, 16)} • ${ev.duration_seconds ? ev.duration_seconds.toFixed(1) + "s" : ""}</div>
         </td>
         <td class="p-3">
@@ -4233,7 +4271,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         </td>
         <td class="p-3 text-right">
           <div class="flex items-center justify-end gap-1.5">
-            <button type="button" class="btn-toggle-inspector px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 transition cursor-pointer flex items-center gap-1" title="Inspect waveform defect regions">
+            <button type="button" class="btn-toggle-inspector px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 transition cursor-pointer flex items-center gap-1" title="Inspect waveform and errors">
               <span>Inspect</span>
               <svg class="w-3 h-3 text-zinc-400 group-hover:text-zinc-600 transition-transform duration-200 btn-expand-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </button>
@@ -4250,6 +4288,41 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         btnPlay.addEventListener("click", (e) => {
           e.stopPropagation();
           toggleQuickAudio(btnPlay, audioUrl);
+        });
+      }
+
+      // Rename evaluator inline
+      const btnRename = tr.querySelector(".btn-rename-rater");
+      if (btnRename) {
+        btnRename.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const rId = btnRename.dataset.raterId;
+          const current = btnRename.dataset.raterName;
+          const newName = prompt("Enter new name for this evaluator:", current || "");
+          if (newName && newName.trim()) {
+            try {
+              const r = await adminFetch("/api/admin/raters/rename", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ rater_id: rId, name: newName.trim() })
+              });
+              const d = await r.json();
+              if (r.ok && d.success) {
+                showToast("Evaluator renamed.", "success");
+                if (state.auditData && state.auditData.evaluations) {
+                  state.auditData.evaluations.forEach(evItem => {
+                    if (evItem.rater_id === rId) evItem.rater_name = newName.trim();
+                  });
+                }
+                renderAuditStudio();
+                renderRatersLeaderboard();
+              } else {
+                showToast(d.error || "Failed to rename evaluator", "error");
+              }
+            } catch (err) {
+              showToast("Network error: " + err.message, "error");
+            }
+          }
         });
       }
 
@@ -4323,85 +4396,99 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     if (arrow) arrow.style.transform = "rotate(180deg)";
 
     const inspectorTr = document.createElement("tr");
-    inspectorTr.className = "audit-inspector-row bg-zinc-900/3 border-y border-zinc-200/80";
+    inspectorTr.className = "audit-inspector-row bg-zinc-50/50 border-y border-zinc-200/80";
 
     const hasDefects = Array.isArray(ev.defect_tags) && ev.defect_tags.length > 0;
     const defectTags = ev.defect_tags || [];
 
     inspectorTr.innerHTML = `
-      <td colspan="7" class="p-4 bg-zinc-50/50">
-        <div class="max-w-4xl mx-auto space-y-3 p-4 bg-white rounded-xl border border-zinc-200/90 shadow-xs">
-          <div class="flex items-center justify-between border-b border-zinc-100 pb-2.5">
+      <td colspan="7" class="p-4 bg-zinc-50/40">
+        <div class="max-w-4xl mx-auto space-y-3.5 p-5 bg-white rounded-2xl border border-zinc-200 shadow-2xs">
+          <!-- Top Header: Prompt, Model, Item Key -->
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-zinc-100 pb-3">
             <div>
-              <div class="text-xs font-bold text-zinc-900 flex items-center gap-2">
-                <span>Waveform Defect Inspector</span>
-                <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-zinc-100 text-zinc-700 font-semibold">${escapeHtml(ev.item_key || "")}</span>
+              <div class="font-khmer font-bold text-zinc-900 text-lg leading-snug">
+                ${escapeHtml(ev.item_text || "Audio Clip")}
               </div>
-              <div class="text-[11px] text-zinc-500 font-khmer mt-0.5">${escapeHtml(ev.item_text || "")}</div>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-zinc-100 text-zinc-700 font-semibold border border-zinc-200/70">${escapeHtml(ev.item_key || "")}</span>
+                <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-zinc-100 text-zinc-800 border border-zinc-200">${escapeHtml(ev.model_name || ev.model_id || "Model")}</span>
+              </div>
             </div>
-            <div class="flex items-center gap-2" id="inspector-playback-controls">
-              <button type="button" class="btn-play-full px-3 py-1.5 text-xs font-semibold rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-800 transition cursor-pointer flex items-center gap-1.5 shadow-2xs">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                <span>Play Full Audio</span>
+            <div class="text-right">
+              <div class="text-xs font-semibold text-zinc-900">${escapeHtml(ev.rater_name || "Evaluator")}</div>
+              <div class="text-[10px] text-zinc-400 font-mono mt-0.5">${(ev.created_at || "").slice(0, 16)} • ${ev.duration_seconds ? ev.duration_seconds.toFixed(1) + "s" : ""}</div>
+            </div>
+          </div>
+
+          <!-- Waveform Audio Player Capsule (Matches Rater Studio) -->
+          <div class="flex items-center gap-3 p-3 bg-zinc-50/80 border border-zinc-200/90 rounded-xl">
+            <!-- Main Play Button -->
+            <button type="button" class="btn-inspector-play-full w-10 h-10 rounded-full bg-zinc-900 hover:bg-zinc-800 text-white flex items-center justify-center transition shadow-2xs shrink-0 cursor-pointer" title="Play recording">
+              <svg class="w-4 h-4 fill-current ml-0.5 inspector-play-icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            </button>
+
+            <!-- White Rounded Pill Waveform Canvas Capsule -->
+            <div class="relative flex-1 h-[68px] bg-white rounded-lg border border-zinc-200/90 overflow-hidden px-2 flex items-center">
+              <canvas class="audit-waveform-canvas w-full h-[64px] block"></canvas>
+              <div class="waveform-loading-overlay absolute inset-0 flex items-center justify-center bg-white/90 text-zinc-400 text-xs font-medium">
+                Loading waveform...
+              </div>
+            </div>
+
+            <!-- Time Label -->
+            <div class="text-[11px] font-mono text-zinc-500 shrink-0 w-12 text-right inspector-time-label">0.0s</div>
+
+            <!-- Play First Defect Slice Shortcut -->
+            ${hasDefects ? `
+              <button type="button" class="btn-inspector-play-slice px-3 py-2 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white transition cursor-pointer flex items-center gap-1.5 shadow-2xs shrink-0">
+                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                <span>Play Error (${((defectTags[0].time_start_ms || 0)/1000).toFixed(1)}s - ${((defectTags[0].time_end_ms || 0)/1000).toFixed(1)}s)</span>
               </button>
-              ${hasDefects ? `
-                <button type="button" class="btn-play-slice px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white transition cursor-pointer flex items-center gap-1.5 shadow-2xs">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                  <span>Play Defect Slice (${((defectTags[0].time_start_ms || 0)/1000).toFixed(1)}s - ${((defectTags[0].time_end_ms || 0)/1000).toFixed(1)}s)</span>
-                </button>
-              ` : ""}
-            </div>
+            ` : ""}
           </div>
 
-          <!-- Waveform Canvas -->
-          <div class="relative w-full rounded-lg overflow-hidden border border-zinc-800 bg-zinc-950">
-            <canvas class="audit-waveform-canvas w-full h-[76px] block"></canvas>
-            <div class="waveform-loading-overlay absolute inset-0 flex items-center justify-center bg-zinc-950/80 text-zinc-400 text-xs font-medium">
-              Loading acoustic waveform...
-            </div>
-          </div>
-
-          <!-- Defect Tags Details & Rater Notes -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 text-xs">
+          <!-- Flagged Defect Regions & Evaluator Feedback Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1 text-xs">
+            <!-- Flagged Errors -->
             <div class="space-y-1.5">
-              <div class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Flagged Defect Regions</div>
+              <div class="text-[11px] font-semibold text-zinc-600">Flagged Errors (${defectTags.length})</div>
               ${hasDefects ? `
                 <div class="space-y-1.5">
                   ${defectTags.map((dt, idx) => `
-                    <div class="p-2 rounded-lg bg-red-50/70 border border-red-200 flex items-center justify-between text-xs">
+                    <div class="p-2.5 rounded-lg bg-red-50/70 border border-red-200 flex items-center justify-between text-xs">
                       <div>
                         <span class="font-bold text-red-900">${escapeHtml(dt.error_code)}</span>
                         <span class="text-red-700 ml-1.5 font-mono text-[11px]">${((dt.time_start_ms || 0)/1000).toFixed(2)}s - ${((dt.time_end_ms || 0)/1000).toFixed(2)}s</span>
                         ${dt.note ? `<div class="text-[11px] text-red-800 italic mt-0.5">"${escapeHtml(dt.note)}"</div>` : ""}
                       </div>
-                      ${defectTags.length > 1 ? `
-                        <button type="button" class="btn-play-individual-slice px-2 py-1 text-[10px] font-semibold bg-white border border-red-200 hover:bg-red-100 rounded text-red-800 transition cursor-pointer" data-idx="${idx}">
-                          Play
-                        </button>
-                      ` : ""}
+                      <button type="button" class="btn-play-individual-slice px-2.5 py-1 text-[11px] font-semibold bg-white border border-red-200 hover:bg-red-100 rounded-md text-red-800 transition cursor-pointer flex items-center gap-1 shrink-0" data-idx="${idx}">
+                        <svg class="w-2.5 h-2.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        <span>Listen</span>
+                      </button>
                     </div>
                   `).join("")}
                 </div>
               ` : `
-                <div class="p-2 rounded-lg bg-zinc-50 text-zinc-400 text-xs italic">
-                  No acoustic defects flagged for this sample. Evaluator graded clean.
+                <div class="p-3 rounded-lg bg-zinc-50 border border-zinc-200/60 text-zinc-500 text-xs">
+                  No errors were flagged by the evaluator for this clip. Graded clean.
                 </div>
               `}
             </div>
 
+            <!-- Evaluator Notes -->
             <div class="space-y-1.5">
-              <div class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Evaluator Feedback & Context</div>
-              <div class="p-2.5 rounded-lg bg-zinc-50 border border-zinc-200/80 space-y-1 text-xs">
+              <div class="text-[11px] font-semibold text-zinc-600">Evaluator Notes & Feedback</div>
+              <div class="p-3 rounded-lg bg-zinc-50 border border-zinc-200/80 space-y-1.5 text-xs">
                 ${ev.comments ? `
-                  <div><strong class="text-zinc-700">Notes:</strong> <span class="italic text-zinc-600">"${escapeHtml(ev.comments)}"</span></div>
-                ` : ""}
+                  <div><span class="text-zinc-500 font-medium">Comments:</span> <span class="italic text-zinc-700">"${escapeHtml(ev.comments)}"</span></div>
+                ` : `<div class="text-zinc-400 italic">No additional comments provided.</div>`}
                 ${ev.blind_transcript ? `
-                  <div><strong class="text-zinc-700">What Rater Heard:</strong> <span class="font-khmer font-bold text-zinc-900">${escapeHtml(ev.blind_transcript)}</span></div>
+                  <div class="pt-1 border-t border-zinc-200/60">
+                    <span class="text-zinc-500 font-medium">What Evaluator Heard:</span>
+                    <span class="font-khmer font-bold text-zinc-900 ml-1 text-sm">${escapeHtml(ev.blind_transcript)}</span>
+                  </div>
                 ` : ""}
-                <div class="text-[11px] text-zinc-500 pt-1 border-t border-zinc-200/60 flex items-center justify-between">
-                  <span>Evaluator: <strong>${escapeHtml(ev.rater_name || "Anonymous")}</strong></span>
-                  <span>Duration: <strong>${ev.duration_seconds ? ev.duration_seconds.toFixed(1) + "s" : "N/A"}</strong></span>
-                </div>
               </div>
             </div>
           </div>
@@ -4411,11 +4498,11 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
 
     parentTr.parentNode.insertBefore(inspectorTr, parentTr.nextSibling);
 
-    // Render Waveform Canvas with Defect Regions
     const canvas = inspectorTr.querySelector(".audit-waveform-canvas");
     const loadingOverlay = inspectorTr.querySelector(".waveform-loading-overlay");
-    const btnPlayFull = inspectorTr.querySelector(".btn-play-full");
-    const btnPlaySlice = inspectorTr.querySelector(".btn-play-slice");
+    const btnPlayFull = inspectorTr.querySelector(".btn-inspector-play-full");
+    const btnPlaySlice = inspectorTr.querySelector(".btn-inspector-play-slice");
+    const timeLabel = inspectorTr.querySelector(".inspector-time-label");
 
     if (canvas && audioUrl) {
       loadAndRenderInspectorWaveform(canvas, loadingOverlay, audioUrl, defectTags);
@@ -4425,7 +4512,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
 
     if (btnPlayFull && audioUrl) {
       btnPlayFull.addEventListener("click", () => {
-        playInspectorAudio(audioUrl, canvas, null);
+        playInspectorAudio(audioUrl, canvas, null, btnPlayFull, timeLabel);
       });
     }
 
@@ -4434,7 +4521,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         const d0 = defectTags[0];
         const s = (d0.time_start_ms || 0) / 1000;
         const e = (d0.time_end_ms || 0) / 1000;
-        playInspectorAudio(audioUrl, canvas, { startSec: s, endSec: e });
+        playInspectorAudio(audioUrl, canvas, { startSec: s, endSec: e }, btnPlayFull, timeLabel);
       });
     }
 
@@ -4445,7 +4532,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         if (dt) {
           const s = (dt.time_start_ms || 0) / 1000;
           const e = (dt.time_end_ms || 0) / 1000;
-          playInspectorAudio(audioUrl, canvas, { startSec: s, endSec: e });
+          playInspectorAudio(audioUrl, canvas, { startSec: s, endSec: e }, btnPlayFull, timeLabel);
         }
       });
     });
@@ -4453,6 +4540,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
 
   async function loadAndRenderInspectorWaveform(canvas, loadingOverlay, audioUrl, defectTags) {
     try {
+      canvas.__defectTags = defectTags || [];
       let buffer = auditAudioBuffers[audioUrl];
       if (!buffer) {
         const ctx = getAuditAudioContext();
@@ -4476,87 +4564,120 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     const ctx = canvas.getContext("2d");
     const dpr = window.devicePixelRatio || 1;
     const width = canvas.clientWidth || 600;
-    const height = 76;
+    const height = canvas.clientHeight || 64;
 
     canvas.width = width * dpr;
     canvas.height = height * dpr;
     ctx.scale(dpr, dpr);
 
-    // Dark background
-    ctx.fillStyle = "#09090b";
+    // Clean white background
+    ctx.fillStyle = "#FFFFFF";
     ctx.fillRect(0, 0, width, height);
 
-    // Centerline
-    ctx.strokeStyle = "#27272a";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(0, height / 2);
-    ctx.lineTo(width, height / 2);
-    ctx.stroke();
-
     const data = buffer.getChannelData(0);
-    const duration = buffer.duration;
-    const step = Math.ceil(data.length / width);
-    const amp = height / 2.3;
+    const duration = buffer.duration || 1.0;
+    const barWidth = 2.5;
+    const barGap = 1.5;
+    const numBars = Math.floor(width / (barWidth + barGap));
+    const step = Math.max(1, Math.floor(data.length / numBars));
+    const midY = height / 2;
+    const maxBarHeight = height - 12;
 
-    // Draw waveform bars
-    ctx.fillStyle = "#a1a1aa";
-    for (let i = 0; i < width; i++) {
+    const playheadX = playheadProgress * width;
+
+    // Played vs unplayed gradients (Fish Audio aesthetic)
+    const playedGrad = ctx.createLinearGradient(0, midY - (maxBarHeight / 2), 0, midY + (maxBarHeight / 2));
+    playedGrad.addColorStop(0, "#09090B");
+    playedGrad.addColorStop(1, "#27272A");
+
+    const unplayedGrad = ctx.createLinearGradient(0, midY - (maxBarHeight / 2), 0, midY + (maxBarHeight / 2));
+    unplayedGrad.addColorStop(0, "#CBD5E1");
+    unplayedGrad.addColorStop(1, "#E2E8F0");
+
+    // Draw rounded pill bars
+    for (let i = 0; i < numBars; i++) {
       let min = 1.0;
       let max = -1.0;
       for (let j = 0; j < step; j++) {
-        const datum = data[(i * step) + j];
+        const datum = data[(i * step) + j] || 0;
         if (datum < min) min = datum;
         if (datum > max) max = datum;
       }
-      const y1 = Math.max(0, (1 + min) * amp);
-      const y2 = Math.min(height, (1 + max) * amp);
-      ctx.fillRect(i, y1, 1, Math.max(1, y2 - y1));
+      const peak = Math.max(Math.abs(min), Math.abs(max));
+      const barHeight = Math.max(3, peak * maxBarHeight);
+      const x = i * (barWidth + barGap);
+      const y = midY - (barHeight / 2);
+
+      const isPlayed = (x + barWidth) <= playheadX;
+      ctx.fillStyle = isPlayed ? playedGrad : unplayedGrad;
+
+      const radius = Math.min(barWidth / 2, barHeight / 2);
+      ctx.beginPath();
+      if (typeof ctx.roundRect === "function") {
+        ctx.roundRect(x, y, barWidth, barHeight, radius);
+      } else {
+        ctx.rect(x, y, barWidth, barHeight);
+      }
+      ctx.fill();
     }
 
     // Overlay Defect Regions
-    if (Array.isArray(defectTags) && duration > 0) {
-      defectTags.forEach(dt => {
+    const tags = (Array.isArray(defectTags) && defectTags.length > 0) ? defectTags : (canvas.__defectTags || []);
+    if (tags.length > 0 && duration > 0) {
+      tags.forEach(dt => {
         const startSec = (dt.time_start_ms || 0) / 1000;
         const endSec = (dt.time_end_ms || 0) / 1000;
         if (endSec > startSec) {
           const x1 = (startSec / duration) * width;
           const x2 = (endSec / duration) * width;
-          const w = Math.max(4, x2 - x1);
+          const w = Math.max(6, x2 - x1);
 
-          // Fill
-          ctx.fillStyle = "rgba(239, 68, 68, 0.28)";
+          // Translucent red highlight fill
+          ctx.fillStyle = "rgba(239, 68, 68, 0.20)";
           ctx.fillRect(x1, 0, w, height);
 
-          // Border
-          ctx.strokeStyle = "#ef4444";
-          ctx.lineWidth = 1.5;
-          ctx.strokeRect(x1, 0, w, height);
+          // Top red indicator
+          ctx.fillStyle = "#EF4444";
+          ctx.fillRect(x1, 0, w, 3);
 
-          // Label
-          ctx.fillStyle = "#fecaca";
-          ctx.font = "bold 9px Geist, sans-serif";
-          ctx.fillText(dt.error_code || "DEFECT", x1 + 3, 11);
+          // Left/right borders
+          ctx.strokeStyle = "rgba(239, 68, 68, 0.5)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x1, 0);
+          ctx.lineTo(x1, height);
+          ctx.moveTo(x1 + w, 0);
+          ctx.lineTo(x1 + w, height);
+          ctx.stroke();
+
+          // Defect label pill
+          const label = dt.error_code || "ERROR";
+          ctx.font = "bold 9px -apple-system, sans-serif";
+          ctx.fillStyle = "#991B1B";
+          ctx.fillText(label, x1 + 3, height - 4);
         }
       });
     }
 
-    // Playhead line
+    // Playhead line with Fish Audio pill handle
     if (playheadProgress > 0 && playheadProgress <= 1) {
-      const playX = playheadProgress * width;
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 2;
+      ctx.fillStyle = "#09090B";
+      ctx.fillRect(Math.max(0, playheadX - 1), 2, 2, height - 4);
+
       ctx.beginPath();
-      ctx.moveTo(playX, 0);
-      ctx.lineTo(playX, height);
-      ctx.stroke();
+      if (typeof ctx.roundRect === "function") {
+        ctx.roundRect(playheadX - 3, 1, 6, 8, 3);
+      } else {
+        ctx.arc(playheadX, 4, 3, 0, Math.PI * 2);
+      }
+      ctx.fill();
     }
   }
 
   let activeInspectorSource = null;
   let activeInspectorAnim = null;
 
-  function playInspectorAudio(audioUrl, canvas, slice) {
+  function playInspectorAudio(audioUrl, canvas, slice, btnPlay, timeLabel) {
     const ctx = getAuditAudioContext();
     if (!ctx) return;
     const buffer = auditAudioBuffers[audioUrl];
@@ -4578,20 +4699,29 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
 
     const duration = buffer.duration;
     const startSec = slice ? slice.startSec : 0;
-    const playDuration = slice ? (slice.endSec - slice.startSec) : duration;
+    const playDuration = slice ? (slice.endSec - slice.startSec) : (duration - startSec);
     const startTime = ctx.currentTime;
 
     source.start(0, startSec, playDuration);
+
+    if (btnPlay) {
+      btnPlay.innerHTML = `<svg class="w-4 h-4 fill-current ml-0.5" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+    }
 
     const defectTags = canvas.__defectTags || [];
     function updatePlayhead() {
       const elapsed = ctx.currentTime - startTime;
       if (elapsed >= playDuration) {
         drawWaveformWithDefects(canvas, buffer, defectTags, 0);
+        if (btnPlay) {
+          btnPlay.innerHTML = `<svg class="w-4 h-4 fill-current ml-0.5" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+        }
+        if (timeLabel) timeLabel.textContent = "0.0s";
         return;
       }
       const currentPosSec = startSec + elapsed;
       const progress = currentPosSec / duration;
+      if (timeLabel) timeLabel.textContent = currentPosSec.toFixed(1) + "s";
       drawWaveformWithDefects(canvas, buffer, defectTags, progress);
       activeInspectorAnim = requestAnimationFrame(updatePlayhead);
     }
@@ -4603,6 +4733,10 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         activeInspectorAnim = null;
       }
       drawWaveformWithDefects(canvas, buffer, defectTags, 0);
+      if (btnPlay) {
+        btnPlay.innerHTML = `<svg class="w-4 h-4 fill-current ml-0.5" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+      }
+      if (timeLabel) timeLabel.textContent = "0.0s";
     };
   }
 
@@ -4694,7 +4828,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
 
     // Bars and CI ticks
     modelsList.forEach((m, idx) => {
-      const name = m.model_name || "Sample";
+      const name = m.model_name || m.name || m.candidate_code || m.code || "Model";
       const summary = m.summary || {};
       const primaryStat = summary[firstMetricKey] || summary.naturalness || summary[Object.keys(summary)[0]] || {};
 
@@ -4743,9 +4877,9 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       }
 
       // Model label on bottom
-      const truncName = name.length > 12 ? name.slice(0, 10) + "…" : name;
+      const truncName = name.length > 15 ? name.slice(0, 13) + "…" : name;
       svg += `
-        <text x="${centerX}" y="${chartHeight - 12}" text-anchor="middle" font-size="10" font-weight="500" fill="#3F3F46">${escapeHtml(truncName)}</text>
+        <text x="${centerX}" y="${chartHeight - 12}" text-anchor="middle" font-size="10" font-weight="600" fill="#27272A">${escapeHtml(truncName)}</text>
       `;
     });
 

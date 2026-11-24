@@ -227,7 +227,7 @@
     const storedName = localStorage.getItem("tts_rater_name");
     const storedId = localStorage.getItem("tts_rater_id");
 
-    if (!storedName || !storedId) {
+    if (!storedName || !storedId || storedName.startsWith("rater-") || storedName.trim().length === 0) {
       showOnboarding();
     } else {
       state.rater = { id: storedId, name: storedName };
@@ -1866,6 +1866,7 @@
     const payload = {
       campaign_id: state.campaignId,
       rater_id: state.rater.id,
+      rater_name: state.rater.name || "",
       item_id: item.id,
       model_id: modelId,
       scores: state.currentScores,
@@ -1930,6 +1931,7 @@
     const payload = {
       campaign_id: state.campaignId,
       rater_id: state.rater.id,
+      rater_name: state.rater.name || "",
       item_id: item.id,
       model_id: modelId,
       scores: state.currentScores,

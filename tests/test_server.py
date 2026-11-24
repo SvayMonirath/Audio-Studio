@@ -1214,6 +1214,53 @@ class StudioServerTestCase(unittest.TestCase):
         self.assertIn("toggleAuditRowInspector", js)
         self.assertIn("audit-waveform-canvas", js)
 
+    def test_admin_rename_rater(self):
+        """Verify POST /api/admin/raters/rename updates rater name and enforces PIN."""
+        # 1. Unauthenticated request should fail with 401
+        unauth_req = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/admin/raters/rename",
+            data=json.dumps({"rater_id": "rater-bora", "name": "Bora Lead"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        try:
+            with urlopen(unauth_req) as res:
+                self.fail("Should require admin auth")
+        except HTTPError as e:
+            self.assertEqual(e.code, 401)
+
+        # 2. Authenticated request should succeed
+        auth_req = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/admin/raters/rename",
+            data=json.dumps({"rater_id": "rater-bora", "name": "Bora Renamed"}).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "1234"}
+        )
+        with urlopen(auth_req) as res:
+            self.assertEqual(res.status, 200)
+            data = json.loads(res.read().decode("utf-8"))
+            self.assertTrue(data.get("success"))
+            self.assertEqual(data.get("name"), "Bora Renamed")
+
+        # 3. Verify in DB
+        conn = get_connection(TEST_DB_PATH)
+        name_in_db = conn.execute("SELECT name FROM raters WHERE id = 'rater-bora'").fetchone()[0]
+        conn.close()
+        self.assertEqual(name_in_db, "Bora Renamed")
+
+    def test_admin_dynamic_elements_and_waveform(self):
+        """Verify public/admin.html and public/js/admin_app.js support dynamic test labels and pill waveform."""
+        with open("public/admin.html", "r", encoding="utf-8") as f:
+            html = f.read()
+        self.assertIn('id="stat-mean-label"', html)
+        self.assertIn('id="chart-mos-title"', html)
+        self.assertIn('id="chart-mos-subtitle"', html)
+        self.assertIn('id="chart-mos-badge"', html)
+
+        with open("public/js/admin_app.js", "r", encoding="utf-8") as f:
+            js = f.read()
+        self.assertIn("isBinaryStudy", js)
+        self.assertIn("btn-inspector-play-full", js)
+        self.assertIn("audit-waveform-canvas", js)
+
 
 if __name__ == "__main__":
     unittest.main()
