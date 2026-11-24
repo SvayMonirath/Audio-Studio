@@ -388,7 +388,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                 where_sql = ("WHERE " + " AND ".join(clauses)) if clauses else ""
                 sql = f"""
                 SELECT e.*, r.name as rater_name, m.name as model_name, m.repo_id,
-                       i.item_key, i.text as item_text
+                       i.item_key, i.text as item_text, i.audio_files_json
                 FROM evaluations e
                 JOIN raters r ON e.rater_id = r.id
                 JOIN models m ON e.model_id = m.id
@@ -693,6 +693,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                 if not e_id:
                     self.send_json_response({"error": "id parameter required."}, status=400)
                     return
+                cur.execute("DELETE FROM defect_tags WHERE evaluation_id = ?", (e_id,))
                 cur.execute("DELETE FROM evaluations WHERE id = ?", (e_id,))
                 conn.commit()
                 self.send_json_response({"success": True, "deleted_evaluation_id": e_id})

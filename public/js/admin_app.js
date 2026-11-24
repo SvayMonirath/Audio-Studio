@@ -410,6 +410,16 @@
     analyticsMosTbody: document.getElementById("analytics-mos-tbody"),
     analyticsDefectsTbody: document.getElementById("analytics-defects-tbody"),
     analyticsTranscriptionsTbody: document.getElementById("analytics-transcriptions-tbody"),
+    analyticsRatersCard: document.getElementById("analytics-raters-card"),
+    analyticsRatersGrid: document.getElementById("analytics-raters-grid"),
+    auditRaterCountBadge: document.getElementById("audit-rater-count-badge"),
+    auditSearchInput: document.getElementById("audit-search-input"),
+    auditFilterRater: document.getElementById("audit-filter-rater"),
+    auditFilterModel: document.getElementById("audit-filter-model"),
+    auditFilterDefect: document.getElementById("audit-filter-defect"),
+    auditSortSelect: document.getElementById("audit-sort-select"),
+    auditCountBadge: document.getElementById("audit-count-badge"),
+    analyticsAuditTbody: document.getElementById("analytics-audit-tbody"),
 
     // Studies & Backup
     btnExportBackup: document.getElementById("btn-export-backup"),
@@ -3852,8 +3862,779 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         }
       }
 
+      // Submissions Audit Log & Waveform Inspector Data
+      try {
+        const evResp = await adminFetch(`/api/evaluations?campaign_id=${encodeURIComponent(campaignId)}`);
+        const evData = await evResp.json();
+        state.auditData = {
+          campaignId: campaignId,
+          evaluations: evData.evaluations || [],
+          meanScore: data.overall_mean_mos || 0,
+          models: data.model_statistics || []
+        };
+        renderRatersLeaderboard();
+        setupAuditFilters();
+        renderAuditStudio();
+      } catch (e) {
+        console.warn("Audit evaluations load error:", e);
+      }
+
     } catch (err) {
       console.warn("Analytics load error:", err);
+    }
+  }
+
+  // --- Submissions Audit Studio, Filters & Waveform Inspector ---
+
+  let auditAudioCtx = null;
+  const auditAudioBuffers = {};
+  let currentActiveAuditAudio = null;
+
+  function getAuditAudioContext() {
+    if (!auditAudioCtx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) auditAudioCtx = new AudioCtx();
+    }
+    if (auditAudioCtx && auditAudioCtx.state === "suspended") {
+      auditAudioCtx.resume();
+    }
+    return auditAudioCtx;
+  }
+
+  function resolveEvaluationAudioUrl(ev) {
+    if (!ev) return "";
+    if (ev.audio_files_json) {
+      try {
+        const obj = typeof ev.audio_files_json === "string" ? JSON.parse(ev.audio_files_json) : ev.audio_files_json;
+        if (obj.url) return obj.url;
+        if (ev.model_id && obj[ev.model_id]) {
+          return obj[ev.model_id]?.url || obj[ev.model_id];
+        }
+        const firstKey = Object.keys(obj)[0];
+        if (firstKey) {
+          return obj[firstKey]?.url || obj[firstKey];
+        }
+      } catch (e) {}
+    }
+    return "";
+  }
+
+  function renderRatersLeaderboard() {
+    if (!el.analyticsRatersGrid || !state.auditData) return;
+    el.analyticsRatersGrid.innerHTML = "";
+    const evals = state.auditData.evaluations || [];
+    const ratersMap = {};
+
+    evals.forEach(ev => {
+      const rid = ev.rater_id || "anonymous";
+      if (!ratersMap[rid]) {
+        ratersMap[rid] = {
+          id: rid,
+          name: ev.rater_name || "Anonymous",
+          count: 0,
+          scores: [],
+          defectsCount: 0,
+          lastActive: ev.created_at || ""
+        };
+      }
+      ratersMap[rid].count++;
+      if (ev.scores) {
+        Object.values(ev.scores).forEach(s => {
+          if (typeof s === "number") ratersMap[rid].scores.push(s);
+        });
+      }
+      if (Array.isArray(ev.defect_tags)) {
+        ratersMap[rid].defectsCount += ev.defect_tags.length;
+      }
+      if (ev.created_at && (!ratersMap[rid].lastActive || ev.created_at > ratersMap[rid].lastActive)) {
+        ratersMap[rid].lastActive = ev.created_at;
+      }
+    });
+
+    const ratersList = Object.values(ratersMap);
+    if (el.auditRaterCountBadge) {
+      el.auditRaterCountBadge.textContent = `${ratersList.length} Evaluator${ratersList.length === 1 ? "" : "s"}`;
+    }
+
+    if (ratersList.length === 0) {
+      el.analyticsRatersGrid.innerHTML = `
+        <div class="col-span-full py-4 text-center text-xs text-zinc-400">
+          No evaluators recorded for this study yet.
+        </div>
+      `;
+      return;
+    }
+
+    const overallMean = state.auditData.meanScore || 0;
+
+    ratersList.sort((a, b) => b.count - a.count).forEach(r => {
+      const raterMean = r.scores.length > 0 ? (r.scores.reduce((acc, v) => acc + v, 0) / r.scores.length) : 0;
+      let tendencyBadge = "";
+      if (r.scores.length > 0 && overallMean > 0) {
+        const diff = raterMean - overallMean;
+        if (diff > 0.35) {
+          tendencyBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" title="Scores significantly higher than average">Lenient (+${diff.toFixed(1)})</span>`;
+        } else if (diff < -0.35) {
+          tendencyBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200" title="Scores significantly lower than average">Strict (${diff.toFixed(1)})</span>`;
+        } else {
+          tendencyBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-zinc-100 text-zinc-600 border border-zinc-200">Balanced</span>`;
+        }
+      }
+
+      const card = document.createElement("div");
+      card.className = "p-3 rounded-xl bg-white border border-zinc-200/80 hover:border-zinc-300 hover:shadow-xs transition cursor-pointer flex flex-col justify-between space-y-2.5";
+      card.title = `Click to filter submissions by ${r.name}`;
+      card.innerHTML = `
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-full bg-zinc-900 text-white font-bold text-xs flex items-center justify-center uppercase shrink-0">
+              ${escapeHtml(r.name.slice(0, 1))}
+            </div>
+            <div class="overflow-hidden">
+              <div class="font-bold text-xs text-zinc-900 truncate">${escapeHtml(r.name)}</div>
+              <div class="text-[10px] text-zinc-400 font-mono">${escapeHtml(r.lastActive.slice(0, 10))}</div>
+            </div>
+          </div>
+          ${tendencyBadge}
+        </div>
+        <div class="grid grid-cols-3 gap-1 pt-1 border-t border-zinc-100 text-center">
+          <div>
+            <div class="text-[10px] text-zinc-400 uppercase font-medium">Rated</div>
+            <div class="font-mono font-bold text-xs text-zinc-900">${r.count}</div>
+          </div>
+          <div>
+            <div class="text-[10px] text-zinc-400 uppercase font-medium">Avg</div>
+            <div class="font-mono font-bold text-xs ${raterMean >= 3.5 ? "text-emerald-700" : "text-zinc-800"}">${raterMean > 0 ? raterMean.toFixed(2) : "N/A"}</div>
+          </div>
+          <div>
+            <div class="text-[10px] text-zinc-400 uppercase font-medium">Defects</div>
+            <div class="font-mono font-bold text-xs ${r.defectsCount > 0 ? "text-red-700" : "text-zinc-500"}">${r.defectsCount}</div>
+          </div>
+        </div>
+      `;
+
+      card.addEventListener("click", () => {
+        if (el.auditFilterRater) {
+          el.auditFilterRater.value = r.id;
+          renderAuditStudio();
+          card.classList.add("ring-2", "ring-zinc-900");
+          setTimeout(() => card.classList.remove("ring-2", "ring-zinc-900"), 1200);
+        }
+      });
+
+      el.analyticsRatersGrid.appendChild(card);
+    });
+  }
+
+  let auditFiltersWired = false;
+  function setupAuditFilters() {
+    if (!state.auditData) return;
+    const evals = state.auditData.evaluations || [];
+
+    // Populate Raters Dropdown
+    if (el.auditFilterRater) {
+      const currentVal = el.auditFilterRater.value;
+      el.auditFilterRater.innerHTML = `<option value="all">All Evaluators</option>`;
+      const seenRaters = new Set();
+      evals.forEach(ev => {
+        const rid = ev.rater_id || "anonymous";
+        if (!seenRaters.has(rid)) {
+          seenRaters.add(rid);
+          const opt = document.createElement("option");
+          opt.value = rid;
+          opt.textContent = `${ev.rater_name || "Anonymous"}`;
+          el.auditFilterRater.appendChild(opt);
+        }
+      });
+      if (currentVal && seenRaters.has(currentVal)) {
+        el.auditFilterRater.value = currentVal;
+      }
+    }
+
+    // Populate Models Dropdown
+    if (el.auditFilterModel) {
+      const currentModelVal = el.auditFilterModel.value;
+      el.auditFilterModel.innerHTML = `<option value="all">All Models</option>`;
+      const seenModels = new Set();
+      evals.forEach(ev => {
+        const mid = ev.model_id;
+        if (mid && !seenModels.has(mid)) {
+          seenModels.add(mid);
+          const opt = document.createElement("option");
+          opt.value = mid;
+          opt.textContent = ev.model_name || mid;
+          el.auditFilterModel.appendChild(opt);
+        }
+      });
+      if (currentModelVal && seenModels.has(currentModelVal)) {
+        el.auditFilterModel.value = currentModelVal;
+      }
+    }
+
+    if (!auditFiltersWired) {
+      if (el.auditSearchInput) el.auditSearchInput.addEventListener("input", () => renderAuditStudio());
+      if (el.auditFilterRater) el.auditFilterRater.addEventListener("change", () => renderAuditStudio());
+      if (el.auditFilterModel) el.auditFilterModel.addEventListener("change", () => renderAuditStudio());
+      if (el.auditFilterDefect) el.auditFilterDefect.addEventListener("change", () => renderAuditStudio());
+      if (el.auditSortSelect) el.auditSortSelect.addEventListener("change", () => renderAuditStudio());
+      auditFiltersWired = true;
+    }
+  }
+
+  function renderAuditStudio() {
+    if (!el.analyticsAuditTbody || !state.auditData) return;
+    const allEvals = state.auditData.evaluations || [];
+
+    const searchQuery = (el.auditSearchInput ? el.auditSearchInput.value : "").trim().toLowerCase();
+    const raterFilter = el.auditFilterRater ? el.auditFilterRater.value : "all";
+    const modelFilter = el.auditFilterModel ? el.auditFilterModel.value : "all";
+    const defectFilter = el.auditFilterDefect ? el.auditFilterDefect.value : "all";
+    const sortMode = el.auditSortSelect ? el.auditSortSelect.value : "newest";
+
+    let filtered = allEvals.filter(ev => {
+      // 1. Search Query
+      if (searchQuery) {
+        const textMatch = (ev.item_text || "").toLowerCase().includes(searchQuery);
+        const keyMatch = (ev.item_key || "").toLowerCase().includes(searchQuery);
+        const raterMatch = (ev.rater_name || "").toLowerCase().includes(searchQuery);
+        const transcriptMatch = (ev.blind_transcript || "").toLowerCase().includes(searchQuery);
+        if (!textMatch && !keyMatch && !raterMatch && !transcriptMatch) return false;
+      }
+
+      // 2. Rater Filter
+      if (raterFilter !== "all" && ev.rater_id !== raterFilter) {
+        return false;
+      }
+
+      // 3. Model Filter
+      if (modelFilter !== "all" && ev.model_id !== modelFilter) {
+        return false;
+      }
+
+      // 4. Defect Filter
+      const hasDefects = Array.isArray(ev.defect_tags) && ev.defect_tags.length > 0;
+      const hasTrans = !!(ev.blind_transcript && ev.blind_transcript.trim());
+      if (defectFilter === "with_defects" && !hasDefects) return false;
+      if (defectFilter === "clean" && hasDefects) return false;
+      if (defectFilter === "with_transcription" && !hasTrans) return false;
+
+      return true;
+    });
+
+    // Sort
+    filtered.sort((a, b) => {
+      if (sortMode === "oldest") {
+        return (a.created_at || "").localeCompare(b.created_at || "");
+      }
+      if (sortMode === "duration") {
+        return (b.duration_seconds || 0) - (a.duration_seconds || 0);
+      }
+      if (sortMode === "lowest_score" || sortMode === "highest_score") {
+        const getAvg = (item) => {
+          if (!item.scores) return 0;
+          const vals = Object.values(item.scores).filter(v => typeof v === "number");
+          return vals.length > 0 ? (vals.reduce((s, v) => s + v, 0) / vals.length) : 0;
+        };
+        const avgA = getAvg(a);
+        const avgB = getAvg(b);
+        return sortMode === "lowest_score" ? avgA - avgB : avgB - avgA;
+      }
+      // default: newest
+      return (b.created_at || "").localeCompare(a.created_at || "");
+    });
+
+    if (el.auditCountBadge) {
+      el.auditCountBadge.textContent = `Showing ${filtered.length} of ${allEvals.length} evaluations`;
+    }
+
+    el.analyticsAuditTbody.innerHTML = "";
+
+    if (filtered.length === 0) {
+      el.analyticsAuditTbody.innerHTML = `
+        <tr>
+          <td colspan="7" class="py-10 text-center text-xs text-zinc-400 font-medium">
+            No evaluations match the selected filter criteria.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    filtered.forEach(ev => {
+      const tr = document.createElement("tr");
+      tr.className = "hover:bg-zinc-50/75 transition-colors group";
+      tr.dataset.evalId = ev.id;
+
+      const audioUrl = resolveEvaluationAudioUrl(ev);
+      const hasDefects = Array.isArray(ev.defect_tags) && ev.defect_tags.length > 0;
+      const hasTrans = !!(ev.blind_transcript && ev.blind_transcript.trim());
+
+      // Scores preview pills
+      let scoresHtml = "";
+      if (ev.scores && typeof ev.scores === "object") {
+        scoresHtml = Object.entries(ev.scores).map(([k, v]) => {
+          if (v === 1 && typeof v === "number" && Object.keys(ev.scores).length <= 2) {
+            return `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Pass</span>`;
+          } else if (v === 0 && typeof v === "number" && Object.keys(ev.scores).length <= 2) {
+            return `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Fail</span>`;
+          }
+          return `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-zinc-100 text-zinc-700 border border-zinc-200" title="${escapeHtml(k)}"><span class="text-zinc-400 font-normal">${escapeHtml(k.slice(0, 4))}:</span><strong>${v}</strong></span>`;
+        }).join(" ");
+      }
+
+      // Defects preview badges
+      let defectsHtml = "";
+      if (hasDefects) {
+        defectsHtml = ev.defect_tags.map(dt => `
+          <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-50 text-red-700 border border-red-200" title="${escapeHtml(dt.note || "")}">
+            <span>${escapeHtml(dt.error_code)}</span>
+            <span class="font-mono text-[9px] text-red-500">${((dt.time_start_ms || 0)/1000).toFixed(1)}s</span>
+          </span>
+        `).join(" ");
+      } else {
+        defectsHtml = `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium text-zinc-400 bg-zinc-50 border border-zinc-200/60">Clean</span>`;
+      }
+
+      tr.innerHTML = `
+        <td class="p-3 text-center">
+          ${audioUrl ? `
+            <button type="button" class="btn-audio-play-quick w-7 h-7 rounded-full bg-zinc-100 hover:bg-zinc-900 hover:text-white text-zinc-700 flex items-center justify-center transition cursor-pointer mx-auto shadow-2xs" title="Play audio snippet">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            </button>
+          ` : `
+            <span class="w-7 h-7 rounded-full bg-zinc-50 text-zinc-300 flex items-center justify-center mx-auto text-xs">-</span>
+          `}
+        </td>
+        <td class="p-3 max-w-xs">
+          <div class="font-khmer font-bold text-zinc-900 text-xs truncate" title="${escapeHtml(ev.item_text || "")}">
+            ${escapeHtml(ev.item_text || "Audio Item")}
+          </div>
+          <div class="text-[10px] text-zinc-400 font-mono mt-0.5">${escapeHtml(ev.item_key || ev.item_id || "")}</div>
+          ${hasTrans ? `
+            <div class="mt-1 text-[10px] text-amber-800 bg-amber-50/70 border border-amber-200/60 rounded px-1.5 py-0.5 inline-block font-khmer">
+              Heard: "${escapeHtml(ev.blind_transcript)}"
+            </div>
+          ` : ""}
+        </td>
+        <td class="p-3">
+          <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-zinc-100 text-zinc-800 border border-zinc-200">
+            ${escapeHtml(ev.model_name || ev.model_id || "Model")}
+          </span>
+        </td>
+        <td class="p-3">
+          <div class="font-semibold text-zinc-900">${escapeHtml(ev.rater_name || "Anonymous")}</div>
+          <div class="text-[10px] text-zinc-400 font-mono">${(ev.created_at || "").slice(0, 16)} • ${ev.duration_seconds ? ev.duration_seconds.toFixed(1) + "s" : ""}</div>
+        </td>
+        <td class="p-3">
+          <div class="flex flex-wrap gap-1">${scoresHtml}</div>
+        </td>
+        <td class="p-3">
+          <div class="flex flex-wrap gap-1">${defectsHtml}</div>
+        </td>
+        <td class="p-3 text-right">
+          <div class="flex items-center justify-end gap-1.5">
+            <button type="button" class="btn-toggle-inspector px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 transition cursor-pointer flex items-center gap-1" title="Inspect waveform defect regions">
+              <span>Inspect</span>
+              <svg class="w-3 h-3 text-zinc-400 group-hover:text-zinc-600 transition-transform duration-200 btn-expand-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <button type="button" class="btn-delete-audit-eval w-7 h-7 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition cursor-pointer" title="Delete submission">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+          </div>
+        </td>
+      `;
+
+      // Quick audio play toggle
+      const btnPlay = tr.querySelector(".btn-audio-play-quick");
+      if (btnPlay && audioUrl) {
+        btnPlay.addEventListener("click", (e) => {
+          e.stopPropagation();
+          toggleQuickAudio(btnPlay, audioUrl);
+        });
+      }
+
+      // Toggle Waveform Inspector
+      const btnInspect = tr.querySelector(".btn-toggle-inspector");
+      if (btnInspect) {
+        btnInspect.addEventListener("click", () => {
+          toggleAuditRowInspector(tr, ev, audioUrl);
+        });
+      }
+
+      // Delete evaluation
+      const btnDel = tr.querySelector(".btn-delete-audit-eval");
+      if (btnDel) {
+        btnDel.addEventListener("click", (e) => {
+          e.stopPropagation();
+          deleteAuditEvaluation(ev.id);
+        });
+      }
+
+      el.analyticsAuditTbody.appendChild(tr);
+    });
+  }
+
+  function toggleQuickAudio(btn, audioUrl) {
+    if (currentActiveAuditAudio && currentActiveAuditAudio.src.endsWith(audioUrl) && !currentActiveAuditAudio.paused) {
+      currentActiveAuditAudio.pause();
+      btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+      btn.classList.remove("bg-zinc-900", "text-white");
+      btn.classList.add("bg-zinc-100", "text-zinc-700");
+      return;
+    }
+
+    if (currentActiveAuditAudio) {
+      currentActiveAuditAudio.pause();
+      document.querySelectorAll(".btn-audio-play-quick").forEach(b => {
+        b.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+        b.classList.remove("bg-zinc-900", "text-white");
+        b.classList.add("bg-zinc-100", "text-zinc-700");
+      });
+    }
+
+    const audio = new Audio(audioUrl);
+    currentActiveAuditAudio = audio;
+    btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+    btn.classList.remove("bg-zinc-100", "text-zinc-700");
+    btn.classList.add("bg-zinc-900", "text-white");
+
+    audio.play().catch(e => {
+      console.warn("Audio play error:", e);
+      btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+    });
+
+    audio.onended = () => {
+      btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+      btn.classList.remove("bg-zinc-900", "text-white");
+      btn.classList.add("bg-zinc-100", "text-zinc-700");
+    };
+  }
+
+  function toggleAuditRowInspector(parentTr, ev, audioUrl) {
+    const nextEl = parentTr.nextElementSibling;
+    const arrow = parentTr.querySelector(".btn-expand-arrow");
+
+    if (nextEl && nextEl.classList.contains("audit-inspector-row")) {
+      nextEl.remove();
+      if (arrow) arrow.style.transform = "rotate(0deg)";
+      return;
+    }
+
+    if (arrow) arrow.style.transform = "rotate(180deg)";
+
+    const inspectorTr = document.createElement("tr");
+    inspectorTr.className = "audit-inspector-row bg-zinc-900/3 border-y border-zinc-200/80";
+
+    const hasDefects = Array.isArray(ev.defect_tags) && ev.defect_tags.length > 0;
+    const defectTags = ev.defect_tags || [];
+
+    inspectorTr.innerHTML = `
+      <td colspan="7" class="p-4 bg-zinc-50/50">
+        <div class="max-w-4xl mx-auto space-y-3 p-4 bg-white rounded-xl border border-zinc-200/90 shadow-xs">
+          <div class="flex items-center justify-between border-b border-zinc-100 pb-2.5">
+            <div>
+              <div class="text-xs font-bold text-zinc-900 flex items-center gap-2">
+                <span>Waveform Defect Inspector</span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-zinc-100 text-zinc-700 font-semibold">${escapeHtml(ev.item_key || "")}</span>
+              </div>
+              <div class="text-[11px] text-zinc-500 font-khmer mt-0.5">${escapeHtml(ev.item_text || "")}</div>
+            </div>
+            <div class="flex items-center gap-2" id="inspector-playback-controls">
+              <button type="button" class="btn-play-full px-3 py-1.5 text-xs font-semibold rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-800 transition cursor-pointer flex items-center gap-1.5 shadow-2xs">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                <span>Play Full Audio</span>
+              </button>
+              ${hasDefects ? `
+                <button type="button" class="btn-play-slice px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white transition cursor-pointer flex items-center gap-1.5 shadow-2xs">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                  <span>Play Defect Slice (${((defectTags[0].time_start_ms || 0)/1000).toFixed(1)}s - ${((defectTags[0].time_end_ms || 0)/1000).toFixed(1)}s)</span>
+                </button>
+              ` : ""}
+            </div>
+          </div>
+
+          <!-- Waveform Canvas -->
+          <div class="relative w-full rounded-lg overflow-hidden border border-zinc-800 bg-zinc-950">
+            <canvas class="audit-waveform-canvas w-full h-[76px] block"></canvas>
+            <div class="waveform-loading-overlay absolute inset-0 flex items-center justify-center bg-zinc-950/80 text-zinc-400 text-xs font-medium">
+              Loading acoustic waveform...
+            </div>
+          </div>
+
+          <!-- Defect Tags Details & Rater Notes -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 text-xs">
+            <div class="space-y-1.5">
+              <div class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Flagged Defect Regions</div>
+              ${hasDefects ? `
+                <div class="space-y-1.5">
+                  ${defectTags.map((dt, idx) => `
+                    <div class="p-2 rounded-lg bg-red-50/70 border border-red-200 flex items-center justify-between text-xs">
+                      <div>
+                        <span class="font-bold text-red-900">${escapeHtml(dt.error_code)}</span>
+                        <span class="text-red-700 ml-1.5 font-mono text-[11px]">${((dt.time_start_ms || 0)/1000).toFixed(2)}s - ${((dt.time_end_ms || 0)/1000).toFixed(2)}s</span>
+                        ${dt.note ? `<div class="text-[11px] text-red-800 italic mt-0.5">"${escapeHtml(dt.note)}"</div>` : ""}
+                      </div>
+                      ${defectTags.length > 1 ? `
+                        <button type="button" class="btn-play-individual-slice px-2 py-1 text-[10px] font-semibold bg-white border border-red-200 hover:bg-red-100 rounded text-red-800 transition cursor-pointer" data-idx="${idx}">
+                          Play
+                        </button>
+                      ` : ""}
+                    </div>
+                  `).join("")}
+                </div>
+              ` : `
+                <div class="p-2 rounded-lg bg-zinc-50 text-zinc-400 text-xs italic">
+                  No acoustic defects flagged for this sample. Evaluator graded clean.
+                </div>
+              `}
+            </div>
+
+            <div class="space-y-1.5">
+              <div class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Evaluator Feedback & Context</div>
+              <div class="p-2.5 rounded-lg bg-zinc-50 border border-zinc-200/80 space-y-1 text-xs">
+                ${ev.comments ? `
+                  <div><strong class="text-zinc-700">Notes:</strong> <span class="italic text-zinc-600">"${escapeHtml(ev.comments)}"</span></div>
+                ` : ""}
+                ${ev.blind_transcript ? `
+                  <div><strong class="text-zinc-700">What Rater Heard:</strong> <span class="font-khmer font-bold text-zinc-900">${escapeHtml(ev.blind_transcript)}</span></div>
+                ` : ""}
+                <div class="text-[11px] text-zinc-500 pt-1 border-t border-zinc-200/60 flex items-center justify-between">
+                  <span>Evaluator: <strong>${escapeHtml(ev.rater_name || "Anonymous")}</strong></span>
+                  <span>Duration: <strong>${ev.duration_seconds ? ev.duration_seconds.toFixed(1) + "s" : "N/A"}</strong></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </td>
+    `;
+
+    parentTr.parentNode.insertBefore(inspectorTr, parentTr.nextSibling);
+
+    // Render Waveform Canvas with Defect Regions
+    const canvas = inspectorTr.querySelector(".audit-waveform-canvas");
+    const loadingOverlay = inspectorTr.querySelector(".waveform-loading-overlay");
+    const btnPlayFull = inspectorTr.querySelector(".btn-play-full");
+    const btnPlaySlice = inspectorTr.querySelector(".btn-play-slice");
+
+    if (canvas && audioUrl) {
+      loadAndRenderInspectorWaveform(canvas, loadingOverlay, audioUrl, defectTags);
+    } else if (loadingOverlay) {
+      loadingOverlay.textContent = "No audio asset linked for this sample";
+    }
+
+    if (btnPlayFull && audioUrl) {
+      btnPlayFull.addEventListener("click", () => {
+        playInspectorAudio(audioUrl, canvas, null);
+      });
+    }
+
+    if (btnPlaySlice && audioUrl && hasDefects) {
+      btnPlaySlice.addEventListener("click", () => {
+        const d0 = defectTags[0];
+        const s = (d0.time_start_ms || 0) / 1000;
+        const e = (d0.time_end_ms || 0) / 1000;
+        playInspectorAudio(audioUrl, canvas, { startSec: s, endSec: e });
+      });
+    }
+
+    inspectorTr.querySelectorAll(".btn-play-individual-slice").forEach(b => {
+      b.addEventListener("click", () => {
+        const idx = parseInt(b.dataset.idx, 10);
+        const dt = defectTags[idx];
+        if (dt) {
+          const s = (dt.time_start_ms || 0) / 1000;
+          const e = (dt.time_end_ms || 0) / 1000;
+          playInspectorAudio(audioUrl, canvas, { startSec: s, endSec: e });
+        }
+      });
+    });
+  }
+
+  async function loadAndRenderInspectorWaveform(canvas, loadingOverlay, audioUrl, defectTags) {
+    try {
+      let buffer = auditAudioBuffers[audioUrl];
+      if (!buffer) {
+        const ctx = getAuditAudioContext();
+        if (!ctx) return;
+        const resp = await fetch(audioUrl);
+        const arr = await resp.arrayBuffer();
+        buffer = await ctx.decodeAudioData(arr);
+        auditAudioBuffers[audioUrl] = buffer;
+      }
+
+      if (loadingOverlay) loadingOverlay.style.display = "none";
+      drawWaveformWithDefects(canvas, buffer, defectTags, 0);
+    } catch (err) {
+      console.warn("Waveform load error:", err);
+      if (loadingOverlay) loadingOverlay.textContent = "Could not decode audio waveform";
+    }
+  }
+
+  function drawWaveformWithDefects(canvas, buffer, defectTags, playheadProgress = 0) {
+    if (!canvas || !buffer) return;
+    const ctx = canvas.getContext("2d");
+    const dpr = window.devicePixelRatio || 1;
+    const width = canvas.clientWidth || 600;
+    const height = 76;
+
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    ctx.scale(dpr, dpr);
+
+    // Dark background
+    ctx.fillStyle = "#09090b";
+    ctx.fillRect(0, 0, width, height);
+
+    // Centerline
+    ctx.strokeStyle = "#27272a";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, height / 2);
+    ctx.lineTo(width, height / 2);
+    ctx.stroke();
+
+    const data = buffer.getChannelData(0);
+    const duration = buffer.duration;
+    const step = Math.ceil(data.length / width);
+    const amp = height / 2.3;
+
+    // Draw waveform bars
+    ctx.fillStyle = "#a1a1aa";
+    for (let i = 0; i < width; i++) {
+      let min = 1.0;
+      let max = -1.0;
+      for (let j = 0; j < step; j++) {
+        const datum = data[(i * step) + j];
+        if (datum < min) min = datum;
+        if (datum > max) max = datum;
+      }
+      const y1 = Math.max(0, (1 + min) * amp);
+      const y2 = Math.min(height, (1 + max) * amp);
+      ctx.fillRect(i, y1, 1, Math.max(1, y2 - y1));
+    }
+
+    // Overlay Defect Regions
+    if (Array.isArray(defectTags) && duration > 0) {
+      defectTags.forEach(dt => {
+        const startSec = (dt.time_start_ms || 0) / 1000;
+        const endSec = (dt.time_end_ms || 0) / 1000;
+        if (endSec > startSec) {
+          const x1 = (startSec / duration) * width;
+          const x2 = (endSec / duration) * width;
+          const w = Math.max(4, x2 - x1);
+
+          // Fill
+          ctx.fillStyle = "rgba(239, 68, 68, 0.28)";
+          ctx.fillRect(x1, 0, w, height);
+
+          // Border
+          ctx.strokeStyle = "#ef4444";
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(x1, 0, w, height);
+
+          // Label
+          ctx.fillStyle = "#fecaca";
+          ctx.font = "bold 9px Geist, sans-serif";
+          ctx.fillText(dt.error_code || "DEFECT", x1 + 3, 11);
+        }
+      });
+    }
+
+    // Playhead line
+    if (playheadProgress > 0 && playheadProgress <= 1) {
+      const playX = playheadProgress * width;
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(playX, 0);
+      ctx.lineTo(playX, height);
+      ctx.stroke();
+    }
+  }
+
+  let activeInspectorSource = null;
+  let activeInspectorAnim = null;
+
+  function playInspectorAudio(audioUrl, canvas, slice) {
+    const ctx = getAuditAudioContext();
+    if (!ctx) return;
+    const buffer = auditAudioBuffers[audioUrl];
+    if (!buffer) return;
+
+    if (activeInspectorSource) {
+      try { activeInspectorSource.stop(); } catch (e) {}
+      activeInspectorSource = null;
+    }
+    if (activeInspectorAnim) {
+      cancelAnimationFrame(activeInspectorAnim);
+      activeInspectorAnim = null;
+    }
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    activeInspectorSource = source;
+
+    const duration = buffer.duration;
+    const startSec = slice ? slice.startSec : 0;
+    const playDuration = slice ? (slice.endSec - slice.startSec) : duration;
+    const startTime = ctx.currentTime;
+
+    source.start(0, startSec, playDuration);
+
+    const defectTags = canvas.__defectTags || [];
+    function updatePlayhead() {
+      const elapsed = ctx.currentTime - startTime;
+      if (elapsed >= playDuration) {
+        drawWaveformWithDefects(canvas, buffer, defectTags, 0);
+        return;
+      }
+      const currentPosSec = startSec + elapsed;
+      const progress = currentPosSec / duration;
+      drawWaveformWithDefects(canvas, buffer, defectTags, progress);
+      activeInspectorAnim = requestAnimationFrame(updatePlayhead);
+    }
+    activeInspectorAnim = requestAnimationFrame(updatePlayhead);
+
+    source.onended = () => {
+      if (activeInspectorAnim) {
+        cancelAnimationFrame(activeInspectorAnim);
+        activeInspectorAnim = null;
+      }
+      drawWaveformWithDefects(canvas, buffer, defectTags, 0);
+    };
+  }
+
+  async function deleteAuditEvaluation(evalId) {
+    if (!confirm("Are you sure you want to delete this evaluation?\n\nThis will permanently remove the submission and its flagged defect tags, and recalculate consensus metrics.")) {
+      return;
+    }
+
+    try {
+      const resp = await adminFetch(`/api/evaluations?id=${encodeURIComponent(evalId)}`, {
+        method: "DELETE"
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.success) {
+        throw new Error(data.error || "Failed to delete evaluation");
+      }
+
+      showToast("Evaluation deleted successfully.", "success");
+      if (state.auditData) {
+        state.auditData.evaluations = state.auditData.evaluations.filter(e => e.id !== evalId);
+      }
+      renderRatersLeaderboard();
+      setupAuditFilters();
+      renderAuditStudio();
+
+      // Refresh overall summary metrics in background
+      if (el.analyticsCampaignSelect && el.analyticsCampaignSelect.value) {
+        loadAnalyticsSummary();
+      }
+    } catch (err) {
+      console.warn("Delete error:", err);
+      showToast(`Error deleting evaluation: ${err.message}`, "error");
     }
   }
 
