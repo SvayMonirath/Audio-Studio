@@ -1,0 +1,41 @@
+name: Feature or Tool Request
+description: Suggest a new evaluation tool, metric, DSP filter, or analytics view
+title: "[Feat]: <Short title>"
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Suggest an enhancement to Audio Studio. Make sure to ground requests in capstone research objectives.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What challenge or evaluation limitation does this address?
+      placeholder: e.g. Raters experience listener fatigue during 200-word sessions without scheduled breaks.
+    validations:
+      required: true
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: Proposed Solution
+      description: How should Audio Studio solve this?
+      placeholder: e.g. Add an optional interstitial rest screen after every 25 completed items.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What other approaches did you evaluate?
+      placeholder: e.g. Splitting studies into smaller sub-campaigns manually.
+  - type: dropdown
+    id: affected_surface
+    attributes:
+      label: Affected Surface
+      options:
+        - "Evaluator Portal (eval.html)"
+        - "Admin Analytics & Scores (admin.html)"
+        - "Modular Study Builder (admin.html Step 3)"
+        - "Backend Server & SQLite Storage (run_server.py / database.py)"
+        - "DSP / Audio Engine (dsp_engine.js)"

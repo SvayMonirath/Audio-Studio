@@ -8,6 +8,7 @@ Tests database integrity, REST API endpoints, real audio streaming, and admin su
 import os
 import sys
 import json
+import sqlite3
 import unittest
 import threading
 import time
@@ -1072,6 +1073,60 @@ class StudioServerTestCase(unittest.TestCase):
             self.assertIsNotNone(found)
             self.assertEqual(found["name"], "Capstone-Sprint2-Updated")
             self.assertEqual(found["instructions"], "Listen carefully to consonant boundaries.")
+
+
+    def test_binary_metrics_and_sprint3_studies(self):
+        """Verify binary metrics calculation (pass_rate, pass_count) and simplified error taxonomies."""
+        # 1. Verify taxonomies include 4 clean categories
+        conn = sqlite3.connect(TEST_DB_PATH)
+        cur = conn.cursor()
+        taxonomies = cur.execute("SELECT code, category, name_en FROM taxonomies").fetchall()
+        self.assertGreaterEqual(len(taxonomies), 19)
+        categories = set(t[1] for t in taxonomies)
+        self.assertTrue({"pronunciation", "glitch", "pacing", "missing"}.issubset(categories))
+        conn.close()
+
+        # 2. Register rater and submit binary evaluations
+        rater_req = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/raters",
+            data=json.dumps({"name": "BinaryRaterTest"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        with urlopen(rater_req) as resp:
+            rater_data = json.loads(resp.read().decode("utf-8"))
+            rater_id = rater_data["rater"]["id"]
+
+        eval_req = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/evaluations",
+            data=json.dumps({
+                "campaign_id": "camp-dev23-4models",
+                "rater_id": rater_id,
+                "item_id": "item-dev23-KH01-voxcpm2",
+                "model_id": "model-voxcpm2",
+                "scores": {"pronunciation": 1, "telephone_intelligibility": 0},
+                "defect_tags": []
+            }).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        with urlopen(eval_req) as resp:
+            self.assertEqual(resp.status, 201)
+
+        # 3. Query admin summary and verify is_binary & pass_rate telemetry
+        sum_req = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/admin/summary?campaign_id=camp-dev23-4models",
+            headers={"X-Admin-PIN": "2026"}
+        )
+        with urlopen(sum_req) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            models = data.get("model_statistics", [])
+            vox = next((m for m in models if m.get("model_id") == "model-voxcpm2"), None)
+            self.assertIsNotNone(vox)
+            tel_stat = vox.get("summary", {}).get("telephone_intelligibility")
+            self.assertIsNotNone(tel_stat)
+            self.assertTrue(tel_stat.get("is_binary"))
+            self.assertEqual(tel_stat.get("pass_count"), 0)
+            self.assertEqual(tel_stat.get("fail_count"), 1)
+            self.assertEqual(tel_stat.get("pass_rate"), 0.0)
 
 
 if __name__ == "__main__":

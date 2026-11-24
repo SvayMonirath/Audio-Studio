@@ -3215,7 +3215,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         const criteriaListHtml = criteria.map((c, i) => `
           <div class="flex items-center justify-between p-2.5 bg-zinc-50 border border-zinc-200/80 rounded-xl hover:border-zinc-300 transition">
             <span class="text-xs font-semibold text-zinc-800">${escapeHtml(c.name)}</span>
-            <button type="button" class="btn-insp-remove-crit w-6 h-6 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center text-xs font-bold transition cursor-pointer" data-idx="${i}" title="Remove question">&times;</button>
+            <button type="button" class="btn-insp-remove-crit btn-danger-icon w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold transition cursor-pointer" data-idx="${i}" title="Remove question">&times;</button>
           </div>
         `).join("");
 
@@ -3442,7 +3442,10 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           key: c.id,
           label_en: c.name,
           label_km: c.name,
-          desc: c.desc
+          desc: c.desc,
+          type: c.type || (state.wizardData.scaleMax === 1 ? "binary_pass_fail" : "scale_1_5"),
+          scale_min: c.scale_min || 1,
+          scale_max: c.scale_max || state.wizardData.scaleMax || 5
         }));
 
         const rubricResp = await adminFetch("/api/rubrics", {
@@ -3765,13 +3768,24 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           metricKeys.forEach(k => {
             const mSummary = summary[k] || {};
             if (mSummary.mean !== undefined && mSummary.mean !== null) {
-              allMeans.push(mSummary.mean);
-              trHtml += `
-                <td class="p-3 font-mono">
-                  <span class="font-bold text-zinc-900">${mSummary.mean.toFixed(2)}</span>
-                  <span class="text-zinc-400 text-[11px] ml-1">CI [${mSummary.ci_lower}, ${mSummary.ci_upper}]</span>
-                </td>
-              `;
+              if (mSummary.is_binary) {
+                trHtml += `
+                  <td class="p-3 font-mono">
+                    <span class="inline-flex items-center gap-1.5 font-bold ${mSummary.pass_rate >= 80 ? 'text-emerald-700' : 'text-amber-700'}">
+                      ${mSummary.pass_rate}%
+                    </span>
+                    <span class="text-zinc-400 text-[11px] ml-1">(${mSummary.pass_count}/${mSummary.n} Pass)</span>
+                  </td>
+                `;
+              } else {
+                allMeans.push(mSummary.mean);
+                trHtml += `
+                  <td class="p-3 font-mono">
+                    <span class="font-bold text-zinc-900">${mSummary.mean.toFixed(2)}</span>
+                    <span class="text-zinc-400 text-[11px] ml-1">CI [${mSummary.ci_lower}, ${mSummary.ci_upper}]</span>
+                  </td>
+                `;
+              }
             } else {
               trHtml += `<td class="p-3 text-zinc-400 font-mono">-</td>`;
             }
@@ -3860,60 +3874,92 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     const barWidth = Math.min(50, Math.floor(innerWidth / (count * 1.6)));
     const step = innerWidth / count;
 
-    // Y-scale: 1.0 to 5.0
-    const yScale = (val) => {
-      const clamped = Math.max(1, Math.min(5, val));
-      return padding.top + innerHeight - ((clamped - 1) / 4) * innerHeight;
-    };
+    // Detect if primary metric is binary pass/fail
+    const firstMetricKey = Object.keys(modelsList[0]?.summary || {})[0];
+    const isBinaryChart = modelsList.some(m => m.summary?.[firstMetricKey]?.is_binary);
+
+    // Y-scale: 0..100% or 1.0..5.0
+    const yScale = isBinaryChart
+      ? (val) => {
+          const clamped = Math.max(0, Math.min(100, val));
+          return padding.top + innerHeight - (clamped / 100) * innerHeight;
+        }
+      : (val) => {
+          const clamped = Math.max(1, Math.min(5, val));
+          return padding.top + innerHeight - ((clamped - 1) / 4) * innerHeight;
+        };
 
     let svg = `<svg viewBox="0 0 ${chartWidth} ${chartHeight}" class="w-full h-auto max-h-[220px]" style="font-family: inherit;">`;
 
-    // Horizontal grid lines (1 to 5)
-    for (let s = 1; s <= 5; s++) {
-      const y = yScale(s);
-      svg += `
-        <line x1="${padding.left}" y1="${y}" x2="${chartWidth - padding.right}" y2="${y}" stroke="#E4E4E7" stroke-width="1" stroke-dasharray="${s === 1 ? 'none' : '3,3'}" />
-        <text x="${padding.left - 8}" y="${y + 3}" text-anchor="end" font-size="10" fill="#71717A" font-family="monospace">${s}.0</text>
-      `;
+    if (isBinaryChart) {
+      // Horizontal grid lines (0% to 100%)
+      for (const pct of [0, 25, 50, 75, 100]) {
+        const y = yScale(pct);
+        svg += `
+          <line x1="${padding.left}" y1="${y}" x2="${chartWidth - padding.right}" y2="${y}" stroke="#E4E4E7" stroke-width="1" stroke-dasharray="${pct === 0 ? 'none' : '3,3'}" />
+          <text x="${padding.left - 8}" y="${y + 3}" text-anchor="end" font-size="10" fill="#71717A" font-family="monospace">${pct}%</text>
+        `;
+      }
+    } else {
+      // Horizontal grid lines (1 to 5)
+      for (let s = 1; s <= 5; s++) {
+        const y = yScale(s);
+        svg += `
+          <line x1="${padding.left}" y1="${y}" x2="${chartWidth - padding.right}" y2="${y}" stroke="#E4E4E7" stroke-width="1" stroke-dasharray="${s === 1 ? 'none' : '3,3'}" />
+          <text x="${padding.left - 8}" y="${y + 3}" text-anchor="end" font-size="10" fill="#71717A" font-family="monospace">${s}.0</text>
+        `;
+      }
     }
 
     // Bars and CI ticks
     modelsList.forEach((m, idx) => {
       const name = m.model_name || "Sample";
       const summary = m.summary || {};
-      const nat = summary.naturalness || summary[Object.keys(summary)[0]] || {};
-      const mean = nat.mean !== undefined && nat.mean !== null ? nat.mean : 0;
-      const ciLower = nat.ci_lower !== undefined ? nat.ci_lower : mean;
-      const ciUpper = nat.ci_upper !== undefined ? nat.ci_upper : mean;
+      const primaryStat = summary[firstMetricKey] || summary.naturalness || summary[Object.keys(summary)[0]] || {};
 
       const x = padding.left + (idx * step) + (step / 2) - (barWidth / 2);
       const centerX = x + (barWidth / 2);
-      const barY = yScale(mean);
-      const barH = yScale(1) - barY;
 
-      // Bar
-      svg += `
-        <rect x="${x}" y="${barY}" width="${barWidth}" height="${barH}" rx="4" fill="#18181B" opacity="0.9">
-          <title>${escapeHtml(name)}: MOS ${mean.toFixed(2)} (CI [${ciLower}, ${ciUpper}])</title>
-        </rect>
-      `;
+      if (isBinaryChart) {
+        const passRate = primaryStat.pass_rate !== undefined ? primaryStat.pass_rate : 0;
+        const barY = yScale(passRate);
+        const barH = yScale(0) - barY;
+        const fillColor = passRate >= 80 ? "#059669" : (passRate >= 50 ? "#D97706" : "#E11D48");
 
-      // 95% Confidence Interval Error Bars (if N > 1)
-      if (ciUpper > ciLower && ciUpper > 1) {
-        const topY = yScale(ciUpper);
-        const botY = yScale(ciLower);
-        const tickWidth = 8;
         svg += `
-          <line x1="${centerX}" y1="${botY}" x2="${centerX}" y2="${topY}" stroke="#059669" stroke-width="2" />
-          <line x1="${centerX - tickWidth / 2}" y1="${topY}" x2="${centerX + tickWidth / 2}" y2="${topY}" stroke="#059669" stroke-width="2" />
-          <line x1="${centerX - tickWidth / 2}" y1="${botY}" x2="${centerX + tickWidth / 2}" y2="${botY}" stroke="#059669" stroke-width="2" />
+          <rect x="${x}" y="${barY}" width="${barWidth}" height="${barH}" rx="4" fill="${fillColor}" opacity="0.9">
+            <title>${escapeHtml(name)}: Pass Rate ${passRate}% (${primaryStat.pass_count || 0}/${primaryStat.n || 0} Correct)</title>
+          </rect>
+          <text x="${centerX}" y="${Math.max(16, barY - 6)}" text-anchor="middle" font-size="11" font-weight="bold" fill="#18181B" font-family="monospace">${passRate}%</text>
+        `;
+      } else {
+        const mean = primaryStat.mean !== undefined && primaryStat.mean !== null ? primaryStat.mean : 0;
+        const ciLower = primaryStat.ci_lower !== undefined ? primaryStat.ci_lower : mean;
+        const ciUpper = primaryStat.ci_upper !== undefined ? primaryStat.ci_upper : mean;
+        const barY = yScale(mean);
+        const barH = yScale(1) - barY;
+
+        svg += `
+          <rect x="${x}" y="${barY}" width="${barWidth}" height="${barH}" rx="4" fill="#18181B" opacity="0.9">
+            <title>${escapeHtml(name)}: MOS ${mean.toFixed(2)} (CI [${ciLower}, ${ciUpper}])</title>
+          </rect>
+        `;
+
+        if (ciUpper > ciLower && ciUpper > 1) {
+          const topY = yScale(ciUpper);
+          const botY = yScale(ciLower);
+          const tickWidth = 8;
+          svg += `
+            <line x1="${centerX}" y1="${botY}" x2="${centerX}" y2="${topY}" stroke="#059669" stroke-width="2" />
+            <line x1="${centerX - tickWidth / 2}" y1="${topY}" x2="${centerX + tickWidth / 2}" y2="${topY}" stroke="#059669" stroke-width="2" />
+            <line x1="${centerX - tickWidth / 2}" y1="${botY}" x2="${centerX + tickWidth / 2}" y2="${botY}" stroke="#059669" stroke-width="2" />
+          `;
+        }
+
+        svg += `
+          <text x="${centerX}" y="${Math.max(16, barY - 6)}" text-anchor="middle" font-size="11" font-weight="bold" fill="#18181B" font-family="monospace">${mean.toFixed(2)}</text>
         `;
       }
-
-      // Mean score label on top
-      svg += `
-        <text x="${centerX}" y="${Math.max(16, barY - 6)}" text-anchor="middle" font-size="11" font-weight="bold" fill="#18181B" font-family="monospace">${mean.toFixed(2)}</text>
-      `;
 
       // Model label on bottom
       const truncName = name.length > 12 ? name.slice(0, 10) + "…" : name;
@@ -4131,11 +4177,11 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       card.innerHTML = `
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <div class="text-[11px] uppercase font-semibold text-zinc-400 tracking-wider font-mono">${escapeHtml(camp.project_name || "Khmer Speech Study")}</div>
+            <div class="text-[11px] uppercase font-semibold text-zinc-500 tracking-wider font-mono">${escapeHtml(camp.project_name || "Khmer Speech Study")}</div>
             <h3 class="text-sm font-bold text-zinc-900 mt-0.5">${escapeHtml(camp.name)}</h3>
           </div>
           <div class="flex items-center gap-2">
-            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${camp.is_active ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-zinc-100 text-zinc-600 border border-zinc-200"}">
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${camp.is_active ? "status-badge-active" : "status-badge-concluded"}">
               ${camp.is_active ? "Active" : "Concluded"}
             </span>
             <button

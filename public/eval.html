@@ -18,7 +18,7 @@
 
   <!-- Rater Onboarding Screen (Zero PIN required - Open evaluation) -->
   <div id="onboarding-screen" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="rater-onboard-card bg-white border border-zinc-200 rounded-2xl p-6 sm:p-7 shadow-2xl w-full max-w-md">
+    <div class="rater-onboard-card bg-white border border-zinc-200/80 rounded-2xl p-6 sm:p-7 shadow-lg w-full max-w-md">
       <div class="flex items-center justify-between pb-3 border-b border-zinc-100 mb-4">
         <div>
           <div class="text-[11px] font-bold tracking-wider uppercase text-zinc-500">Listener Participation</div>
@@ -195,10 +195,11 @@
             <span id="audio-model-badge" class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200/80">Khmer-TTS (VITS)</span>
           </div>
           <div class="flex items-center gap-2">
-            <div id="phone-filter-wrapper" class="hidden flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-amber-300 bg-amber-50 text-[11px] font-medium text-amber-900">
-              <label class="flex items-center gap-1 cursor-pointer">
-                <input type="checkbox" id="btn-phone-filter-toggle" class="w-3.5 h-3.5 text-amber-600 rounded cursor-pointer" />
+            <div id="phone-filter-wrapper" class="hidden flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-amber-300 bg-amber-50 text-[11px] font-medium text-amber-900 transition shadow-2xs">
+              <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                <input type="checkbox" id="btn-phone-filter-toggle" class="w-3.5 h-3.5 text-amber-600 rounded cursor-pointer accent-amber-600" />
                 <span>8 kHz Telephone Simulation</span>
+                <kbd class="px-1 py-0.2 rounded text-[9px] font-mono bg-amber-100 text-amber-800 border border-amber-300">Shift+P</kbd>
               </label>
             </div>
             <!-- Waveform Mode Toggle (Fish Audio Fluid Scrub vs Defect Tag) -->

@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Free Hosting & Cloudflare Operations Guide · Audio Studio Docs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Public+Sans:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body data-root="./" data-page="hosting-guide.html">
+  <header class="site-header">
+    <div class="site-header-left">
+      <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle navigation">
+        <span>☰</span> <span>Menu</span>
+      </button>
+      <a href="index.html" class="site-title-link">Audio Studio Engineering Documentation</a>
+    </div>
+    <div class="site-header-right">
+      <button type="button" class="theme-toggle" id="theme-toggle">🌓 Auto</button>
+    </div>
+  </header>
+
+  <div class="site-layout">
+    <div class="sidebar-backdrop" aria-hidden="true"></div>
+    <aside class="site-sidebar" id="site-sidebar"></aside>
+
+    <main class="site-main">
+      <div class="wrap">
+        <header>
+          <div class="eyebrow">Operations · Deployment</div>
+          <h1>$0 Free Hosting &amp; Cloudflare Tunnel Guide</h1>
+          <p class="meta prose">A comprehensive operational runbook for deploying Audio Studio publicly at zero cost without risk of database data loss or cloud overage fees.</p>
+        </header>
+
+        <!-- Why PaaS Fails -->
+        <section id="why-paas-fails">
+          <h2>1. Why Free Cloud PaaS Wipes Evaluation Data</h2>
+          <p class="prose">
+            Standard free cloud platforms (Render, Koyeb, Railway, and free-tier Hugging Face Spaces) are designed for stateless applications. Their free tiers run inside virtual containers with <strong>ephemeral filesystems</strong>:
+          </p>
+          <div class="grid2">
+            <div class="box">
+              <h3>Free Cloud PaaS Behavior</h3>
+              <ul>
+                <li>When no evaluator visits for 15 minutes, the server enters sleep mode to save compute.</li>
+                <li>When a new visitor arrives, the platform starts a fresh container from the original Git repository commit.</li>
+                <li><strong>Fatal Result:</strong> Any changes written to <code>workbench.db</code> (all rater scores) and newly uploaded audio files in <code>audio/uploads/</code> are permanently destroyed.</li>
+              </ul>
+            </div>
+            <div class="box">
+              <h3>Cloudflare Host Tunnel Solution</h3>
+              <ul>
+                <li>The server runs on your local workstation, lab desktop, or campus PC.</li>
+                <li><code>workbench.db</code> commits writes directly to your local solid-state drive (NVMe/SSD).</li>
+                <li><strong>Result:</strong> Zero data loss. All evaluations are permanently saved on your drive, even if the tunnel restarts.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- Deployment Runbook -->
+        <section id="runbook" style="margin-top: 40px;">
+          <h2>2. Step-by-Step Hosting Runbook</h2>
+
+          <article class="runbook-card" style="margin-bottom: 24px;">
+            <div class="runbook-head">
+              <div>
+                <strong>Operational Mode: Quick Public Tunnel (Instant Share)</strong>
+              </div>
+              <span class="tag ok">Recommended</span>
+            </div>
+            <div class="runbook-body">
+              <p class="prose">Use this mode to launch an immediate public evaluation link for testing cohorts without setting up domain records or Cloudflare accounts.</p>
+              
+              <div class="runbook-step">
+                <div class="step-num-badge">1</div>
+                <div>
+                  <p class="prose"><strong>Open Terminal in repository root:</strong></p>
+                  <pre><code>cd /Users/sorpheatepy/CADT/year-3/capstone/Audio-Studio</code></pre>
+                </div>
+              </div>
+
+              <div class="runbook-step">
+                <div class="step-num-badge">2</div>
+                <div>
+                  <p class="prose"><strong>Launch the server with Mac sleep disabled:</strong></p>
+                  <pre><code>caffeinate -d -i -m -s python3 run_server.py --port 8080 --share</code></pre>
+                  <p class="prose" style="font-size: 0.9rem; margin-top: 4px;">
+                    <code>caffeinate</code> prevents macOS from entering sleep mode while your laptop lid remains open.
+                  </p>
+                </div>
+              </div>
+
+              <div class="runbook-step">
+                <div class="step-num-badge">3</div>
+                <div>
+                  <p class="prose"><strong>Distribute the link to evaluators:</strong></p>
+                  <p class="prose">The terminal will display a public HTTPS URL:</p>
+                  <pre><code>PUBLIC SHAREABLE LINK: https://[assigned-words].trycloudflare.com/eval</code></pre>
+                  <p class="prose" style="font-size: 0.9rem; margin-top: 4px;">
+                    Send <code>https://[assigned-words].trycloudflare.com/eval.html</code> to your evaluators.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <!-- Permanent Custom Domain -->
+        <section id="custom-domain" style="margin-top: 40px;">
+          <h2>3. Permanent Free Custom Domains</h2>
+          <p class="prose">
+            Quick tunnels generate a new random URL if the server is stopped and restarted. To give your evaluators a permanent, fixed web address (such as <code>audiostudio.yourdomain.com</code>), follow these steps:
+          </p>
+          <div class="scroll">
+            <table class="wide">
+              <thead>
+                <tr>
+                  <th class="col-sm">Step</th>
+                  <th class="col-sm">Platform</th>
+                  <th class="col-lg">Execution Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>1. Obtain Free Domain</strong></td>
+                  <td>DuckDNS or is-a.dev</td>
+                  <td>Register a free subdomain (e.g. <code>audiostudio.duckdns.org</code> or <code>audiostudio.is-a.dev</code>). No credit card required.</td>
+                </tr>
+                <tr>
+                  <td><strong>2. Create Cloudflare Account</strong></td>
+                  <td>dash.cloudflare.com</td>
+                  <td>Sign up for a free Cloudflare account with your email. Select the Free tier ($0).</td>
+                </tr>
+                <tr>
+                  <td><strong>3. Create Named Tunnel</strong></td>
+                  <td>Zero Trust Dashboard</td>
+                  <td>Navigate to <strong>Networks &rarr; Tunnels &rarr; Create Tunnel</strong>. Name it <code>audio-studio</code>.</td>
+                </tr>
+                <tr>
+                  <td><strong>4. Route Hostname</strong></td>
+                  <td>Public Hostname Settings</td>
+                  <td>Set domain to your subdomain and point the service to <code>http://localhost:8080</code>.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- CI/CD Automation -->
+        <section id="cicd" style="margin-top: 40px;">
+          <h2>4. Continuous Integration (CI) Workflow</h2>
+          <p class="prose">
+            A GitHub Actions workflow is configured in <code>.github/workflows/ci.yml</code>. Whenever code is pushed to <code>main</code> or <code>development</code>, GitHub automatically runs two verification gates:
+          </p>
+          <div class="grid2">
+            <div class="box">
+              <h3>Gate 1: Automated Unit Tests</h3>
+              <p class="prose"><strong>Command:</strong> <code>python3 -m unittest discover -s tests -v</code></p>
+              <ul>
+                <li>Runs 24 automated unit tests in an ephemeral in-memory database in ~1.4 seconds.</li>
+                <li>Tests database seed integrity, API endpoints, audio range requests, rater submissions, and admin authentication.</li>
+              </ul>
+            </div>
+            <div class="box">
+              <h3>Gate 2: Package Integrity Validator</h3>
+              <p class="prose"><strong>Command:</strong> <code>python3 scripts/validate_package.py</code></p>
+              <ul>
+                <li>Ensures all 23 core files exist and are UTF-8 readable.</li>
+                <li>Verifies that zero third-party dependencies have been introduced.</li>
+                <li>Validates all 20 benchmark test scenarios.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- Database Backup Runbook -->
+        <section id="backup-runbook" style="margin-top: 40px;">
+          <h2>5. Database Snapshot &amp; Backup Runbook</h2>
+          <p class="prose">
+            During live evaluation studies, perform regular database backups using SQLite's online backup API to prevent accidental data corruption:
+          </p>
+          <pre><code># Create a dated snapshot of workbench.db while server is running:
+sqlite3 workbench.db ".backup backup_$(date +%Y%m%d_%H%M%S).db"
+
+# Export human-readable SQL dump:
+sqlite3 workbench.db .dump > workbench_dump.sql</code></pre>
+        </section>
+
+        <footer class="site-footer">
+          <p>Audio Studio Technical Documentation · CADT Year 3 Capstone</p>
+        </footer>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/nav.js"></script>
+  <script src="assets/site.js"></script>
+</body>
+</html>

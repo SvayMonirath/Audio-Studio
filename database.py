@@ -311,27 +311,36 @@ def seed_project_khmer_speech(db_path=None):
         ])
     ))
 
-    # 3. 19 Clinical Error Taxonomies
+    # 3. 19 Clinical Error Taxonomies (Organized into 4 Plain-Language Categories)
     clinical_taxonomies = [
-        ("C_DEL", "Consonant Deletion", "បាត់ព្យញ្ជនៈ", "phonetic", "A consonant sound was dropped completely.", "#EF4444"),
-        ("C_SUB", "Consonant Substitution", "ជំនួសព្យញ្ជនៈខុស", "phonetic", "Wrong consonant sound spoken (e.g. /t/ for /d/).", "#F97316"),
-        ("V_DEL_INS", "Vowel Error", "បាត់ ឬថែមស្រៈ", "phonetic", "A vowel was dropped or misread (e.g. missing ឲ្យ).", "#DC2626"),
-        ("CLIP_TRUNC", "Word Truncation", "កាត់ដាច់ចុងពាក្យ", "acoustic", "Audio or syllable cut off abruptly at end.", "#EA580C"),
-        ("CODE", "Code-Switching Failure", "បញ្ចេញពាក្យបរទេសមិនចេញ", "multilingual", "Muted or babbling on English/French loanwords (e.g. Iced Latte).", "#B91C1C"),
-        ("GLITCH", "Digital Glitch", "សំឡេងទាក់ ឬផ្ទុះ", "acoustic", "Robotic buzz, digital pop, or burst of static.", "#E11D48"),
-        ("ELONG", "Syllable Elongation", "អូសសំឡេងវែងខុសប្រក្រតី", "prosody", "Syllable dragged out unnaturally slow.", "#F59E0B"),
-        ("PROM", "Inappropriate Loudness", "សំឡេងស្រែក ឬឮខ្លាំងពេក", "acoustic", "Spoken unnaturally loud or shouting on a word.", "#D97706"),
-        ("PROS", "Bad Prosody / Cadence", "ចង្វាក់មិនត្រូវ ឬលឿនពេក", "prosody", "Rushed pacing without natural breathing pauses.", "#84CC16"),
-        ("SILENCE", "Dead Silence", "ស្ងាត់បាត់សំឡេង", "acoustic", "Unintended silence inside an active utterance.", "#64748B"),
-        ("SEG", "Awkward Pause", "ផ្អាកខុសកន្លែង", "prosody", "Unnatural gap between syllables inside a single word.", "#06B6D4"),
-        ("INCONSIST", "Voice Inconsistency", "សំឡេងប្រែប្រួលមិនថេរ", "acoustic", "Speaker timbre or pitch shifts abruptly in mid-turn.", "#8B5CF6"),
-        ("LEX_SUB", "Lexical Substitution", "អានខុសពាក្យទាំងស្រុង", "lexical", "Spoke an entirely different word than written.", "#A855F7"),
-        ("REPETITION", "Stutter / Repetition", "និយាយត្រដិត ឬផ្ទួនៗ", "fluency", "Repeated syllable or word multiple times.", "#EC4899"),
-        ("REG_FAIL", "Register Error", "ច្រឡំសំឡេងពួក អ និង អ៊", "phonetic", "First-series and second-series vowel registers swapped.", "#6366F1"),
-        ("SUB_FAIL", "Subscript Error", "បញ្ចេញជើងអក្សរមិនច្បាស់", "phonetic", "Subscript consonant cluster slurred or misread.", "#3B82F6"),
-        ("NASAL_FAIL", "Nasal Error", "បញ្ចេញសំឡេងច្រមុះមិនច្បាស់", "phonetic", "Nasal initials (/ŋ/, /ɲ/) dropped or distorted.", "#0EA5E9"),
-        ("DIALECT", "Non-Standard Accent", "សំឡេងបញ្ចេញបែបតំបន់", "phonetic", "Pronunciation differs noticeably from standard Phnom Penh speech.", "#10B981"),
-        ("NONE", "Clean Audio", "សំឡេងល្អឥតខ្ចោះ", "quality", "No defects heard; clear, natural pronunciation.", "#059669")
+        # Category: Pronunciation Mistakes
+        ("C_DEL", "Dropped Consonant", "បាត់ព្យញ្ជនៈ (Dropped Consonant)", "pronunciation", "A consonant sound was completely skipped (e.g. dropped /t/ or /k/).", "#EF4444"),
+        ("C_SUB", "Wrong Consonant", "ជំនួសព្យញ្ជនៈខុស (Wrong Consonant)", "pronunciation", "Wrong consonant spoken (e.g. said /t/ instead of /d/).", "#F97316"),
+        ("V_DEL_INS", "Dropped/Wrong Vowel", "បាត់ ឬថែមស្រៈ (Vowel Error)", "pronunciation", "A vowel was missed or changed (e.g. dropped polite word 'ឲ្យ').", "#DC2626"),
+        ("SUB_FAIL", "Slurred Subscript Cluster", "បញ្ចេញជើងអក្សរមិនច្បាស់ (Subscript Slur)", "pronunciation", "Subscript consonant (ជើងអក្សរ) was slurred, garbled, or missed.", "#3B82F6"),
+        ("REG_FAIL", "Wrong Vowel Register", "ច្រឡំសំឡេងពួក អ និង អ៊ (Register Error)", "pronunciation", "First-series (អ) and second-series (អ៊) vowel sounds were swapped.", "#6366F1"),
+        ("NASAL_FAIL", "Nasal Sound Error", "បញ្ចេញសំឡេងច្រមុះមិនច្បាស់ (Nasal Error)", "pronunciation", "Nasal consonant sound (/ŋ/, /ɲ/) was omitted or distorted.", "#0EA5E9"),
+        ("LEX_SUB", "Entirely Wrong Word", "អានខុសពាក្យទាំងស្រុង (Wrong Word)", "pronunciation", "Model spoke a completely different word than written on screen.", "#A855F7"),
+        ("DIALECT", "Non-Standard Accent", "សំឡេងបញ្ចេញបែបតំបន់ (Dialect Accent)", "pronunciation", "Pronunciation differs noticeably from everyday Phnom Penh speech.", "#10B981"),
+
+        # Category: Audio Glitches & Noise
+        ("GLITCH", "Robotic Buzz / Digital Pop", "សំឡេងទាក់ ឬផ្ទុះ (Audio Glitch)", "glitch", "Digital click, audio pop, mechanical buzzing, or burst of static.", "#E11D48"),
+        ("PROM", "Sudden Loud Burst", "សំឡេងស្រែក ឬឮខ្លាំងពេក (Loud Burst)", "glitch", "Voice spoke unnaturally loud or shouted on a syllable.", "#D97706"),
+        ("INCONSIST", "Voice Pitch / Tone Drift", "សំឡេងប្រែប្រួលមិនថេរ (Voice Drift)", "glitch", "Voice suddenly changed pitch or sounded like two different speakers.", "#8B5CF6"),
+
+        # Category: Speed & Rhythm
+        ("PROS", "Rushed / Unnatural Rhythm", "ចង្វាក់មិនត្រូវ ឬលឿនពេក (Bad Rhythm)", "pacing", "Rushed cadence without natural conversational breathing pauses.", "#84CC16"),
+        ("ELONG", "Dragged-Out Syllable", "អូសសំឡេងវែងខុសប្រក្រតី (Dragged Syllable)", "pacing", "Syllable drawn out unnaturally slow or lingering.", "#F59E0B"),
+        ("SEG", "Awkward Syllable Gap", "ផ្អាកខុសកន្លែង (Awkward Pause)", "pacing", "Unnatural robotic gap between syllables inside a single word.", "#06B6D4"),
+        ("REPETITION", "Stutter / Repetition", "និយាយត្រដិត ឬផ្ទួនៗ (Stutter)", "pacing", "Model repeated a syllable, word, or sound multiple times.", "#EC4899"),
+
+        # Category: Cut-off & Missing Audio
+        ("CLIP_TRUNC", "Cut-off Word Ending", "កាត់ដាច់ចុងពាក្យ (Cut-off Ending)", "missing", "Audio or syllable cut off abruptly before the word finished.", "#EA580C"),
+        ("CODE", "English Loanword Failed", "បញ្ចេញពាក្យបរទេសមិនចេញ (Code-Switch)", "missing", "Model went silent, made static, or babbled on English word (e.g. 'Iced Latte').", "#B91C1C"),
+        ("SILENCE", "Dead Silence Gap", "ស្ងាត់បាត់សំឡេង (Dead Silence)", "missing", "Unintended silence inside an active utterance where audio should play.", "#64748B"),
+
+        # Category: Clean Audio
+        ("NONE", "Clean Audio (No Defects)", "សំឡេងល្អឥតខ្ចោះ (Clean Audio)", "clean", "No defects heard; clear, natural pronunciation.", "#059669")
     ]
     
     for code, en, km, cat, desc, col in clinical_taxonomies:

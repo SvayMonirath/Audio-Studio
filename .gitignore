@@ -22,3 +22,6 @@ audio/uploads/
 Thumbs.db
 *.log
 
+# Tooling caches
+.superpowers/
+

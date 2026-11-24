@@ -281,14 +281,16 @@ class StudioHandler(BaseHTTPRequestHandler):
                         except Exception:
                             cd["defect_types"] = []
                     else:
-                        cd["defect_types"] = [
-                            {"code": "MISPRON", "label": "Mispronunciation"},
-                            {"code": "NOISE", "label": "Noise / Click"},
-                            {"code": "UNNAT_PAUSE", "label": "Awkward Pause"},
-                            {"code": "ROBOTIC", "label": "Robotic Buzz"},
-                            {"code": "PITCH", "label": "Unnatural Pitch"},
-                            {"code": "OTHER", "label": "Other Defect"}
-                        ]
+                        tax_rows = cur.execute("""
+                        SELECT code, name_en as label, name_km, category, description as desc, badge_color
+                        FROM taxonomies
+                        WHERE project_id = ?
+                        ORDER BY rowid ASC
+                        """, (cd.get("project_id", "proj-veaja-khmer"),)).fetchall()
+                        if tax_rows:
+                            cd["defect_types"] = [dict(tr) for tr in tax_rows]
+                        else:
+                            cd["defect_types"] = []
                     cd["collect_transcription"] = bool(cd.get("collect_transcription", 0))
                     cd["items_count"] = cd.get("items_count", 0)
                     cd["evaluations_count"] = cd.get("evaluations_count", 0)
@@ -454,7 +456,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                     except Exception:
                         pass
 
-                # Calculate Mean, Standard Deviation, and 95% Confidence Intervals
+                # Calculate Mean, Standard Deviation, 95% Confidence Intervals, and Binary Pass Rates
                 import math
                 for mid, mdata in model_stats.items():
                     mdata["summary"] = {}
@@ -465,12 +467,19 @@ class StudioHandler(BaseHTTPRequestHandler):
                             variance = sum((x - mean_val) ** 2 for x in values) / n if n > 1 else 0.0
                             std_dev = math.sqrt(variance)
                             margin_of_error = 1.96 * (std_dev / math.sqrt(n)) if n > 1 else 0.0
+                            is_binary = all(x in (0, 1, 0.0, 1.0) for x in values)
+                            pass_count = sum(1 for x in values if x == 1 or x == 1.0)
+                            pass_rate = round((pass_count / n) * 100, 1)
                             mdata["summary"][m_key] = {
                                 "n": n,
                                 "mean": round(mean_val, 2),
                                 "std_dev": round(std_dev, 2),
-                                "ci_lower": round(max(1.0, mean_val - margin_of_error), 2),
-                                "ci_upper": round(min(5.0, mean_val + margin_of_error), 2)
+                                "ci_lower": round(max(0.0, mean_val - margin_of_error), 2),
+                                "ci_upper": round(min(5.0, mean_val + margin_of_error), 2),
+                                "is_binary": is_binary,
+                                "pass_count": pass_count,
+                                "fail_count": n - pass_count,
+                                "pass_rate": pass_rate
                             }
 
                 # Defect tag frequency breakdown

@@ -1,0 +1,4327 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Audio Studio Technical Architecture</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📄</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Public+Sans:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+  <style>
+/* ==========================================================================
+   ArchDoc Standalone Engine Styles (Inlined)
+   ========================================================================== */
+/* ==========================================================================
+   Veaja Architecture Docs - Site Theme & Layout
+   ========================================================================== */
+
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1b2230;
+  --muted: #5b6577;
+  --line: #dde2ea;
+  --accent: #2f5fd0;
+  --accent-tint: #e8eefb;
+  --code-bg: #eef1f6;
+  --crit: #c2362b;
+  --high: #c46a10;
+  --med: #8a7a12;
+  --low: #3d7a52;
+  --ok: #3d7a52;
+  --sidebar-w: 270px;
+  --header-h: 52px;
+  --font-display: "Bricolage Grotesque", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-body: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161d;
+    --surface: #1a1f28;
+    --fg: #e4e8ef;
+    --muted: #9aa4b5;
+    --line: #2b3240;
+    --accent: #7ea2ff;
+    --accent-tint: #1e2a45;
+    --code-bg: #212835;
+    --crit: #ff7a6e;
+    --high: #f0a050;
+    --med: #d8c45a;
+    --low: #6fcf93;
+    --ok: #6fcf93;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #12161d;
+  --surface: #1a1f28;
+  --fg: #e4e8ef;
+  --muted: #9aa4b5;
+  --line: #2b3240;
+  --accent: #7ea2ff;
+  --accent-tint: #1e2a45;
+  --code-bg: #212835;
+  --crit: #ff7a6e;
+  --high: #f0a050;
+  --med: #d8c45a;
+  --low: #6fcf93;
+  --ok: #6fcf93;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--header-h) + 20px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ==========================================================================
+   Top Header Bar & Sidebar Layout
+   ========================================================================== */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  height: var(--header-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  gap: 12px;
+}
+
+.site-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--code-bg);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.sidebar-toggle:hover {
+  border-color: var(--accent);
+}
+
+.site-title-link {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--fg);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.site-title-link:hover {
+  color: var(--accent);
+}
+
+.site-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.theme-toggle {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.theme-toggle:hover {
+  color: var(--fg);
+  border-color: var(--accent);
+}
+
+/* App container */
+.site-layout {
+  display: flex;
+  min-height: calc(100vh - var(--header-h));
+  position: relative;
+}
+
+/* Sidebar */
+.site-sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  height: calc(100vh - var(--header-h));
+  position: sticky;
+  top: var(--header-h);
+  overflow-y: auto;
+  padding: 20px 12px 40px;
+  transition: transform 0.25s ease, margin-left 0.25s ease, opacity 0.2s ease;
+  z-index: 30;
+}
+
+/* When sidebar collapsed on desktop */
+body.sidebar-collapsed .site-sidebar {
+  margin-left: calc(-1 * var(--sidebar-w));
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Sidebar Backdrop on Mobile */
+.sidebar-backdrop {
+  display: none;
+}
+
+/* Sidebar Navigation Items */
+nav[aria-label="Documentation"] {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.nav-group {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 12px;
+}
+
+.nav-group:last-child {
+  border-bottom: none;
+}
+
+.nav-group-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  padding: 6px 8px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 4px;
+  text-align: left;
+}
+
+.nav-group-btn:hover {
+  color: var(--fg);
+}
+
+.nav-group-icon {
+  font-size: 0.7rem;
+  transition: transform 0.2s;
+}
+
+.nav-group.collapsed .nav-group-icon {
+  transform: rotate(-90deg);
+}
+
+.nav-group.collapsed .nav-list {
+  display: none;
+}
+
+.nav-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+}
+
+.nav-item {
+  margin: 2px 0;
+}
+
+.nav-link {
+  display: block;
+  padding: 6px 10px;
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 0.88rem;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.nav-link:hover {
+  background: var(--code-bg);
+  color: var(--accent);
+}
+
+.nav-item.active > .nav-link {
+  background: var(--accent-tint);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* "On this page" TOC */
+.on-page-nav {
+  list-style: none;
+  margin: 4px 0 6px 12px;
+  padding: 0 0 0 10px;
+  border-left: 2px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.on-page-link {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-decoration: none;
+  line-height: 1.4;
+  padding: 3px 0;
+  transition: color 0.15s;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.on-page-link:hover,
+.on-page-link.active {
+  color: var(--accent);
+}
+
+/* Main Content Area */
+.site-main {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 80px;
+}
+
+.wrap {
+  max-width: 1600px;
+  margin: 0;
+  padding: 36px 40px 60px;
+}
+
+.prose {
+  max-width: 75ch;
+}
+
+/* ==========================================================================
+   Typography & Common Elements
+   ========================================================================== */
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  line-height: 1.25;
+  text-wrap: balance;
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(2rem, 4.5vw, 2.7rem);
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  font-size: 1.55rem;
+  margin-top: 52px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+h3 {
+  font-size: 1.15rem;
+  margin-top: 28px;
+}
+
+p {
+  margin: 12px 0;
+}
+
+a {
+  color: var(--accent);
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible,
+.fig-scroll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+code, pre, .mono {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+}
+
+code {
+  background: var(--code-bg);
+  padding: 1px 5px;
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+
+pre {
+  background: var(--code-bg);
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  line-height: 1.5;
+  margin: 14px 0;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+}
+
+/* Syntax Highlighting Tokens */
+.tok-kw   { color: #6f42c1; font-weight: 600; }
+.tok-str  { color: #22863a; }
+.tok-num  { color: #005cc5; }
+.tok-com  { color: var(--muted); font-style: italic; opacity: 0.85; }
+.tok-prop { color: #b05a00; font-weight: 600; }
+.tok-type { color: #005cc5; font-weight: 600; }
+
+[data-theme="dark"] .tok-kw,
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tok-kw   { color: #d2a8ff; }
+  :root:not([data-theme="light"]) .tok-str  { color: #7ee787; }
+  :root:not([data-theme="light"]) .tok-num  { color: #79c0ff; }
+  :root:not([data-theme="light"]) .tok-com  { color: #8b949e; }
+  :root:not([data-theme="light"]) .tok-prop { color: #ffa657; }
+  :root:not([data-theme="light"]) .tok-type { color: #79c0ff; }
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+header {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.back {
+  font-size: 0.92rem;
+  margin: 0;
+}
+
+.back a {
+  text-decoration: none;
+}
+.back a:hover {
+  text-decoration: underline;
+}
+
+/* Verdict & Containers */
+.verdict {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 20px 22px;
+  margin-top: 24px;
+}
+
+.verdict p:first-child,
+.box > :first-child {
+  margin-top: 0;
+}
+
+.verdict p:last-child,
+.box > :last-child {
+  margin-bottom: 0;
+}
+
+.box {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-top: 20px;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.panel h3 {
+  margin-top: 0;
+  font-size: 1rem;
+}
+
+.panel ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+
+.grid2 > * {
+  min-width: 0;
+}
+
+/* Chips, Pills, Badges */
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.chip {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+.pill {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+.tag {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.crit { color: var(--crit); }
+.high { color: var(--high); }
+.med  { color: var(--med); }
+.low  { color: var(--low); }
+.ok   { color: var(--ok); }
+
+/* HTTP Method Badges */
+.method {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.method-get   { background: color-mix(in srgb, var(--ok) 15%, var(--surface)); color: var(--ok); border: 1px solid color-mix(in srgb, var(--ok) 40%, transparent); }
+.method-post  { background: color-mix(in srgb, var(--accent) 15%, var(--surface)); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+.method-put   { background: color-mix(in srgb, var(--high) 15%, var(--surface)); color: var(--high); border: 1px solid color-mix(in srgb, var(--high) 40%, transparent); }
+.method-patch { background: color-mix(in srgb, #8b5cf6 15%, var(--surface)); color: #8b5cf6; border: 1px solid color-mix(in srgb, #8b5cf6 40%, transparent); }
+.method-del   { background: color-mix(in srgb, var(--crit) 15%, var(--surface)); color: var(--crit); border: 1px solid color-mix(in srgb, var(--crit) 40%, transparent); }
+
+/* Schema, Database & Attribute Badges */
+.schema-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.col-pk   { background: color-mix(in srgb, var(--high) 18%, var(--surface)); color: var(--high); border: 1px solid color-mix(in srgb, var(--high) 40%, transparent); }
+.col-fk   { background: color-mix(in srgb, var(--accent) 18%, var(--surface)); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+.col-uq   { background: color-mix(in srgb, #8b5cf6 18%, var(--surface)); color: #8b5cf6; border: 1px solid color-mix(in srgb, #8b5cf6 40%, transparent); }
+.col-idx  { background: color-mix(in srgb, var(--ok) 18%, var(--surface)); color: var(--ok); border: 1px solid color-mix(in srgb, var(--ok) 40%, transparent); }
+.col-null { color: var(--muted); font-size: 0.8rem; font-style: italic; }
+.col-req  { color: var(--fg); font-weight: 600; font-size: 0.8rem; }
+.type-tag {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--accent);
+  background: var(--code-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* Configuration & Environment Variables */
+.env-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.env-req    { background: color-mix(in srgb, var(--crit) 15%, var(--surface)); color: var(--crit); border: 1px solid color-mix(in srgb, var(--crit) 40%, transparent); }
+.env-opt    { background: color-mix(in srgb, var(--muted) 15%, var(--surface)); color: var(--muted); border: 1px solid color-mix(in srgb, var(--muted) 40%, transparent); }
+.env-secret { background: color-mix(in srgb, var(--high) 15%, var(--surface)); color: var(--high); border: 1px solid color-mix(in srgb, var(--high) 40%, transparent); }
+
+/* RBAC & Security Permission Matrix */
+.rbac-cell {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+.rbac-allow {
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+.rbac-deny {
+  color: var(--muted);
+  opacity: 0.45;
+  display: inline-block;
+}
+.rbac-cond {
+  color: var(--high);
+  background: color-mix(in srgb, var(--high) 12%, transparent);
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+/* API Endpoint Contract Cards */
+.endpoint-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin: 16px 0;
+  overflow: hidden;
+}
+.endpoint-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--code-bg);
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.endpoint-path {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--fg);
+}
+.endpoint-desc {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin-left: auto;
+}
+.endpoint-body {
+  padding: 16px;
+}
+
+/* Event, Queue & Worker Pipeline */
+.queue-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: 6px;
+  padding: 14px 18px;
+  margin: 14px 0;
+}
+.queue-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 8px;
+  font-family: var(--font-mono);
+}
+
+/* Operational Runbook Cards */
+.runbook-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin: 18px 0;
+  overflow: hidden;
+}
+.runbook-head {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--code-bg);
+  border-bottom: 1px solid var(--line);
+}
+.runbook-body {
+  padding: 16px;
+}
+.runbook-step {
+  display: flex;
+  gap: 12px;
+  margin: 10px 0;
+}
+.step-num-badge {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.8rem;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Tables & Scrollable Views
+   ========================================================================== */
+
+.scroll {
+  overflow-x: auto;
+  margin: 16px 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  -webkit-overflow-scrolling: touch;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  text-align: left;
+}
+
+th, td {
+  text-align: left;
+  vertical-align: top;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+th {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+  background: var(--code-bg);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  white-space: nowrap;
+}
+
+tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Protected Column Widths & Natural Stretch */
+.col-id, .col-num, .col-status, .col-badge, td.num {
+  white-space: nowrap;
+  width: 1%;
+}
+
+.col-sm {
+  white-space: nowrap;
+  min-width: 140px;
+}
+
+.col-auto {
+  min-width: 220px;
+}
+
+.col-lg, .col-desc, .col-remediation {
+  min-width: 320px;
+}
+
+.wide { min-width: 860px; }
+.gate { min-width: 800px; }
+.findings { min-width: 1060px; }
+.modules { min-width: 900px; }
+.steps { min-width: 1080px; }
+.steps td.num { font-family: var(--font-mono); font-weight: 600; white-space: nowrap; }
+
+table.findings td:first-child {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  white-space: nowrap;
+  border-left: 4px solid transparent;
+}
+table.findings tr.s-crit td:first-child { border-left-color: var(--crit); }
+table.findings tr.s-high td:first-child { border-left-color: var(--high); }
+table.findings tr.s-med td:first-child  { border-left-color: var(--med); }
+
+/* ==========================================================================
+   Finding Cards (Calling Agent Review)
+   ========================================================================== */
+
+.findings-cards {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.finding {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--line);
+  border-radius: 8px;
+  padding: 16px 18px;
+  min-width: 0;
+}
+
+.finding.p-crit { border-left-color: var(--crit); }
+.finding.p-high { border-left-color: var(--high); }
+.finding.p-med  { border-left-color: var(--med); }
+.finding.p-nice { border-left-color: var(--muted); }
+.nice { color: var(--muted); }
+
+.f-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+}
+
+.f-id {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 6px 16px;
+  margin: 12px 0 0;
+}
+
+.kv dt {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-top: 3px;
+}
+
+.kv dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.kv dd a {
+  overflow-wrap: anywhere;
+}
+
+.kv ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+@media (max-width: 560px) {
+  .kv {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .kv dd {
+    margin-bottom: 8px;
+  }
+}
+
+/* Ordered list styling */
+ol.phases, ol.order {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0;
+  display: grid;
+  gap: 14px;
+}
+
+ol.phases > li, ol.order > li {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px 18px;
+}
+
+.phase-head, .ph {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: baseline;
+}
+
+.phase-head strong, .ph strong {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+
+.phase-head .meta, .ph .meta {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+ol.phases ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+ul li, ol li {
+  margin: 4px 0;
+}
+
+/* ==========================================================================
+   Diagrams & SVG Styling (.dg)
+   ========================================================================== */
+
+.fig, .figure-container {
+  margin: 18px 0 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.fig-tools, .tools, .figure-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  position: sticky;
+  top: var(--header-h);
+  z-index: 10;
+  border-radius: 9px 9px 0 0;
+}
+
+.figure-title {
+  font: 600 0.88rem var(--font-heading);
+  color: var(--fg);
+}
+
+.figure-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fig-tools button, .tools button, .fig-btn {
+  font: 600 0.82rem var(--font-body);
+  color: var(--fg);
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.fig-tools button:hover, .tools button:hover, .fig-btn:hover {
+  border-color: var(--accent);
+}
+
+.figure-container figcaption {
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+}
+  border-color: var(--accent);
+}
+
+.z-val {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+  min-width: 44px;
+  text-align: center;
+}
+
+.fig-scroll {
+  overflow: auto;
+  border-radius: 0 0 9px 9px;
+}
+
+.fig-scroll svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Wide diagrams keep a readable size and scroll inside .fig-scroll on small screens */
+.fig-scroll svg.min-760 {
+  min-width: 760px;
+}
+
+.fig figcaption {
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+}
+
+.is-full {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 100 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  overflow: auto !important;
+  background: var(--bg) !important;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.fig.is-full {
+  display: flex;
+  flex-direction: column;
+}
+
+.fig.is-full .fig-scroll {
+  flex: 1;
+}
+
+/* SVG color classes */
+.dg .bg, .dg .mask { fill: var(--surface); }
+.dg .box   { fill: var(--surface); stroke: var(--fg); stroke-width: 1; }
+.dg .soft  { fill: var(--code-bg); stroke: var(--muted); stroke-width: 1; }
+.dg .focal { fill: var(--accent-tint); stroke: var(--accent); stroke-width: 1.4; }
+.dg .ext   { fill: var(--surface); stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 3; }
+.dg .warn  { fill: var(--surface); stroke: var(--high); stroke-width: 1.2; stroke-dasharray: 4 3; }
+.dg .panel { fill: none; stroke: var(--line); stroke-width: 1; }
+.dg .tagbox{ fill: none; stroke: var(--muted); stroke-opacity: 0.5; stroke-width: 0.8; }
+.dg .badge { fill: var(--surface); stroke: var(--accent); stroke-width: 1; }
+.dg .badge-t { font: 700 10px var(--font-mono); fill: var(--accent); }
+.dg .ln    { fill: none; stroke: var(--muted); stroke-width: 1.3; }
+.dg .ln.dash { stroke-dasharray: 5 4; }
+.dg .ln.acc  { stroke: var(--accent); stroke-width: 1.6; }
+.dg .ln.bad  { stroke: var(--crit); stroke-dasharray: 5 4; }
+.dg .life  { stroke: var(--line); stroke-width: 1; stroke-dasharray: 4 4; }
+.dg .rule  { stroke: var(--line); stroke-width: 0.8; }
+.dg .lane  { fill: var(--code-bg); opacity: 0.55; }
+.dg .nm    { font: 600 13px var(--font-body); fill: var(--fg); }
+.dg .nm.big{ font-size: 15px; }
+.dg .h     { font: 600 14px var(--font-body); fill: var(--fg); }
+.dg .sub   { font: 400 10px var(--font-mono); fill: var(--muted); }
+.dg .tag   { font: 600 8px var(--font-mono); letter-spacing: 0.1em; fill: var(--muted); }
+.dg .lbl   { font: 600 9px var(--font-mono); letter-spacing: 0.04em; fill: var(--muted); }
+.dg .led-k { font: 700 10px var(--font-mono); letter-spacing: 0.08em; fill: var(--accent); }
+.dg .led   { font: 400 12px var(--font-body); fill: var(--fg); }
+
+/* ==========================================================================
+   Archify Native Theme Tokens & Vector Classes
+   ========================================================================== */
+:root, [data-theme="dark"] {
+  --archify-bg: #020617;
+  --archify-grid: #1e293b;
+  --archify-mask: #0f172a;
+  --frontend-fill: rgba(8, 51, 68, 0.4);
+  --frontend-stroke: #22d3ee;
+  --backend-fill: rgba(6, 78, 59, 0.4);
+  --backend-stroke: #34d399;
+  --database-fill: rgba(76, 29, 149, 0.4);
+  --database-stroke: #a78bfa;
+  --cloud-fill: rgba(120, 53, 15, 0.3);
+  --cloud-stroke: #fbbf24;
+  --security-fill: rgba(136, 19, 55, 0.4);
+  --security-stroke: #fb7185;
+  --messagebus-fill: rgba(251, 146, 60, 0.3);
+  --messagebus-stroke: #fb923c;
+  --external-fill: rgba(30, 41, 59, 0.5);
+  --external-stroke: #94a3b8;
+  --arrow-color: #64748b;
+  --arrow-emphasis-color: #34d399;
+}
+
+[data-theme="light"] {
+  --archify-bg: #f8fafc;
+  --archify-grid: #e2e8f0;
+  --archify-mask: #ffffff;
+  --frontend-fill: rgba(34, 211, 238, 0.15);
+  --frontend-stroke: #0891b2;
+  --backend-fill: rgba(52, 211, 153, 0.18);
+  --backend-stroke: #059669;
+  --database-fill: rgba(167, 139, 250, 0.2);
+  --database-stroke: #7c3aed;
+  --cloud-fill: rgba(251, 191, 36, 0.18);
+  --cloud-stroke: #d97706;
+  --security-fill: rgba(251, 113, 133, 0.15);
+  --security-stroke: #e11d48;
+  --messagebus-fill: rgba(251, 146, 60, 0.15);
+  --messagebus-stroke: #ea580c;
+  --external-fill: rgba(148, 163, 184, 0.18);
+  --external-stroke: #64748b;
+  --arrow-color: #94a3b8;
+  --arrow-emphasis-color: #059669;
+}
+
+/* Archify SVG element classes & overrides */
+.c-grid { stroke: var(--archify-grid); fill: none !important; }
+.c-mask { fill: var(--archify-mask); }
+.c-region, .c-security-group, .c-lane { fill: var(--code-bg) !important; stroke: var(--line) !important; opacity: 0.7; }
+.c-frontend { fill: var(--frontend-fill); stroke: var(--frontend-stroke); }
+.c-backend { fill: var(--backend-fill); stroke: var(--backend-stroke); }
+.c-database { fill: var(--database-fill); stroke: var(--database-stroke); }
+.c-cloud { fill: var(--cloud-fill); stroke: var(--cloud-stroke); }
+.c-security { fill: var(--security-fill); stroke: var(--security-stroke); }
+.c-messagebus { fill: var(--messagebus-fill); stroke: var(--messagebus-stroke); }
+.c-external { fill: var(--external-fill); stroke: var(--external-stroke); }
+
+.t-primary { fill: var(--fg); font-family: var(--font-body); }
+.t-muted { fill: var(--muted); font-family: var(--font-mono); }
+.t-dim { fill: var(--muted); font-family: var(--font-mono); opacity: 0.7; }
+.t-security { fill: var(--security-stroke); font-family: var(--font-mono); }
+
+.a-default { stroke: var(--arrow-color); fill: none; }
+.a-emphasis { stroke: var(--arrow-emphasis-color); fill: none; }
+.a-security { stroke: var(--security-stroke); fill: none; }
+.a-dashed { stroke: var(--arrow-color); stroke-dasharray: 4 4; fill: none; }
+
+.m-default { fill: var(--arrow-color); }
+.m-emphasis { fill: var(--arrow-emphasis-color); }
+.m-security { fill: var(--security-stroke); }
+.m-dashed { fill: var(--arrow-color); }
+
+/* Ensure all path patterns don't fill black */
+svg pattern path { fill: none !important; }
+
+/* Mermaid styling */
+.mermaid {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  overflow-x: auto;
+  margin: 16px 0;
+}
+
+/* ==========================================================================
+   File Trees
+   ========================================================================== */
+
+.trees {
+  --tree-size: 13px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-top: 14px;
+}
+
+.tree-head {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 10px 14px;
+  font: 600 0.8rem var(--font-mono);
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+
+.area {
+  border-bottom: 1px solid var(--line);
+}
+.area:last-child {
+  border-bottom: 0;
+}
+
+.area summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.area-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+.area-count {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 0 14px 14px;
+}
+
+.col {
+  min-width: 0;
+}
+
+.col-h {
+  display: none;
+  font: 600 0.74rem var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.trees pre.tree {
+  margin: 0;
+  font-size: var(--tree-size);
+  background: var(--code-bg);
+  line-height: 1.45;
+}
+
+.t-dir  { color: var(--fg); font-weight: 600; }
+.t-same { color: var(--muted); }
+.t-mov  { color: var(--accent); font-weight: 600; }
+.t-new  { color: var(--ok); font-weight: 600; }
+.t-del  { color: var(--crit); text-decoration: line-through; }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin: 14px 0;
+  font-size: 0.9rem;
+}
+
+.legend .sw {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  margin-right: 6px;
+}
+
+.maplist summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--accent);
+  padding: 6px 0;
+}
+
+/* ==========================================================================
+   Page Footer & Previous / Next Nav
+   ========================================================================== */
+
+.page-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 56px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.page-nav-link {
+  display: inline-flex;
+  flex-direction: column;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  text-decoration: none;
+  min-width: 140px;
+  max-width: 48%;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.page-nav-link:hover {
+  border-color: var(--accent);
+  background: var(--code-bg);
+  text-decoration: none;
+}
+
+.page-nav-link.next {
+  margin-left: auto;
+  text-align: right;
+}
+
+.page-nav-sub {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.page-nav-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--fg);
+}
+
+footer.site-footer {
+  margin-top: 48px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+
+/* ==========================================================================
+   Mobile & Responsive (under 900px, and at 400px)
+   ========================================================================== */
+
+@media (max-width: 900px) {
+  .site-sidebar {
+    position: fixed;
+    top: var(--header-h);
+    left: 0;
+    bottom: 0;
+    height: calc(100vh - var(--header-h));
+    transform: translateX(-100%);
+    box-shadow: 2px 0 16px rgba(0,0,0,0.2);
+    z-index: 50;
+  }
+
+  body.sidebar-open .site-sidebar {
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Backdrop */
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    top: var(--header-h);
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 45;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+
+  body.sidebar-open .sidebar-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* When collapsed/open on mobile, main layout doesn't shift margins */
+  body.sidebar-collapsed .site-sidebar {
+    margin-left: 0;
+  }
+
+  .wrap {
+    padding: 24px 16px 40px;
+  }
+}
+
+@media (max-width: 720px) {
+  .cols, .tree-head {
+    grid-template-columns: 1fr;
+  }
+  .tree-head {
+    display: none;
+  }
+  .col-h {
+    display: block;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-nav {
+    flex-direction: column;
+  }
+  .page-nav-link {
+    max-width: 100%;
+  }
+  .page-nav-link.next {
+    margin-left: 0;
+    text-align: left;
+  }
+}
+
+/* ==========================================================================
+   Execution Plans, Dashboards & Interactive Task Timelines
+   ========================================================================== */
+
+.dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.dash-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.dash-card .dash-num {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.dash-card .dash-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.dash-card.d-total { border-top: 4px solid var(--accent); }
+.dash-card.d-total .dash-num { color: var(--accent); }
+.dash-card.d-done  { border-top: 4px solid var(--ok); }
+.dash-card.d-done  .dash-num { color: var(--ok); }
+.dash-card.d-todo  { border-top: 4px solid var(--high); }
+.dash-card.d-todo  .dash-num { color: var(--high); }
+.dash-card.d-pct   { border-top: 4px solid var(--med); }
+.dash-card.d-pct   .dash-num { color: var(--med); }
+
+.progress-bar-wrap {
+  background: var(--code-bg);
+  border-radius: 8px;
+  height: 18px;
+  overflow: hidden;
+  margin: 16px 0 6px;
+  border: 1px solid var(--line);
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--ok);
+  border-radius: 7px;
+  transition: width 0.4s ease;
+  min-width: 0;
+}
+
+.progress-text {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--muted);
+  text-align: right;
+}
+
+.do-first-banner {
+  background: color-mix(in srgb, var(--crit) 10%, var(--surface));
+  border: 2px solid var(--crit);
+  border-radius: 10px;
+  padding: 18px 22px;
+  margin: 20px 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.do-first-banner strong {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  color: var(--crit);
+}
+
+.step-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0;
+  position: relative;
+}
+
+.step-list::before {
+  content: "";
+  position: absolute;
+  left: 23px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--line);
+  border-radius: 2px;
+}
+
+.step-item {
+  position: relative;
+  padding-left: 56px;
+  padding-bottom: 28px;
+}
+
+.step-item:last-child { padding-bottom: 0; }
+
+.step-dot {
+  position: absolute;
+  left: 12px;
+  top: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 3px solid var(--line);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 11px var(--font-mono);
+  color: var(--muted);
+  z-index: 2;
+}
+
+.step-item.s-crit .step-dot { border-color: var(--crit); color: var(--crit); background: color-mix(in srgb, var(--crit) 12%, var(--surface)); }
+.step-item.s-high .step-dot { border-color: var(--high); color: var(--high); }
+.step-item.s-med  .step-dot { border-color: var(--med);  color: var(--med); }
+
+.step-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px 20px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.step-item.s-crit .step-card {
+  border-left: 5px solid var(--crit);
+  background: color-mix(in srgb, var(--crit) 4%, var(--surface));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--crit) 15%, transparent);
+}
+.step-item.s-high .step-card { border-left: 4px solid var(--high); }
+.step-item.s-med  .step-card { border-left: 4px solid var(--med); }
+
+.step-item.is-done .step-card {
+  opacity: 0.55;
+  border-left-color: var(--ok) !important;
+  background: var(--surface) !important;
+  box-shadow: none !important;
+}
+
+.step-item.is-done .step-dot {
+  border-color: var(--ok) !important;
+  color: var(--surface) !important;
+  background: var(--ok) !important;
+}
+
+.step-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 14px;
+  margin-bottom: 10px;
+}
+
+.step-head strong {
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+}
+
+.step-head .meta {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s;
+}
+
+.status-badge:hover { transform: scale(1.05); }
+.status-badge.st-not-started { color: var(--muted); border-color: var(--line); background: var(--code-bg); }
+.status-badge.st-in-progress { color: var(--accent); border-color: var(--accent); background: var(--accent-tint); }
+.status-badge.st-done        { color: var(--ok); border-color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, var(--surface)); }
+
+.task-check {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--line);
+  border-radius: 4px;
+  vertical-align: middle;
+  margin-right: 6px;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.task-check:checked {
+  background: var(--ok);
+  border-color: var(--ok);
+}
+
+.task-check:checked::after {
+  content: "✓";
+  position: absolute;
+  top: -1px;
+  left: 2px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--surface);
+}
+
+.task-check:hover { border-color: var(--accent); }
+li:has(.task-check:checked) { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line); }
+
+.xref {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--accent);
+  text-decoration: none;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  padding: 1px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.xref:hover { background: var(--accent-tint); text-decoration: none; }
+
+/* ==========================================================================
+   Code Block Copy Button
+   ========================================================================== */
+
+pre {
+  position: relative;
+}
+
+pre:hover .copy-btn {
+  opacity: 1;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s, background-color 0.15s;
+  z-index: 5;
+}
+
+.copy-btn:hover {
+  color: var(--fg);
+  border-color: var(--accent);
+}
+
+.copy-btn.copied {
+  opacity: 1;
+  color: var(--ok);
+  border-color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 10%, var(--surface));
+}
+
+/* ==========================================================================
+   Command Palette & Search Modal (Cmd + K)
+   ========================================================================== */
+
+.search-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--code-bg);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.search-trigger:hover {
+  border-color: var(--accent);
+  color: var(--fg);
+}
+
+.search-trigger kbd {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+
+.search-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 22, 29, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.search-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.search-dialog {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 560px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.search-input-wrap {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.search-input-wrap input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--fg);
+  outline: none;
+}
+
+.search-results {
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 8px;
+  margin: 0;
+  list-style: none;
+}
+
+.search-item a {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: var(--fg);
+  text-decoration: none;
+  transition: background 0.1s;
+}
+
+.search-item a:hover, .search-item a.selected {
+  background: var(--accent-tint);
+}
+
+.search-item .search-title {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.search-item .search-group {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.search-footer {
+  padding: 8px 16px;
+  background: var(--code-bg);
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+/* ==========================================================================
+   Quick Navigation Pills
+   ========================================================================== */
+
+.quick-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.quick-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--fg);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.quick-nav a:hover {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  text-decoration: none;
+}
+
+.quick-nav .qn-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Executive Print & PDF Export Styles (@media print)
+   ========================================================================== */
+
+@media print {
+  .site-header,
+  .site-sidebar,
+  .sidebar-backdrop,
+  .tools,
+  .fig-tools,
+  .theme-toggle,
+  .sidebar-toggle,
+  .search-trigger,
+  .copy-btn,
+  .page-nav {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+  }
+
+  .site-layout {
+    display: block !important;
+    min-height: auto !important;
+  }
+
+  .site-main {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  .wrap {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  details {
+    display: block !important;
+  }
+
+  details[class] {
+    break-inside: avoid;
+  }
+
+  details summary {
+    display: block !important;
+    font-weight: bold;
+    border-bottom: 1px solid #ccc;
+  }
+
+  .cols {
+    display: flex !important;
+    gap: 16px !important;
+  }
+
+  .col {
+    flex: 1 1 50% !important;
+  }
+
+  .step-card,
+  .box,
+  .panel,
+  .fig,
+  table,
+  pre {
+    break-inside: avoid !important;
+    box-shadow: none !important;
+    border-color: #ddd !important;
+  }
+
+  .fig-scroll svg {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  a {
+    color: #000000 !important;
+    text-decoration: underline !important;
+  }
+}
+
+
+/* Standalone View Switching */
+.archdoc-page-view {
+  display: none;
+}
+.archdoc-page-view.active {
+  display: block;
+}
+.standalone-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--accent-tint);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-left: 10px;
+}
+  </style>
+</head>
+<body data-root="./" data-page="index.html" data-standalone="true">
+  <!-- Top Navigation Bar -->
+  <header class="site-header">
+    <div class="site-header-left">
+      <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle navigation" aria-controls="site-sidebar" aria-expanded="true">
+        <span>☰</span> <span>Menu</span>
+      </button>
+      <a href="index.html" class="site-title-link">Audio Studio Engineering Documentation</a>
+      <span class="standalone-badge" title="Self-contained single file · zero dependencies">1-File Export</span>
+    </div>
+    <div class="site-header-right">
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle light/dark theme">
+        🌓 Auto
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Site Layout -->
+  <div class="site-layout">
+    <div class="sidebar-backdrop" aria-hidden="true"></div>
+    <aside class="site-sidebar" id="site-sidebar" aria-label="Sidebar navigation"></aside>
+
+    <main class="site-main">
+
+        <!-- Page View: index.html -->
+        <div class="archdoc-page-view active" id="page-index.html" data-page="index.html">
+          <div class="wrap">
+        <header>
+          <div class="eyebrow">System Architecture · Overview</div>
+          <h1>Audio Studio System Overview & ADRs</h1>
+          <p class="meta prose">A self-contained platform for evaluating, scoring, and comparing speech synthesis (TTS) and speech recognition (ASR) machine learning models for the Khmer language.</p>
+        </header>
+
+        <!-- Plain-English Mental Model -->
+        <section id="mental-model">
+          <h2>1. What Audio Studio Does</h2>
+          <p class="prose">
+            Audio Studio solves a specific problem in speech machine learning research: evaluating how well speech models pronounce words and recognize natural human speech. Automated metrics (such as Word Error Rate or acoustic loss numbers) do not accurately reflect whether a computer-generated voice sounds natural or mispronounces tone and syllables in Khmer.
+          </p>
+          <p class="prose">
+            The platform provides two primary interfaces that communicate with a single Python standard library backend and a local SQLite database:
+          </p>
+          <div class="grid2">
+            <div class="box">
+              <h3>Admin & Researcher Portal</h3>
+              <p class="prose"><strong>Path:</strong> <code>public/admin.html</code></p>
+              <ul>
+                <li><strong>Study Creator:</strong> A 4-step wizard to upload WAV audio files, match transcripts via CSV, assemble modular test components on an interactive canvas, and launch evaluation campaigns.</li>
+                <li><strong>Active Studies:</strong> Manage live evaluation studies, inspect evaluator completion rates, toggle study status, or delete campaigns.</li>
+                <li><strong>Results & Analytics:</strong> Compute Mean Opinion Scores (MOS) with 95% confidence intervals, rater consensus agreements, and export full CSV audit ledgers.</li>
+              </ul>
+            </div>
+            <div class="box">
+              <h3>Rater & Evaluator Portal</h3>
+              <p class="prose"><strong>Path:</strong> <code>public/eval.html</code></p>
+              <ul>
+                <li><strong>Frictionless Registration:</strong> Evaluators enter their name or pseudonym; no account or password creation required.</li>
+                <li><strong>Audio Waveform Deck:</strong> Interactive 76px waveform canvas with playback scrubbing, speed controls (0.8x, 1.0x, 1.2x), and telephone call audio simulation (8 kHz bandpass filter).</li>
+                <li><strong>Hold-and-Drag Defect Tagging:</strong> Listeners drag across the waveform or click Khmer word pills to flag mispronunciations, awkward pauses, and robotic buzzes.</li>
+                <li><strong>Listening Verification:</strong> Evaluators type what they actually heard to generate real-time visual text diffs against expected transcripts.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- Technology Stack -->
+        <section id="tech-stack">
+          <h2>2. Technology Stack & Hard Constraints</h2>
+          <div class="scroll">
+            <table class="wide">
+              <thead>
+                <tr>
+                  <th class="col-sm">Subsystem</th>
+                  <th class="col-sm">Technology</th>
+                  <th class="col-status">External Pip Dependencies</th>
+                  <th class="col-lg">Physical Responsibility in Codebase</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>HTTP Server & Routing</strong></td>
+                  <td>Python 3 <code>http.server.ThreadingHTTPServer</code></td>
+                  <td><span class="tag ok">0 (Standard Library)</span></td>
+                  <td>Receives incoming HTTP requests, serves static HTML/CSS/JS, streams audio via byte-range requests, and dispatches JSON REST endpoints (<code>run_server.py:16-35</code>).</td>
+                </tr>
+                <tr>
+                  <td><strong>Database & State</strong></td>
+                  <td>SQLite 3 (<code>sqlite3</code> module)</td>
+                  <td><span class="tag ok">0 (Standard Library)</span></td>
+                  <td>Stores study configurations, item metadata, evaluator sessions, rubric scores, and defect timestamps in <code>workbench.db</code> (<code>database.py:30-165</code>).</td>
+                </tr>
+                <tr>
+                  <td><strong>Frontend UI</strong></td>
+                  <td>Pure Vanilla JavaScript (ES6+), HTML5, Tailwind CSS</td>
+                  <td><span class="tag ok">0 (Zero Build / No Bundler)</span></td>
+                  <td>Executes directly in any browser over <code>file://</code> or HTTP. No Node.js build step, Webpack, or Babel required.</td>
+                </tr>
+                <tr>
+                  <td><strong>Audio Processing</strong></td>
+                  <td>Web Audio API & HTML5 Canvas</td>
+                  <td><span class="tag ok">0 (Native Browser API)</span></td>
+                  <td>Dual-channel audio decoding, real-time Biquad bandpass filter simulation, peak extraction, and dynamic 60fps waveform rendering (<code>public/js/audio_dsp.js</code>).</td>
+                </tr>
+                <tr>
+                  <td><strong>Public Ingress</strong></td>
+                  <td>Cloudflare Tunnel (<code>cloudflared</code>)</td>
+                  <td><span class="tag ok">0 (Standalone Binary)</span></td>
+                  <td>Establishes an outbound TLS tunnel to Cloudflare edge network, giving evaluators an instant HTTPS URL with zero router configuration (<code>run_server.py:1088-1115</code>).</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Architectural Decision Records (ADRs) -->
+        <section id="adrs">
+          <h2>3. Architectural Decision Records (ADRs)</h2>
+
+          <article class="endpoint-card" style="margin-bottom: 24px;">
+            <div class="endpoint-header">
+              <span class="method method-get">ADR-01</span>
+              <code class="endpoint-path">Zero Third-Party Python Dependencies</code>
+              <span class="pill">Accepted Invariant</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Decision:</strong> The backend must run completely on Python's built-in standard library without installing packages via <code>pip</code>.</p>
+              <p class="prose"><strong>Rationale:</strong> Audio Studio is an academic thesis and research platform. Avoiding third-party dependencies eliminates dependency drift, broken virtual environments, C-extension build failures, and security vulnerabilities. Any computer with Python 3.8+ can clone the repository and run <code>python3 run_server.py</code> in under two seconds.</p>
+            </div>
+          </article>
+
+          <article class="endpoint-card" style="margin-bottom: 24px;">
+            <div class="endpoint-header">
+              <span class="method method-get">ADR-02</span>
+              <code class="endpoint-path">Single-File Local SQLite Persistence with Enforced Foreign Keys</code>
+              <span class="pill">Accepted Invariant</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Decision:</strong> Use a local SQLite file (<code>workbench.db</code>) with <code>PRAGMA foreign_keys = ON;</code> and parameterized SQL queries.</p>
+              <p class="prose"><strong>Rationale:</strong> Academic evaluations require absolute data durability without managing separate database servers (PostgreSQL or MySQL). SQLite commits transactions directly to the local solid-state drive with full ACID reliability. Deleting a test campaign automatically cascades to remove related evaluations and defect tags cleanly.</p>
+            </div>
+          </article>
+
+          <article class="endpoint-card" style="margin-bottom: 24px;">
+            <div class="endpoint-header">
+              <span class="method method-get">ADR-03</span>
+              <code class="endpoint-path">Cloudflare Tunnel Outbound Host Ingress for $0 Zero-Risk Public Hosting</code>
+              <span class="pill">Accepted Invariant</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Decision:</strong> Expose the local server to public evaluators using Cloudflare Tunnel (via <code>run_server.py --share</code>) rather than deploying to free cloud containers (such as Render or Koyeb).</p>
+              <p class="prose"><strong>Rationale:</strong> Free cloud container tiers use ephemeral filesystems that erase all local file changes when an idle instance sleeps. Hosting on a local machine via Cloudflare Tunnel guarantees that the SQLite database and physical WAV audio files are never wiped, requires no credit card, and eliminates 50-second cold-start connection timeouts.</p>
+            </div>
+          </article>
+
+          <article class="endpoint-card">
+            <div class="endpoint-header">
+              <span class="method method-get">ADR-04</span>
+              <code class="endpoint-path">HTTP 206 Partial Content Range Streaming for Audio Assets</code>
+              <span class="pill">Accepted Invariant</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Decision:</strong> Implement native byte-range parsing in <code>run_server.py</code> to support HTTP <code>Range: bytes=start-end</code> headers.</p>
+              <p class="prose"><strong>Rationale:</strong> Modern desktop and mobile browsers require HTTP 206 Partial Content responses to scrub through audio timelines and calculate duration metadata before the entire file finishes downloading. Without range request support, mobile browsers stall when loading uncompressed WAV audio.</p>
+            </div>
+          </article>
+        </section>
+
+        <!-- System Invariants -->
+        <section id="invariants">
+          <h2>4. Repository Invariants Checklist</h2>
+          <div class="scroll">
+            <table class="wide">
+              <thead>
+                <tr>
+                  <th class="col-sm">Invariant</th>
+                  <th class="col-status">Verification Gate</th>
+                  <th class="col-lg">Enforcement Mechanism</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Zero Pip Packages</strong></td>
+                  <td><span class="tag ok">Enforced</span></td>
+                  <td><code>scripts/validate_package.py</code> verifies zero third-party packages are imported.</td>
+                </tr>
+                <tr>
+                  <td><strong>Automated Test Suite</strong></td>
+                  <td><span class="tag ok">Enforced</span></td>
+                  <td>24 automated tests run in under 2 seconds via <code>python3 -m unittest discover -s tests -v</code>.</td>
+                </tr>
+                <tr>
+                  <td><strong>Admin PIN Boundaries</strong></td>
+                  <td><span class="tag ok">Enforced</span></td>
+                  <td>All administrative API routes (<code>/api/admin/*</code>) require <code>X-Admin-PIN</code> or Bearer token header.</td>
+                </tr>
+                <tr>
+                  <td><strong>Parameterized SQL</strong></td>
+                  <td><span class="tag ok">Enforced</span></td>
+                  <td>All database statements use <code>?</code> positional parameter placeholders to prevent SQL injection.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <footer class="site-footer">
+          <p>Audio Studio Technical Documentation · CADT Year 3 Capstone</p>
+        </footer>
+      </div>
+        </div>
+        
+
+        <!-- Page View: architecture.html -->
+        <div class="archdoc-page-view" id="page-architecture.html" data-page="architecture.html">
+          <div class="wrap">
+        <header>
+          <div class="eyebrow">System Architecture · Topology</div>
+          <h1>System Topology & Component Architecture</h1>
+          <p class="meta prose">Physical layout of the software across client browsers, edge ingress, server threads, Web Audio DSP pipelines, and local database storage.</p>
+        </header>
+
+        <!-- Interactive SVG Topology Diagram -->
+        <section id="system-topology">
+          <h2>1. End-to-End System Topology Diagram</h2>
+          <p class="prose">
+            The diagram below illustrates the exact pathways through which network requests, audio streams, and database writes flow. Use the controls to zoom, pan, or expand the diagram to full screen.
+          </p>
+
+          <figure class="fig" id="fig-diagram">
+            <div class="fig-tools" role="toolbar" aria-label="Diagram size">
+              <button type="button" data-z="out" aria-label="Zoom out">−</button>
+              <span class="z-val" aria-live="polite">Fit</span>
+              <button type="button" data-z="in" aria-label="Zoom in">+</button>
+              <button type="button" data-z="fit">Fit width</button>
+              <button type="button" data-z="full">Full screen</button>
+            </div>
+            <div class="fig-scroll" tabindex="0">
+              <svg class="dg" data-w="1100" viewBox="0 0 1100 580" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                    <polygon points="0 0, 8 3, 0 6" style="fill:var(--muted)"/>
+                  </marker>
+                  <marker id="arrow-acc" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                    <polygon points="0 0, 8 3, 0 6" style="fill:var(--accent)"/>
+                  </marker>
+                </defs>
+                <rect class="bg" width="1100" height="580" rx="8"/>
+
+                <!-- Tier 1: Client Browsers -->
+                <rect class="panel" x="30" y="30" width="300" height="520" rx="8"/>
+                <text class="nm big" x="45" y="60">TIER 1: Client Browsers</text>
+                <text class="sub" x="45" y="80">Zero-build vanilla ES6+ &amp; Web Audio</text>
+
+                <!-- Box 1A: Evaluator Portal -->
+                <rect class="box" x="45" y="105" width="270" height="195" rx="6"/>
+                <text class="nm" x="60" y="130">Evaluator Portal (eval.html)</text>
+                <text class="sub" x="60" y="150">• Rater Onboarding (Pseudonym)</text>
+                <text class="sub" x="60" y="170">• Zero-Scroll Matrix Navigation</text>
+                <text class="sub" x="60" y="190">• Interactive 76px Waveform Deck</text>
+                <text class="sub" x="60" y="210">• Hold-and-Drag Defect Tagging</text>
+                <text class="sub" x="60" y="230">• Khmer Word Pill Glitch Highlighter</text>
+                <text class="sub" x="60" y="250">• Likert 1-5 Scoring &amp; Live Diff</text>
+                <text class="sub" x="60" y="275" style="fill:var(--accent);">Source: public/js/eval_app.js</text>
+
+                <!-- Box 1B: Researcher Portal -->
+                <rect class="box" x="45" y="325" width="270" height="205" rx="6"/>
+                <text class="nm" x="60" y="350">Admin Creator (admin.html)</text>
+                <text class="sub" x="60" y="370">• 4-Step Modular Study Wizard</text>
+                <text class="sub" x="60" y="390">• Unified Audio/CSV Dropzone</text>
+                <text class="sub" x="60" y="410">• WYSIWYG Playground Canvas</text>
+                <text class="sub" x="60" y="430">• Full Card Drag-and-Drop Reorder</text>
+                <text class="sub" x="60" y="450">• Live Results &amp; MOS 95% CI</text>
+                <text class="sub" x="60" y="470">• CSV Audit Log Exports</text>
+                <text class="sub" x="60" y="495" style="fill:var(--accent);">Source: public/js/admin_app.js</text>
+
+                <!-- Tier 2: Ingress & Edge -->
+                <rect class="panel" x="360" y="30" width="180" height="520" rx="8"/>
+                <text class="nm big" x="375" y="60">TIER 2: Ingress</text>
+                <text class="sub" x="375" y="80">TLS termination &amp; proxy</text>
+
+                <rect class="box" x="375" y="105" width="150" height="195" rx="6"/>
+                <text class="nm" x="390" y="130">Cloudflare Edge</text>
+                <text class="sub" x="390" y="155">• Global Anycast PoP</text>
+                <text class="sub" x="390" y="175">• Automatic SSL/TLS</text>
+                <text class="sub" x="390" y="195">• Mobile HTTPS</text>
+                <text class="sub" x="390" y="215">• Range Request Proxy</text>
+                <text class="sub" x="390" y="235">• Static Asset Cache</text>
+
+                <rect class="box" x="375" y="325" width="150" height="205" rx="6"/>
+                <text class="nm" x="390" y="350">cloudflared</text>
+                <text class="sub" x="390" y="375">• Outbound TLS Tunnel</text>
+                <text class="sub" x="390" y="395">• Zero Port Forwarding</text>
+                <text class="sub" x="390" y="415">• NAT/Firewall Bypass</text>
+                <text class="sub" x="390" y="435">• Local Proxy to 8080</text>
+                <text class="sub" x="390" y="495" style="fill:var(--accent);">/usr/local/bin</text>
+
+                <!-- Tier 3: Core Application -->
+                <rect class="panel" x="570" y="30" width="270" height="520" rx="8"/>
+                <text class="nm big" x="585" y="60">TIER 3: Core Application</text>
+                <text class="sub" x="585" y="80">Python 3 Threading Server</text>
+
+                <rect class="box focal" x="585" y="105" width="240" height="425" rx="6"/>
+                <text class="nm" x="600" y="130">run_server.py (Server Engine)</text>
+                
+                <text class="sub" x="600" y="160"><strong>ThreadingHTTPServer</strong></text>
+                <text class="sub" x="600" y="180">• Thread-per-request concurrency</text>
+                <text class="sub" x="600" y="200">• Port binding &amp; reuse (8080)</text>
+
+                <text class="sub" x="600" y="230"><strong>HTTP Range Streamer</strong></text>
+                <text class="sub" x="600" y="250">• Parses Range: bytes=start-end</text>
+                <text class="sub" x="600" y="270">• Returns HTTP 206 Partial Content</text>
+                <text class="sub" x="600" y="290">• Content-Range: bytes S-E/Total</text>
+
+                <text class="sub" x="600" y="320"><strong>Security &amp; PIN Gate</strong></text>
+                <text class="sub" x="600" y="340">• Validates X-Admin-PIN header</text>
+                <text class="sub" x="600" y="360">• Bearer pin-&lt;token&gt; check</text>
+                <text class="sub" x="600" y="380">• Unauthenticated rater routes</text>
+
+                <text class="sub" x="600" y="410"><strong>REST API Dispatcher</strong></text>
+                <text class="sub" x="600" y="430">• /api/evaluations (Submit ratings)</text>
+                <text class="sub" x="600" y="450">• /api/campaigns (Manage studies)</text>
+                <text class="sub" x="600" y="470">• /api/admin/summary (MOS stats)</text>
+                <text class="sub" x="600" y="490">• /api/upload-audio (Base64 file)</text>
+
+                <!-- Tier 4: Storage & Assets -->
+                <rect class="panel" x="870" y="30" width="200" height="520" rx="8"/>
+                <text class="nm big" x="885" y="60">TIER 4: Storage</text>
+                <text class="sub" x="885" y="80">Local SSD persistence</text>
+
+                <rect class="box" x="885" y="105" width="170" height="195" rx="6"/>
+                <text class="nm" x="900" y="130">SQLite 3 Database</text>
+                <text class="sub" x="900" y="155"><strong>workbench.db</strong></text>
+                <text class="sub" x="900" y="180">• 10 Relational Tables</text>
+                <text class="sub" x="900" y="200">• Foreign Keys Enforced</text>
+                <text class="sub" x="900" y="220">• Full ACID Safety</text>
+                <text class="sub" x="900" y="240">• Parameterized SQL</text>
+                <text class="sub" x="900" y="275" style="fill:var(--accent);">database.py</text>
+
+                <rect class="box" x="885" y="325" width="170" height="205" rx="6"/>
+                <text class="nm" x="900" y="350">Audio Asset Files</text>
+                <text class="sub" x="900" y="155"><strong>audio/ directory</strong></text>
+                <text class="sub" x="900" y="380">• Benchmark WAV files</text>
+                <text class="sub" x="900" y="400">• audio/uploads/ (User files)</text>
+                <text class="sub" x="900" y="420">• public/uploads/ (Cache)</text>
+                <text class="sub" x="900" y="440">• 16-bit PCM WAV &amp; MP3</text>
+                <text class="sub" x="900" y="495" style="fill:var(--accent);">Zero cloud upload</text>
+
+                <!-- Connecting Arrows -->
+                <line class="ln acc" x1="315" y1="200" x2="375" y2="200" marker-end="url(#arrow-acc)"/>
+                <line class="ln" x1="525" y1="200" x2="585" y2="200" marker-end="url(#arrow)"/>
+                <line class="ln" x1="525" y1="420" x2="585" y2="420" marker-end="url(#arrow)"/>
+                <line class="ln acc" x1="315" y1="420" x2="375" y2="420" marker-end="url(#arrow-acc)"/>
+                <line class="ln" x1="825" y1="200" x2="885" y2="200" marker-end="url(#arrow)"/>
+                <line class="ln" x1="825" y1="420" x2="885" y2="420" marker-end="url(#arrow)"/>
+              </svg>
+            </div>
+            <figcaption>Physical subsystem architecture: client applications, Cloudflare edge ingress, multi-threaded server engine, and local NVMe storage.</figcaption>
+          </figure>
+        </section>
+
+        <!-- Detailed Tier Breakdown -->
+        <section id="tier-breakdown">
+          <h2>2. Detailed Subsystem Responsibilities</h2>
+          
+          <div class="grid2">
+            <div class="box">
+              <h3>Tier 1: Client Applications &amp; DSP</h3>
+              <p class="prose">
+                The frontend runs completely in the user's browser without external CDNs. It uses the Web Audio API to create a sound processing graph:
+              </p>
+              <ul>
+                <li><strong>Buffer Decoding:</strong> Audio files are fetched and decoded into 32-bit floating point audio buffers in memory.</li>
+                <li><strong>Telephone Simulation:</strong> When toggled on, audio routes through a Biquad bandpass filter (highpass at 300 Hz, lowpass at 3400 Hz) to simulate telephony call center acoustics.</li>
+                <li><strong>Dynamic Waveform:</strong> HTML5 Canvas renders vertical peak bars, active playheads, and defect highlight overlays at 60 frames per second.</li>
+              </ul>
+            </div>
+            <div class="box">
+              <h3>Tier 2: Ingress &amp; Edge Network</h3>
+              <p class="prose">
+                Provides a secure bridge between mobile evaluators on the internet and the local host computer:
+              </p>
+              <ul>
+                <li><strong>Automatic HTTPS:</strong> Terminating SSL/TLS at Cloudflare ensures mobile browsers allow Web Audio playback without security restrictions.</li>
+                <li><strong>Outbound Connection:</strong> <code>cloudflared</code> establishes an outbound TCP/TLS session on port 7844. No incoming firewall ports or router NAT settings are opened.</li>
+                <li><strong>Zero Billing Risk:</strong> Cloudflare Tunnel free tier has no data transfer quotas, eliminating overage charges.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="grid2" style="margin-top: 20px;">
+            <div class="box">
+              <h3>Tier 3: Core Application Engine</h3>
+              <p class="prose">
+                <code>run_server.py</code> acts as the single backend process:
+              </p>
+              <ul>
+                <li><strong>Multi-Threaded Server:</strong> Built on <code>http.server.ThreadingHTTPServer</code>. Each incoming request spawns a lightweight thread, allowing multiple evaluators to stream audio simultaneously.</li>
+                <li><strong>HTTP Range Handler:</strong> Implements RFC 7233 byte-range parsing. Requests with <code>Range: bytes=0-1024</code> return HTTP 206 with exact byte boundaries.</li>
+                <li><strong>Admin Authorization:</strong> Verifies <code>X-Admin-PIN</code> header on all state mutations, while keeping public evaluation submission open for friction-free rating.</li>
+              </ul>
+            </div>
+            <div class="box">
+              <h3>Tier 4: Storage &amp; Persistence</h3>
+              <p class="prose">
+                All data is saved locally on the host computer's hard drive:
+              </p>
+              <ul>
+                <li><strong>Relational Integrity:</strong> <code>workbench.db</code> operates with <code>PRAGMA foreign_keys = ON;</code> to prevent orphaned evaluation records or missing item references.</li>
+                <li><strong>Safe Audio Directories:</strong> Uploaded audio files are validated and stored under <code>public/uploads/</code> and <code>audio/uploads/</code> with unique timestamps to prevent file overwrites.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <footer class="site-footer">
+          <p>Audio Studio Technical Documentation · CADT Year 3 Capstone</p>
+        </footer>
+      </div>
+        </div>
+        
+
+        <!-- Page View: call-journey.html -->
+        <div class="archdoc-page-view" id="page-call-journey.html" data-page="call-journey.html">
+          <div class="wrap">
+        <header>
+          <div class="eyebrow">System Architecture · Lifecycles</div>
+          <h1>Request Lifecycles & Data Journeys</h1>
+          <p class="meta prose">Chronological execution pathways, step timing budgets, and failure handling across client, tunnel, server threads, and the SQLite database.</p>
+        </header>
+
+        <!-- Journey 1: Evaluation Submission -->
+        <section id="journey-evaluation">
+          <h2>Journey 1: Evaluator Scoring & Defect Submission Flow</h2>
+          <p class="prose">
+            Triggers when an evaluator selects Likert scores, highlights mispronounced words or waveform defect regions, types perceived speech differences, and clicks <strong>Submit & Next</strong> on <code>eval.html</code>.
+          </p>
+
+          <figure class="fig" id="fig-seq-eval">
+            <div class="fig-tools" role="toolbar" aria-label="Diagram size">
+              <button type="button" data-z="out" aria-label="Zoom out">−</button>
+              <span class="z-val" aria-live="polite">Fit</span>
+              <button type="button" data-z="in" aria-label="Zoom in">+</button>
+              <button type="button" data-z="fit">Fit width</button>
+              <button type="button" data-z="full">Full screen</button>
+            </div>
+            <div class="fig-scroll" tabindex="0">
+              <svg class="dg" data-w="1000" viewBox="0 0 1000 460" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                    <polygon points="0 0, 8 3, 0 6" style="fill:var(--muted)"/>
+                  </marker>
+                  <marker id="arrow-acc" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                    <polygon points="0 0, 8 3, 0 6" style="fill:var(--accent)"/>
+                  </marker>
+                </defs>
+                <rect class="bg" width="1000" height="460" rx="8"/>
+
+                <!-- Participants Headers -->
+                <rect class="box" x="50" y="25" width="180" height="45" rx="4"/>
+                <text class="nm" x="140" y="52" text-anchor="middle">1. Evaluator Client</text>
+                <text class="sub" x="140" y="65" text-anchor="middle">Browser (eval_app.js)</text>
+
+                <rect class="box" x="290" y="25" width="180" height="45" rx="4"/>
+                <text class="nm" x="380" y="52" text-anchor="middle">2. Cloudflare Ingress</text>
+                <text class="sub" x="380" y="65" text-anchor="middle">Edge &amp; cloudflared</text>
+
+                <rect class="box focal" x="530" y="25" width="180" height="45" rx="4"/>
+                <text class="nm" x="620" y="52" text-anchor="middle">3. Server Engine</text>
+                <text class="sub" x="620" y="65" text-anchor="middle">run_server.py Thread</text>
+
+                <rect class="box" x="770" y="25" width="180" height="45" rx="4"/>
+                <text class="nm" x="860" y="52" text-anchor="middle">4. SQLite Database</text>
+                <text class="sub" x="860" y="65" text-anchor="middle">workbench.db</text>
+
+                <!-- Lifelines -->
+                <line class="ln" x1="140" y1="70" x2="140" y2="430" stroke-dasharray="4"/>
+                <line class="ln" x1="380" y1="70" x2="380" y2="430" stroke-dasharray="4"/>
+                <line class="ln" x1="620" y1="70" x2="620" y2="430" stroke-dasharray="4"/>
+                <line class="ln" x1="860" y1="70" x2="860" y2="430" stroke-dasharray="4"/>
+
+                <!-- Step 1: Payload Construction -->
+                <rect class="box" x="70" y="95" width="280" height="48" rx="4"/>
+                <text class="sub" x="80" y="112" style="font-weight:700; fill:var(--accent);">STEP 1 · Client Assembly</text>
+                <text class="sub" x="80" y="130">Packs scores, defect regions, and diff text into JSON</text>
+                <line class="ln acc" x1="140" y1="145" x2="380" y2="145" marker-end="url(#arrow-acc)"/>
+
+                <!-- Step 2: Edge Forward -->
+                <rect class="box" x="310" y="160" width="280" height="48" rx="4"/>
+                <text class="sub" x="320" y="177" style="font-weight:700;">STEP 2 · Edge Forwarding</text>
+                <text class="sub" x="320" y="195">Cloudflare routes POST /api/evaluations to port 8080</text>
+                <line class="ln acc" x1="380" y1="210" x2="620" y2="210" marker-end="url(#arrow-acc)"/>
+
+                <!-- Step 3: Thread Dispatch & Validation -->
+                <rect class="box focal" x="550" y="225" width="280" height="48" rx="4"/>
+                <text class="sub" x="560" y="242" style="font-weight:700; fill:var(--accent);">STEP 3 · Validation</text>
+                <text class="sub" x="560" y="260">ThreadingHTTPServer validates rater, item, &amp; scores</text>
+                <line class="ln" x1="620" y1="275" x2="860" y2="275" marker-end="url(#arrow)"/>
+
+                <!-- Step 4: Atomic SQLite Commit -->
+                <rect class="box" x="720" y="290" width="260" height="48" rx="4"/>
+                <text class="sub" x="730" y="307" style="font-weight:700;">STEP 4 · Database Commit</text>
+                <text class="sub" x="730" y="325">INSERT INTO evaluations + defect_tags inside TX</text>
+                <line class="ln" x1="860" y1="340" x2="620" y2="340" marker-end="url(#arrow)"/>
+
+                <!-- Step 5: HTTP 201 Response -->
+                <rect class="box" x="310" y="355" width="280" height="48" rx="4"/>
+                <text class="sub" x="320" y="372" style="font-weight:700; fill:var(--ok);">STEP 5 · Success Response</text>
+                <text class="sub" x="320" y="390">Returns HTTP 201 Created with JSON evaluation ID</text>
+                <line class="ln" x1="620" y1="405" x2="140" y2="405" marker-end="url(#arrow)"/>
+              </svg>
+            </div>
+            <figcaption>Sequence diagram of rating evaluation submission and atomic database persistence.</figcaption>
+          </figure>
+
+          <div class="scroll">
+            <table class="wide">
+              <thead>
+                <tr>
+                  <th class="col-sm">Step</th>
+                  <th class="col-sm">Timing Budget</th>
+                  <th class="col-sm">Subsystem</th>
+                  <th class="col-lg">Concrete Operation &amp; Failure Mode</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Step 1</strong></td>
+                  <td>&lt; 5 ms</td>
+                  <td><code>eval_app.js:1540</code></td>
+                  <td>Gathers form inputs, Likert ratings, and defect regions into payload. Fails with UI warning if required scale is empty.</td>
+                </tr>
+                <tr>
+                  <td><strong>Step 2</strong></td>
+                  <td>15 - 40 ms</td>
+                  <td>Cloudflare Tunnel</td>
+                  <td>Encrypted transit over outbound TLS socket. Fails with HTTP 502 if local host computer is asleep.</td>
+                </tr>
+                <tr>
+                  <td><strong>Step 3</strong></td>
+                  <td>&lt; 2 ms</td>
+                  <td><code>run_server.py:976</code></td>
+                  <td>Extracts JSON body, checks payload validity, and generates unique evaluation ID (<code>eval-[timestamp]-[hash]</code>).</td>
+                </tr>
+                <tr>
+                  <td><strong>Step 4</strong></td>
+                  <td>4 - 8 ms</td>
+                  <td><code>database.py:124</code></td>
+                  <td>Executes parameterized <code>INSERT</code> into <code>evaluations</code> table. Uses <code>executemany</code> for defect regions. Rolls back cleanly if foreign key is invalid.</td>
+                </tr>
+                <tr>
+                  <td><strong>Step 5</strong></td>
+                  <td>10 - 25 ms</td>
+                  <td>HTTP Response</td>
+                  <td>Sends HTTP 201 with <code>{"success": true, "id": "..."}</code>. Frontend automatically navigates to next audio item.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Journey 2: HTTP Range Audio Streaming -->
+        <section id="journey-audio-streaming" style="margin-top: 40px;">
+          <h2>Journey 2: HTTP 206 Partial Content Audio Range Streaming</h2>
+          <p class="prose">
+            Triggers when a listener loads an audio sample, drags the playhead, or auditions an acoustic defect slice. Modern browsers require byte-range requests to support instant seeking without downloading the whole audio file first.
+          </p>
+
+          <div class="scroll">
+            <table class="wide">
+              <thead>
+                <tr>
+                  <th class="col-sm">Phase</th>
+                  <th class="col-sm">HTTP Request / Response</th>
+                  <th class="col-lg">Physical Code Execution &amp; Header Structure</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>1. Client Initial Probe</strong></td>
+                  <td><code>GET /audio/model_a/KH01.wav</code><br><code>Range: bytes=0-</code></td>
+                  <td>Browser requests initial audio header to inspect sample rate (22050 Hz / 44100 Hz) and compute duration.</td>
+                </tr>
+                <tr>
+                  <td><strong>2. Server Range Parse</strong></td>
+                  <td><code>run_server.py:175-220</code></td>
+                  <td>Server reads physical file on disk (<code>os.path.getsize</code>), parses byte range, opens binary file, and seeks to byte offset.</td>
+                </tr>
+                <tr>
+                  <td><strong>3. Partial Content Delivery</strong></td>
+                  <td><code>HTTP/1.1 206 Partial Content</code></td>
+                  <td>
+                    Sends headers:<br>
+                    <code>Content-Range: bytes 0-1048575/2458920</code><br>
+                    <code>Accept-Ranges: bytes</code><br>
+                    <code>Content-Type: audio/wav</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td><strong>4. Timeline Scrubbing</strong></td>
+                  <td><code>Range: bytes=1200000-2400000</code></td>
+                  <td>When rater drags playhead to middle of waveform, browser requests only the targeted slice, preventing playback buffer stalls.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Journey 3: Study Creation -->
+        <section id="journey-study-creation" style="margin-top: 40px;">
+          <h2>Journey 3: Study Creation, CSV Matching &amp; Canvas Serialization</h2>
+          <p class="prose">
+            Triggers in <code>admin.html</code> when a researcher defines a study, uploads audio and paired transcripts, customizes UI components, and launches a campaign.
+          </p>
+          <div class="grid2">
+            <div class="box">
+              <h3>File Reconciliation Logic</h3>
+              <p class="prose"><strong>Source:</strong> <code>public/js/admin_app.js:1060</code></p>
+              <ul>
+                <li><strong>Filename Normalization:</strong> Strips folder paths and extensions (e.g., <code>KH01.wav</code> &rarr; <code>kh01</code>).</li>
+                <li><strong>Safe Pairing:</strong> Matches CSV transcript rows against uploaded audio items by exact filename, stem, or prefix.</li>
+                <li><strong>Pending CSV Buffer:</strong> If CSV is uploaded before audio files, rows are buffered in memory and matched automatically when audio files arrive.</li>
+              </ul>
+            </div>
+            <div class="box">
+              <h3>Modular UI Config Serialization</h3>
+              <p class="prose"><strong>Source:</strong> <code>public/js/admin_app.js:2560</code></p>
+              <ul>
+                <li><strong>Canvas Block Array:</strong> Serializes playground components (Audio Player, Prompt Text, Word Tagger, Rubric, Transcription) into <code>ui_config_json</code>.</li>
+                <li><strong>Dynamic Presentation:</strong> Stores font size (<code>24px</code>/<code>32px</code>/<code>40px</code>), blind-gating blur state, and default defect error codes.</li>
+                <li><strong>Database Persistence:</strong> Saved directly to <code>campaigns.ui_config_json</code> in SQLite for 1:1 runtime rendering in <code>eval.html</code>.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <footer class="site-footer">
+          <p>Audio Studio Technical Documentation · CADT Year 3 Capstone</p>
+        </footer>
+      </div>
+        </div>
+        
+
+        <!-- Page View: api-reference.html -->
+        <div class="archdoc-page-view" id="page-api-reference.html" data-page="api-reference.html">
+          <div class="wrap">
+        <header>
+          <div class="eyebrow">Specifications · Contracts</div>
+          <h1>REST API Reference &amp; Endpoint Contracts</h1>
+          <p class="meta prose">Complete technical specification of all HTTP routes implemented in <code>run_server.py</code>, including payload schemas, required headers, and physical code locations.</p>
+        </header>
+
+        <!-- Authentication Boundary -->
+        <section id="auth-overview">
+          <h2>1. Authentication &amp; Boundary Policy</h2>
+          <div class="scroll">
+            <table class="wide">
+              <thead>
+                <tr>
+                  <th class="col-sm">Access Tier</th>
+                  <th class="col-sm">Authentication Mechanism</th>
+                  <th class="col-lg">Target Endpoints &amp; Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Public Rater Tier</strong></td>
+                  <td>None (Open Access)</td>
+                  <td><code>GET /eval.html</code>, <code>GET /api/campaigns</code>, <code>GET /api/items</code>, <code>POST /api/raters</code>, <code>POST /api/evaluations</code>. Enables friction-free evaluation for research participants.</td>
+                </tr>
+                <tr>
+                  <td><strong>Admin Researcher Tier</strong></td>
+                  <td><code>X-Admin-PIN</code> header or <code>Authorization: Bearer pin-&lt;token&gt;</code></td>
+                  <td><code>/api/admin/*</code>, <code>POST /api/suites</code>, <code>POST /api/campaigns</code>, <code>POST /api/upload-audio</code>, <code>DELETE /api/campaigns</code>. Restricts study deletion, raw audio injection, and data exports.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Evaluation Endpoints -->
+        <section id="eval-endpoints" style="margin-top: 40px;">
+          <h2>2. Evaluator &amp; Rater Endpoints</h2>
+
+          <!-- POST /api/raters -->
+          <article class="endpoint-card" style="margin-bottom: 24px;">
+            <div class="endpoint-header">
+              <span class="method method-post">POST</span>
+              <code class="endpoint-path">/api/raters</code>
+              <span class="pill">Public</span>
+              <span class="endpoint-desc">Registers a new evaluator or retrieves existing session</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Source:</strong> <code>run_server.py:955</code></p>
+              <div class="scroll">
+                <table class="wide">
+                  <thead>
+                    <tr>
+                      <th class="col-sm">Field</th>
+                      <th class="col-sm">Type</th>
+                      <th class="col-status">Status</th>
+                      <th class="col-lg">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>name</code></td>
+                      <td><span class="type-tag">String</span></td>
+                      <td><span class="tag crit">Required</span></td>
+                      <td>Unique name or pseudonym of the evaluator (e.g. <code>Sokha P.</code>).</td>
+                    </tr>
+                    <tr>
+                      <td><code>role</code></td>
+                      <td><span class="type-tag">String</span></td>
+                      <td><span class="tag ok">Optional</span></td>
+                      <td>Role classification (defaults to <code>Evaluator</code>).</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="prose" style="margin-top: 10px;"><strong>Response (201 Created):</strong></p>
+              <pre><code>{
+  "id": "rater-1795451589-a195",
+  "name": "Sokha P.",
+  "role": "Evaluator",
+  "created_at": "2026-11-24 10:00:00"
+}</code></pre>
+            </div>
+          </article>
+
+          <!-- POST /api/evaluations -->
+          <article class="endpoint-card" style="margin-bottom: 24px;">
+            <div class="endpoint-header">
+              <span class="method method-post">POST</span>
+              <code class="endpoint-path">/api/evaluations</code>
+              <span class="pill">Public</span>
+              <span class="endpoint-desc">Submits ratings, perceived speech differences, and acoustic defect tags</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Source:</strong> <code>run_server.py:976</code></p>
+              <div class="scroll">
+                <table class="wide">
+                  <thead>
+                    <tr>
+                      <th class="col-sm">Field</th>
+                      <th class="col-sm">Type</th>
+                      <th class="col-status">Status</th>
+                      <th class="col-lg">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>campaign_id</code></td>
+                      <td><span class="type-tag">String</span></td>
+                      <td><span class="tag crit">Required</span></td>
+                      <td>Foreign key referencing <code>campaigns.id</code>.</td>
+                    </tr>
+                    <tr>
+                      <td><code>rater_id</code></td>
+                      <td><span class="type-tag">String</span></td>
+                      <td><span class="tag crit">Required</span></td>
+                      <td>Foreign key referencing <code>raters.id</code>.</td>
+                    </tr>
+                    <tr>
+                      <td><code>item_id</code></td>
+                      <td><span class="type-tag">String</span></td>
+                      <td><span class="tag crit">Required</span></td>
+                      <td>Foreign key referencing <code>test_items.id</code>.</td>
+                    </tr>
+                    <tr>
+                      <td><code>model_id</code></td>
+                      <td><span class="type-tag">String</span></td>
+                      <td><span class="tag crit">Required</span></td>
+                      <td>Foreign key referencing <code>models.id</code>.</td>
+                    </tr>
+                    <tr>
+                      <td><code>scores</code></td>
+                      <td><span class="type-tag">Object</span></td>
+                      <td><span class="tag crit">Required</span></td>
+                      <td>Map of rubric metric keys to integer scores (e.g. <code>{"naturalness": 4, "clarity": 5}</code>).</td>
+                    </tr>
+                    <tr>
+                      <td><code>defects</code></td>
+                      <td><span class="type-tag">Array</span></td>
+                      <td><span class="tag ok">Optional</span></td>
+                      <td>Array of defect objects containing <code>time_start_ms</code>, <code>time_end_ms</code>, and <code>error_code</code>.</td>
+                    </tr>
+                    <tr>
+                      <td><code>blind_transcript</code></td>
+                      <td><span class="type-tag">String</span></td>
+                      <td><span class="tag ok">Optional</span></td>
+                      <td>What the evaluator heard if speech differed from the prompt transcript.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </article>
+
+          <!-- GET /api/items -->
+          <article class="endpoint-card">
+            <div class="endpoint-header">
+              <span class="method method-get">GET</span>
+              <code class="endpoint-path">/api/items?campaign_id={id}</code>
+              <span class="pill">Public</span>
+              <span class="endpoint-desc">Retrieves all audio items and transcripts assigned to a study</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Source:</strong> <code>run_server.py:314</code></p>
+              <p class="prose">Returns full list of test items with audio streaming URLs, verbatim Khmer transcripts, target phonetic challenges, and model candidate assignments.</p>
+            </div>
+          </article>
+        </section>
+
+        <!-- Admin Endpoints -->
+        <section id="admin-endpoints" style="margin-top: 40px;">
+          <h2>3. Administrative &amp; Creator Endpoints</h2>
+
+          <!-- POST /api/suites -->
+          <article class="endpoint-card" style="margin-bottom: 24px;">
+            <div class="endpoint-header">
+              <span class="method method-post">POST</span>
+              <code class="endpoint-path">/api/suites</code>
+              <span class="pill">Admin PIN</span>
+              <span class="endpoint-desc">Creates a new test prompt suite with paired audio items</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Source:</strong> <code>run_server.py:796</code></p>
+              <p class="prose">Accepts suite name and an array of items containing item keys, Khmer text transcripts, and audio asset paths.</p>
+            </div>
+          </article>
+
+          <!-- POST /api/campaigns -->
+          <article class="endpoint-card" style="margin-bottom: 24px;">
+            <div class="endpoint-header">
+              <span class="method method-post">POST</span>
+              <code class="endpoint-path">/api/campaigns</code>
+              <span class="pill">Admin PIN</span>
+              <span class="endpoint-desc">Deploys an active study with modular UI canvas configuration</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Source:</strong> <code>run_server.py:739</code></p>
+              <p class="prose">Links a test suite and scoring rubric, persisting <code>ui_config_json</code> (card layout, speeds, blind gating, and telephone filter settings).</p>
+            </div>
+          </article>
+
+          <!-- GET /api/admin/summary -->
+          <article class="endpoint-card" style="margin-bottom: 24px;">
+            <div class="endpoint-header">
+              <span class="method method-get">GET</span>
+              <code class="endpoint-path">/api/admin/summary?campaign_id={id}</code>
+              <span class="pill">Admin PIN</span>
+              <span class="endpoint-desc">Computes consensus scores, MOS with 95% CI, and defect statistics</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Source:</strong> <code>run_server.py:412</code></p>
+              <p class="prose">Calculates statistical metrics across all rater evaluations: Mean Opinion Score, standard deviation, 95% Student's t-distribution confidence intervals, and defect frequency counts.</p>
+            </div>
+          </article>
+
+          <!-- GET /api/admin/export.csv -->
+          <article class="endpoint-card">
+            <div class="endpoint-header">
+              <span class="method method-get">GET</span>
+              <code class="endpoint-path">/api/admin/export.csv?campaign_id={id}</code>
+              <span class="pill">Admin PIN</span>
+              <span class="endpoint-desc">Exports raw evaluation audit ledger as downloadable CSV</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Source:</strong> <code>run_server.py:550</code></p>
+              <p class="prose">Streams full tabular evaluation data including item keys, model IDs, rater names, individual rubric scores, timestamps, and acoustic defect tags for thesis paper analysis.</p>
+            </div>
+          </article>
+        </section>
+
+        <!-- Audio Streaming Endpoint -->
+        <section id="audio-endpoints" style="margin-top: 40px;">
+          <h2>4. Binary Audio Streaming Endpoint</h2>
+          <article class="endpoint-card">
+            <div class="endpoint-header">
+              <span class="method method-get">GET</span>
+              <code class="endpoint-path">/audio/{model_or_folder}/{filename}</code>
+              <span class="pill">Public</span>
+              <span class="endpoint-desc">Streams WAV/MP3 files with HTTP 206 Partial Content support</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Source:</strong> <code>run_server.py:175-220</code></p>
+              <p class="prose">Inspects request headers for <code>Range: bytes=start-end</code>. Returns HTTP 206 with <code>Content-Range</code> and <code>Accept-Ranges: bytes</code>, enabling waveform scrubbing and fast seeking.</p>
+            </div>
+          </article>
+        </section>
+
+        <footer class="site-footer">
+          <p>Audio Studio Technical Documentation · CADT Year 3 Capstone</p>
+        </footer>
+      </div>
+        </div>
+        
+
+        <!-- Page View: data-models.html -->
+        <div class="archdoc-page-view" id="page-data-models.html" data-page="data-models.html">
+          <div class="wrap">
+        <header>
+          <div class="eyebrow">Specifications · Relational Schema</div>
+          <h1>Database Schema &amp; Data Models</h1>
+          <p class="meta prose">Full specification of SQLite tables in <code>workbench.db</code>, relational foreign key constraints, column data types, and indexing rules.</p>
+        </header>
+
+        <!-- Integrity Rules -->
+        <section id="schema-rules">
+          <h2>1. Database Invariants &amp; Pragma Rules</h2>
+          <p class="prose">
+            The database layer is defined in <code>database.py:30-165</code>. Every connection opened by the server executes:
+          </p>
+          <pre><code>PRAGMA foreign_keys = ON;
+PRAGMA journal_mode = WAL;</code></pre>
+          <p class="prose">
+            <strong>Foreign Key Cascades:</strong> Deleting a study (<code>campaigns</code>) or test suite automatically cascades to delete associated evaluations, defect tags, and rater scores without leaving orphaned records in the database.
+          </p>
+        </section>
+
+        <!-- Core Tables -->
+        <section id="table-campaigns" style="margin-top: 40px;">
+          <h2>2. Table: <code>campaigns</code> (Active Evaluation Studies)</h2>
+          <p class="prose">Stores high-level evaluation studies, linking a prompt suite, scoring rubric, and UI component layout.</p>
+          <div class="scroll">
+            <table class="wide">
+              <thead>
+                <tr>
+                  <th class="col-sm">Column Name</th>
+                  <th class="col-sm">Type</th>
+                  <th class="col-status">Key</th>
+                  <th class="col-sm">Default / Null</th>
+                  <th class="col-lg">Physical Responsibility &amp; Relationships</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-pk">PK</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>Unique campaign identifier (e.g. <code>camp-dev23-4models</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>project_id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-fk">FK</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>References <code>projects(id) ON DELETE CASCADE</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>name</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td>—</td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>Human-readable study title (e.g. <code>Khmer Natural Voice Benchmark</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>suite_id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-fk">FK</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>References <code>test_suites(id) ON DELETE CASCADE</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>rubric_id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-fk">FK</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>References <code>rubrics(id) ON DELETE CASCADE</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>ui_config_json</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td>—</td>
+                  <td><code>NULL</code></td>
+                  <td>JSON payload defining Step 3 canvas blocks, speeds, blind gating, and filters.</td>
+                </tr>
+                <tr>
+                  <td><code>is_active</code></td>
+                  <td><span class="type-tag">INTEGER</span></td>
+                  <td>—</td>
+                  <td><code>1</code></td>
+                  <td>Binary status flag (<code>1</code> = Active for raters, <code>0</code> = Paused/Closed).</td>
+                </tr>
+                <tr>
+                  <td><code>created_at</code></td>
+                  <td><span class="type-tag">TIMESTAMP</span></td>
+                  <td>—</td>
+                  <td><code>CURRENT_TIMESTAMP</code></td>
+                  <td>UTC timestamp when study was created.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Table: evaluations -->
+        <section id="table-evaluations" style="margin-top: 40px;">
+          <h2>3. Table: <code>evaluations</code> (Rater Score Records)</h2>
+          <p class="prose">Stores individual evaluator submissions for each test item and speech model candidate.</p>
+          <div class="scroll">
+            <table class="wide">
+              <thead>
+                <tr>
+                  <th class="col-sm">Column Name</th>
+                  <th class="col-sm">Type</th>
+                  <th class="col-status">Key</th>
+                  <th class="col-sm">Default / Null</th>
+                  <th class="col-lg">Physical Responsibility &amp; Relationships</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-pk">PK</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>Unique evaluation identifier (e.g. <code>eval-1795451589-9812</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>campaign_id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-fk">FK</span> <span class="schema-badge col-idx">IDX</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>References <code>campaigns(id) ON DELETE CASCADE</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>rater_id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-fk">FK</span> <span class="schema-badge col-idx">IDX</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>References <code>raters(id) ON DELETE CASCADE</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>item_id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-fk">FK</span> <span class="schema-badge col-idx">IDX</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>References <code>test_items(id) ON DELETE CASCADE</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>model_id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-fk">FK</span> <span class="schema-badge col-idx">IDX</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>References <code>models(id) ON DELETE CASCADE</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>scores_json</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td>—</td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>JSON map of rubric dimensions to integer scores (e.g. <code>{"naturalness":5}</code>).</td>
+                </tr>
+                <tr>
+                  <td><code>blind_transcript</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td>—</td>
+                  <td><code>NULL</code></td>
+                  <td>Text submitted by listener reporting perceived differences from prompt.</td>
+                </tr>
+                <tr>
+                  <td><code>duration_seconds</code></td>
+                  <td><span class="type-tag">REAL</span></td>
+                  <td>—</td>
+                  <td><code>NULL</code></td>
+                  <td>Time in seconds the evaluator spent listening and rating this item.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Table: defect_tags -->
+        <section id="table-defects" style="margin-top: 40px;">
+          <h2>4. Table: <code>defect_tags</code> (Acoustic Glitch Annotations)</h2>
+          <p class="prose">Stores fine-grained timestamped defect regions and flagged word tokens.</p>
+          <div class="scroll">
+            <table class="wide">
+              <thead>
+                <tr>
+                  <th class="col-sm">Column Name</th>
+                  <th class="col-sm">Type</th>
+                  <th class="col-status">Key</th>
+                  <th class="col-sm">Default / Null</th>
+                  <th class="col-lg">Physical Responsibility &amp; Relationships</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-pk">PK</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>Unique defect tag identifier.</td>
+                </tr>
+                <tr>
+                  <td><code>evaluation_id</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td><span class="schema-badge col-fk">FK</span> <span class="schema-badge col-idx">IDX</span></td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>References <code>evaluations(id) ON DELETE CASCADE</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>error_code</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td>—</td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>Taxonomy code: <code>MISPRON</code>, <code>NOISE</code>, <code>UNNAT_PAUSE</code>, <code>ROBOTIC</code>, <code>PITCH</code>, <code>OTHER</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>word_text</code></td>
+                  <td><span class="type-tag">TEXT</span></td>
+                  <td>—</td>
+                  <td><span class="col-req">NOT NULL</span></td>
+                  <td>Khmer word token or acoustic region label.</td>
+                </tr>
+                <tr>
+                  <td><code>time_start_ms</code></td>
+                  <td><span class="type-tag">REAL</span></td>
+                  <td>—</td>
+                  <td><code>NULL</code></td>
+                  <td>Start timestamp in milliseconds on the waveform.</td>
+                </tr>
+                <tr>
+                  <td><code>time_end_ms</code></td>
+                  <td><span class="type-tag">REAL</span></td>
+                  <td>—</td>
+                  <td><code>NULL</code></td>
+                  <td>End timestamp in milliseconds on the waveform.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Other Supporting Tables -->
+        <section id="supporting-tables" style="margin-top: 40px;">
+          <h2>5. Supporting Metadata Tables</h2>
+          <div class="scroll">
+            <table class="wide">
+              <thead>
+                <tr>
+                  <th class="col-sm">Table Name</th>
+                  <th class="col-sm">Primary Key</th>
+                  <th class="col-auto">Core Stored Data</th>
+                  <th class="col-sm">Source Location</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>projects</code></td>
+                  <td><code>id (TEXT)</code></td>
+                  <td>Parent workspace and language metadata (e.g. Khmer language <code>km</code>).</td>
+                  <td><code>database.py:31</code></td>
+                </tr>
+                <tr>
+                  <td><code>test_suites</code></td>
+                  <td><code>id (TEXT)</code></td>
+                  <td>Named prompt groups containing audio and transcript items.</td>
+                  <td><code>database.py:39</code></td>
+                </tr>
+                <tr>
+                  <td><code>test_items</code></td>
+                  <td><code>id (TEXT)</code></td>
+                  <td>Individual test sentences, phonetic IPA targets, and audio filenames.</td>
+                  <td><code>database.py:47</code></td>
+                </tr>
+                <tr>
+                  <td><code>models</code></td>
+                  <td><code>id (TEXT)</code></td>
+                  <td>Speech model candidates (VITS, Kokoro, FastSpeech2, Ground Truth).</td>
+                  <td><code>database.py:65</code></td>
+                </tr>
+                <tr>
+                  <td><code>rubrics</code></td>
+                  <td><code>id (TEXT)</code></td>
+                  <td>Evaluation scale criteria (ACR 1-5 Likert scales, dimensions JSON).</td>
+                  <td><code>database.py:81</code></td>
+                </tr>
+                <tr>
+                  <td><code>taxonomies</code></td>
+                  <td><code>id (TEXT)</code></td>
+                  <td>Standardized defect categories with English and Khmer definitions.</td>
+                  <td><code>database.py:92</code></td>
+                </tr>
+                <tr>
+                  <td><code>raters</code></td>
+                  <td><code>id (TEXT)</code></td>
+                  <td>Unique evaluator names, pseudonyms, and rater roles.</td>
+                  <td><code>database.py:117</code></td>
+                </tr>
+                <tr>
+                  <td><code>admins</code></td>
+                  <td><code>id (TEXT)</code></td>
+                  <td>Salted and hashed administrator passwords for study management.</td>
+                  <td><code>database.py:150</code></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <footer class="site-footer">
+          <p>Audio Studio Technical Documentation · CADT Year 3 Capstone</p>
+        </footer>
+      </div>
+        </div>
+        
+
+        <!-- Page View: hosting-guide.html -->
+        <div class="archdoc-page-view" id="page-hosting-guide.html" data-page="hosting-guide.html">
+          <div class="wrap">
+        <header>
+          <div class="eyebrow">Operations · Deployment</div>
+          <h1>$0 Free Hosting &amp; Cloudflare Tunnel Guide</h1>
+          <p class="meta prose">A comprehensive operational runbook for deploying Audio Studio publicly at zero cost without risk of database data loss or cloud overage fees.</p>
+        </header>
+
+        <!-- Why PaaS Fails -->
+        <section id="why-paas-fails">
+          <h2>1. Why Free Cloud PaaS Wipes Evaluation Data</h2>
+          <p class="prose">
+            Standard free cloud platforms (Render, Koyeb, Railway, and free-tier Hugging Face Spaces) are designed for stateless applications. Their free tiers run inside virtual containers with <strong>ephemeral filesystems</strong>:
+          </p>
+          <div class="grid2">
+            <div class="box">
+              <h3>Free Cloud PaaS Behavior</h3>
+              <ul>
+                <li>When no evaluator visits for 15 minutes, the server enters sleep mode to save compute.</li>
+                <li>When a new visitor arrives, the platform starts a fresh container from the original Git repository commit.</li>
+                <li><strong>Fatal Result:</strong> Any changes written to <code>workbench.db</code> (all rater scores) and newly uploaded audio files in <code>audio/uploads/</code> are permanently destroyed.</li>
+              </ul>
+            </div>
+            <div class="box">
+              <h3>Cloudflare Host Tunnel Solution</h3>
+              <ul>
+                <li>The server runs on your local workstation, lab desktop, or campus PC.</li>
+                <li><code>workbench.db</code> commits writes directly to your local solid-state drive (NVMe/SSD).</li>
+                <li><strong>Result:</strong> Zero data loss. All evaluations are permanently saved on your drive, even if the tunnel restarts.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- Deployment Runbook -->
+        <section id="runbook" style="margin-top: 40px;">
+          <h2>2. Step-by-Step Hosting Runbook</h2>
+
+          <article class="runbook-card" style="margin-bottom: 24px;">
+            <div class="runbook-head">
+              <div>
+                <strong>Operational Mode: Quick Public Tunnel (Instant Share)</strong>
+              </div>
+              <span class="tag ok">Recommended</span>
+            </div>
+            <div class="runbook-body">
+              <p class="prose">Use this mode to launch an immediate public evaluation link for testing cohorts without setting up domain records or Cloudflare accounts.</p>
+              
+              <div class="runbook-step">
+                <div class="step-num-badge">1</div>
+                <div>
+                  <p class="prose"><strong>Open Terminal in repository root:</strong></p>
+                  <pre><code>cd /Users/sorpheatepy/CADT/year-3/capstone/Audio-Studio</code></pre>
+                </div>
+              </div>
+
+              <div class="runbook-step">
+                <div class="step-num-badge">2</div>
+                <div>
+                  <p class="prose"><strong>Launch the server with Mac sleep disabled:</strong></p>
+                  <pre><code>caffeinate -d -i -m -s python3 run_server.py --port 8080 --share</code></pre>
+                  <p class="prose" style="font-size: 0.9rem; margin-top: 4px;">
+                    <code>caffeinate</code> prevents macOS from entering sleep mode while your laptop lid remains open.
+                  </p>
+                </div>
+              </div>
+
+              <div class="runbook-step">
+                <div class="step-num-badge">3</div>
+                <div>
+                  <p class="prose"><strong>Distribute the link to evaluators:</strong></p>
+                  <p class="prose">The terminal will display a public HTTPS URL:</p>
+                  <pre><code>PUBLIC SHAREABLE LINK: https://[assigned-words].trycloudflare.com/eval</code></pre>
+                  <p class="prose" style="font-size: 0.9rem; margin-top: 4px;">
+                    Send <code>https://[assigned-words].trycloudflare.com/eval.html</code> to your evaluators.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <!-- Permanent Custom Domain -->
+        <section id="custom-domain" style="margin-top: 40px;">
+          <h2>3. Permanent Free Custom Domains</h2>
+          <p class="prose">
+            Quick tunnels generate a new random URL if the server is stopped and restarted. To give your evaluators a permanent, fixed web address (such as <code>audiostudio.yourdomain.com</code>), follow these steps:
+          </p>
+          <div class="scroll">
+            <table class="wide">
+              <thead>
+                <tr>
+                  <th class="col-sm">Step</th>
+                  <th class="col-sm">Platform</th>
+                  <th class="col-lg">Execution Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>1. Obtain Free Domain</strong></td>
+                  <td>DuckDNS or is-a.dev</td>
+                  <td>Register a free subdomain (e.g. <code>audiostudio.duckdns.org</code> or <code>audiostudio.is-a.dev</code>). No credit card required.</td>
+                </tr>
+                <tr>
+                  <td><strong>2. Create Cloudflare Account</strong></td>
+                  <td>dash.cloudflare.com</td>
+                  <td>Sign up for a free Cloudflare account with your email. Select the Free tier ($0).</td>
+                </tr>
+                <tr>
+                  <td><strong>3. Create Named Tunnel</strong></td>
+                  <td>Zero Trust Dashboard</td>
+                  <td>Navigate to <strong>Networks &rarr; Tunnels &rarr; Create Tunnel</strong>. Name it <code>audio-studio</code>.</td>
+                </tr>
+                <tr>
+                  <td><strong>4. Route Hostname</strong></td>
+                  <td>Public Hostname Settings</td>
+                  <td>Set domain to your subdomain and point the service to <code>http://localhost:8080</code>.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- CI/CD Automation -->
+        <section id="cicd" style="margin-top: 40px;">
+          <h2>4. Continuous Integration (CI) Workflow</h2>
+          <p class="prose">
+            A GitHub Actions workflow is configured in <code>.github/workflows/ci.yml</code>. Whenever code is pushed to <code>main</code> or <code>development</code>, GitHub automatically runs two verification gates:
+          </p>
+          <div class="grid2">
+            <div class="box">
+              <h3>Gate 1: Automated Unit Tests</h3>
+              <p class="prose"><strong>Command:</strong> <code>python3 -m unittest discover -s tests -v</code></p>
+              <ul>
+                <li>Runs 24 automated unit tests in an ephemeral in-memory database in ~1.4 seconds.</li>
+                <li>Tests database seed integrity, API endpoints, audio range requests, rater submissions, and admin authentication.</li>
+              </ul>
+            </div>
+            <div class="box">
+              <h3>Gate 2: Package Integrity Validator</h3>
+              <p class="prose"><strong>Command:</strong> <code>python3 scripts/validate_package.py</code></p>
+              <ul>
+                <li>Ensures all 23 core files exist and are UTF-8 readable.</li>
+                <li>Verifies that zero third-party dependencies have been introduced.</li>
+                <li>Validates all 20 benchmark test scenarios.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- Database Backup Runbook -->
+        <section id="backup-runbook" style="margin-top: 40px;">
+          <h2>5. Database Snapshot &amp; Backup Runbook</h2>
+          <p class="prose">
+            During live evaluation studies, perform regular database backups using SQLite's online backup API to prevent accidental data corruption:
+          </p>
+          <pre><code># Create a dated snapshot of workbench.db while server is running:
+sqlite3 workbench.db ".backup backup_$(date +%Y%m%d_%H%M%S).db"
+
+# Export human-readable SQL dump:
+sqlite3 workbench.db .dump > workbench_dump.sql</code></pre>
+        </section>
+
+        <footer class="site-footer">
+          <p>Audio Studio Technical Documentation · CADT Year 3 Capstone</p>
+        </footer>
+      </div>
+        </div>
+        
+    </main>
+  </div>
+
+  <!-- Runtime Assets (Inlined) -->
+  <script>
+/* Navigation Manifest */
+window.DOCS_NAV = [
+  {
+    group: "System Architecture",
+    items: [
+      { title: "System Overview & ADRs", path: "index.html" },
+      { title: "System Topology Diagram", path: "architecture.html" },
+      { title: "Request Lifecycles & Flows", path: "call-journey.html" }
+    ]
+  },
+  {
+    group: "Contracts & Specifications",
+    items: [
+      { title: "REST API Reference", path: "api-reference.html" },
+      { title: "Database & Data Models", path: "data-models.html" }
+    ]
+  },
+  {
+    group: "Operations & Deployment",
+    items: [
+      { title: "Free Hosting & Cloudflare Guide", path: "hosting-guide.html" }
+    ]
+  }
+];
+
+  </script>
+  <script>
+/* Core Site Runtime */
+/**
+ * Site navigation, sidebar behavior, TOC generator, zoom/tree controls, and theme toggling
+ */
+
+(() => {
+  // Safe storage wrapper for file:// or restricted environments
+  const storage = {
+    get(key, fallback = null) {
+      try {
+        const val = localStorage.getItem(key);
+        return val !== null ? JSON.parse(val) : fallback;
+      } catch (e) {
+        return fallback;
+      }
+    },
+    set(key, val) {
+      try {
+        localStorage.setItem(key, JSON.stringify(val));
+      } catch (e) {
+        // Ignored
+      }
+    }
+  };
+
+  const rootPrefix = document.body.dataset.root || './';
+  const currentPage = document.body.dataset.page || '';
+
+  /* ==========================================================================
+     Theme Handling
+     ========================================================================== */
+  const initTheme = () => {
+    const savedTheme = storage.get('docs_theme', 'auto');
+    if (savedTheme === 'dark' || savedTheme === 'light') {
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+
+    const themeBtn = document.getElementById('theme-toggle');
+    if (themeBtn) {
+      const updateBtnText = () => {
+        const current = document.documentElement.getAttribute('data-theme') || 'auto';
+        themeBtn.textContent = current === 'dark' ? '🌙 Dark' : current === 'light' ? '☀️ Light' : '🌓 Auto';
+      };
+      updateBtnText();
+
+      themeBtn.addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme') || 'auto';
+        let next = 'dark';
+        if (current === 'dark') next = 'light';
+        else if (current === 'light') next = 'auto';
+
+        if (next === 'auto') {
+          document.documentElement.removeAttribute('data-theme');
+          storage.set('docs_theme', 'auto');
+        } else {
+          document.documentElement.setAttribute('data-theme', next);
+          storage.set('docs_theme', next);
+        }
+        updateBtnText();
+      });
+    }
+  };
+
+  /* ==========================================================================
+     Build Sidebar Navigation & TOC
+     ========================================================================== */
+  const renderSidebar = () => {
+    const sidebarEl = document.getElementById('site-sidebar');
+    if (!sidebarEl || !window.DOCS_NAV) return;
+
+    let collapsedGroups = storage.get('docs_collapsed_groups', []);
+    if (!Array.isArray(collapsedGroups)) collapsedGroups = [];
+
+    const nav = document.createElement('nav');
+    nav.setAttribute('aria-label', 'Documentation');
+
+    // Flatten for prev/next navigation
+    const allItems = [];
+
+    window.DOCS_NAV.forEach((group, gIdx) => {
+      const groupDiv = document.createElement('div');
+      groupDiv.className = 'nav-group';
+
+      const containsCurrent = group.items.some(item => item.path === currentPage);
+      let isCollapsed = collapsedGroups.includes(group.group);
+      // The group containing the active page always starts expanded
+      if (containsCurrent) {
+        isCollapsed = false;
+      }
+
+      if (isCollapsed) {
+        groupDiv.classList.add('collapsed');
+      }
+
+      const groupId = `nav-group-${gIdx}`;
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'nav-group-btn';
+      btn.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+      btn.setAttribute('aria-controls', groupId);
+      btn.innerHTML = `<span>${group.group}</span><span class="nav-group-icon">▼</span>`;
+
+      btn.addEventListener('click', () => {
+        const collapsed = groupDiv.classList.toggle('collapsed');
+        btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+
+        let currentCollapsed = storage.get('docs_collapsed_groups', []);
+        if (!Array.isArray(currentCollapsed)) currentCollapsed = [];
+        if (collapsed) {
+          if (!currentCollapsed.includes(group.group)) currentCollapsed.push(group.group);
+        } else {
+          currentCollapsed = currentCollapsed.filter(g => g !== group.group);
+        }
+        storage.set('docs_collapsed_groups', currentCollapsed);
+      });
+
+      const list = document.createElement('ul');
+      list.className = 'nav-list';
+      list.id = groupId;
+
+      group.items.forEach(item => {
+        allItems.push(item);
+        const li = document.createElement('li');
+        li.className = 'nav-item';
+
+        const isCurrent = (item.path === currentPage);
+        if (isCurrent) {
+          li.classList.add('active');
+        }
+
+        const a = document.createElement('a');
+        a.className = 'nav-link';
+        a.href = rootPrefix + item.path;
+        a.textContent = item.title;
+        if (isCurrent) {
+          a.setAttribute('aria-current', 'page');
+        }
+
+        li.appendChild(a);
+
+        if (isCurrent) {
+          updateOnPageToc(currentPage);
+        }
+
+        list.appendChild(li);
+      });
+
+      groupDiv.appendChild(btn);
+      groupDiv.appendChild(list);
+      nav.appendChild(groupDiv);
+    });
+
+    sidebarEl.innerHTML = '';
+    sidebarEl.appendChild(nav);
+
+    // Initial On-Page TOC population
+    updateOnPageToc(currentPage);
+
+    // Render Prev / Next footer links
+    renderPrevNext(allItems);
+  };
+
+  /* ==========================================================================
+     On-Page Table of Contents (TOC) Builder
+     ========================================================================== */
+  const updateOnPageToc = (targetPage = currentPage) => {
+    // Remove existing on-page TOCs
+    document.querySelectorAll('.on-page-nav').forEach(el => el.remove());
+
+    const activeLink = document.querySelector(`.site-sidebar a.nav-link[href*="${targetPage}"]`);
+    if (!activeLink) return;
+    const activeLi = activeLink.closest('.nav-item');
+    if (!activeLi) return;
+
+    // Search active view if in standalone mode, otherwise standard main
+    const activeContainer = document.querySelector('.archdoc-page-view.active') || document.querySelector('main');
+    if (!activeContainer) return;
+
+    const headings = activeContainer.querySelectorAll('h2[id], section[id] > h2, .wrap h2[id]');
+    const seen = new Set();
+    const uniqueHeadings = [];
+    headings.forEach(h => {
+      const targetId = h.id || (h.closest('section[id]') ? h.closest('section[id]').id : null);
+      if (targetId && !seen.has(targetId)) {
+        seen.add(targetId);
+        uniqueHeadings.push({ el: h, id: targetId });
+      }
+    });
+
+    if (uniqueHeadings.length > 0) {
+      const tocList = document.createElement('ul');
+      tocList.className = 'on-page-nav';
+      tocList.setAttribute('aria-label', 'On this page');
+
+      uniqueHeadings.forEach(({ el: h2, id: targetId }) => {
+        const hLi = document.createElement('li');
+        const hA = document.createElement('a');
+        hA.className = 'on-page-link';
+        hA.href = `#${targetId}`;
+        hA.textContent = h2.textContent.replace(/^#\s*/, '').trim();
+        hLi.appendChild(hA);
+        tocList.appendChild(hLi);
+      });
+
+      activeLi.appendChild(tocList);
+    }
+  };
+
+  window.__ARCHDOC_UPDATE_TOC__ = updateOnPageToc;
+
+  /* ==========================================================================
+     Previous / Next Page Links
+     ========================================================================== */
+  const renderPrevNext = (allItems) => {
+    const wrap = document.querySelector('.wrap');
+    if (!wrap || allItems.length === 0) return;
+
+    const currIdx = allItems.findIndex(it => it.path === currentPage);
+    if (currIdx === -1) return;
+
+    const prevItem = currIdx > 0 ? allItems[currIdx - 1] : null;
+    const nextItem = currIdx < allItems.length - 1 ? allItems[currIdx + 1] : null;
+
+    if (!prevItem && !nextItem) return;
+
+    // Check if nav already exists
+    let navEl = wrap.querySelector('.page-nav');
+    if (!navEl) {
+      navEl = document.createElement('nav');
+      navEl.className = 'page-nav';
+      navEl.setAttribute('aria-label', 'Page navigation');
+      wrap.appendChild(navEl);
+    } else {
+      navEl.innerHTML = '';
+    }
+
+    if (prevItem) {
+      const pLink = document.createElement('a');
+      pLink.className = 'page-nav-link prev';
+      pLink.href = rootPrefix + prevItem.path;
+      pLink.innerHTML = `<span class="page-nav-sub">← Previous</span><span class="page-nav-title">${prevItem.title}</span>`;
+      navEl.appendChild(pLink);
+    } else {
+      // Empty placeholder to maintain flex spacing
+      const emptyDiv = document.createElement('div');
+      navEl.appendChild(emptyDiv);
+    }
+
+    if (nextItem) {
+      const nLink = document.createElement('a');
+      nLink.className = 'page-nav-link next';
+      nLink.href = rootPrefix + nextItem.path;
+      nLink.innerHTML = `<span class="page-nav-sub">Next →</span><span class="page-nav-title">${nextItem.title}</span>`;
+      navEl.appendChild(nLink);
+    }
+  };
+
+  /* ==========================================================================
+     Sidebar Toggle & Drawer Controls
+     ========================================================================== */
+  const initSidebarToggle = () => {
+    const toggleBtn = document.getElementById('sidebar-toggle');
+    const backdrop = document.querySelector('.sidebar-backdrop');
+    if (!toggleBtn) return;
+
+    const isMobile = () => window.innerWidth <= 900;
+
+    // Restore desktop preference
+    const desktopCollapsed = storage.get('docs_sidebar_collapsed', false);
+    if (desktopCollapsed && !isMobile()) {
+      document.body.classList.add('sidebar-collapsed');
+      toggleBtn.setAttribute('aria-expanded', 'false');
+    } else {
+      toggleBtn.setAttribute('aria-expanded', 'true');
+    }
+
+    const toggle = () => {
+      if (isMobile()) {
+        const isOpen = document.body.classList.toggle('sidebar-open');
+        toggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      } else {
+        const isCollapsed = document.body.classList.toggle('sidebar-collapsed');
+        toggleBtn.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+        storage.set('docs_sidebar_collapsed', isCollapsed);
+      }
+    };
+
+    toggleBtn.addEventListener('click', toggle);
+
+    if (backdrop) {
+      backdrop.addEventListener('click', () => {
+        document.body.classList.remove('sidebar-open');
+        toggleBtn.setAttribute('aria-expanded', 'false');
+      });
+    }
+
+    // Close mobile drawer upon navigating to an on-page anchor link
+    document.addEventListener('click', (e) => {
+      const link = e.target.closest('.on-page-link, .nav-link');
+      if (link && isMobile()) {
+        document.body.classList.remove('sidebar-open');
+        toggleBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
+  };
+
+  /* ==========================================================================
+     Diagram Zoom & Full-screen Controls (Supports .fig and .figure-container)
+     ========================================================================== */
+  const initDiagramControls = () => {
+    const clamp = (v) => Math.min(4, Math.max(0.5, v));
+
+    document.querySelectorAll('.fig, .figure-container').forEach((f) => {
+      const svg = f.querySelector('svg');
+      if (!svg) return;
+      const base = +svg.dataset.w || (svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width) || 960;
+      const val = f.querySelector('.z-val');
+      const tools = f.querySelector('.fig-tools, .figure-actions, .figure-header');
+      if (!tools) return;
+
+      let z = null;
+
+      const apply = () => {
+        if (z === null) {
+          svg.style.width = '100%';
+          svg.style.minWidth = '';
+          if (val) val.textContent = 'Fit';
+        } else {
+          svg.style.width = (base * z) + 'px';
+          svg.style.minWidth = (base * z) + 'px';
+          if (val) val.textContent = Math.round(z * 100) + '%';
+        }
+      };
+
+      tools.addEventListener('click', (e) => {
+        const b = e.target.closest('button[data-z], button[data-action], .fig-btn');
+        if (!b) return;
+        const cur = z === null ? svg.getBoundingClientRect().width / base : z;
+        const rawAction = b.dataset.z || b.dataset.action;
+        let a = rawAction;
+        if (rawAction === 'zoom-in') a = 'in';
+        else if (rawAction === 'zoom-out') a = 'out';
+        else if (rawAction === 'reset') a = 'fit';
+
+        if (a === 'in') z = clamp(Math.round((cur + 0.25) * 4) / 4);
+        if (a === 'out') z = clamp(Math.round((cur - 0.25) * 4) / 4);
+        if (a === 'fit') z = null;
+        if (a === 'full') {
+          const on = f.classList.toggle('is-full');
+          b.textContent = on ? 'Close' : 'Full screen';
+          b.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen');
+        }
+        apply();
+      });
+
+
+      apply();
+    });
+  };
+
+  /* ==========================================================================
+     File Tree Controls
+     ========================================================================== */
+  const initTreeControls = () => {
+    const t = document.getElementById('trees');
+    if (!t) return;
+
+    let size = 13;
+    const tools = t.querySelector('.tools');
+    if (!tools) return;
+
+    tools.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-t]');
+      if (!b) return;
+      const a = b.dataset.t;
+      if (a === 'in') size = Math.min(22, size + 1);
+      if (a === 'out') size = Math.max(10, size - 1);
+      if (a === 'open' || a === 'close') {
+        t.querySelectorAll('details').forEach((d) => {
+          d.open = (a === 'open');
+        });
+      }
+      if (a === 'full') {
+        const on = t.classList.toggle('is-full');
+        b.textContent = on ? 'Close' : 'Full screen';
+      }
+      t.style.setProperty('--tree-size', size + 'px');
+    });
+  };
+
+  /* ==========================================================================
+     Global Keyboard Handling (Escape)
+     ========================================================================== */
+  const initKeyHandlers = () => {
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        // Exit any full-screen elements
+        document.querySelectorAll('.is-full').forEach((el) => {
+          el.classList.remove('is-full');
+          const b = el.querySelector('[data-z="full"], [data-t="full"]');
+          if (b) b.textContent = 'Full screen';
+        });
+
+        // Close mobile sidebar
+        if (document.body.classList.contains('sidebar-open')) {
+          document.body.classList.remove('sidebar-open');
+          const toggleBtn = document.getElementById('sidebar-toggle');
+          if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
+        }
+      }
+    });
+  };
+
+  /* ==========================================================================
+     Execution Plans, Task Checkboxes & Live Status Tracking
+     ========================================================================== */
+  const initStepTracking = () => {
+    const badges = document.querySelectorAll('[data-step-status]');
+    const checks = document.querySelectorAll('.task-check');
+    if (!badges.length && !checks.length) return;
+
+    const STORE_KEY = 'docs_step_states';
+    const TASK_KEY = 'docs_task_states';
+    const STATES = ['not-started', 'in-progress', 'done'];
+    const STATE_LABELS = { 'not-started': 'Not started', 'in-progress': 'In progress', 'done': 'Done' };
+    const STATE_CLASSES = { 'not-started': 'st-not-started', 'in-progress': 'st-in-progress', 'done': 'st-done' };
+
+    let stepStates = storage.get(STORE_KEY, {});
+    let taskStates = storage.get(TASK_KEY, {});
+
+    const getStepState = (step, badge) => {
+      if (stepStates[step]) return stepStates[step];
+      if (badge && (badge.classList.contains('st-done') || badge.textContent.includes('Done'))) return 'done';
+      return 'not-started';
+    };
+
+    const renderBadge = (badge) => {
+      const step = badge.dataset.stepStatus;
+      const state = getStepState(step, badge);
+      badge.className = 'status-badge ' + STATE_CLASSES[state];
+      badge.textContent = STATE_LABELS[state];
+
+      const item = badge.closest('.step-item');
+      if (item) item.classList.toggle('is-done', state === 'done');
+    };
+
+    const updateDashboard = () => {
+      const allSteps = document.querySelectorAll('[data-step]');
+      if (!allSteps.length) return;
+
+      const total = allSteps.length;
+      let done = 0;
+      allSteps.forEach(el => {
+        const id = el.dataset.step;
+        const badge = el.querySelector('[data-step-status]');
+        if (getStepState(id, badge) === 'done') done++;
+      });
+
+      const todo = total - done;
+      const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+      const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      setTxt('dash-total', total);
+      setTxt('dash-done', done);
+      setTxt('dash-todo', todo);
+      setTxt('dash-pct', pct + '%');
+
+      const pFill = document.getElementById('progress-fill');
+      if (pFill) pFill.style.width = pct + '%';
+      setTxt('progress-text', `${done} of ${total} steps completed`);
+    };
+
+    badges.forEach(badge => {
+      renderBadge(badge);
+      badge.addEventListener('click', () => {
+        const step = badge.dataset.stepStatus;
+        const current = stepStates[step] || 'not-started';
+        const nextIdx = (STATES.indexOf(current) + 1) % STATES.length;
+        stepStates[step] = STATES[nextIdx];
+        storage.set(STORE_KEY, stepStates);
+        renderBadge(badge);
+        updateDashboard();
+      });
+    });
+
+    checks.forEach(cb => {
+      const id = cb.dataset.task;
+      if (id && taskStates[id]) cb.checked = true;
+      cb.addEventListener('change', () => {
+        if (id) {
+          taskStates[id] = cb.checked;
+          storage.set(TASK_KEY, taskStates);
+        }
+      });
+    });
+
+    updateDashboard();
+  };
+
+  /* ==========================================================================
+     Lightweight Syntax Highlighting (Zero-Dependency)
+     ========================================================================== */
+  const escapeHtml = (str) => {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  };
+
+  const highlightCodeBlock = (codeEl) => {
+    if (codeEl.dataset.highlighted === 'true') return;
+    const pre = codeEl.closest('pre');
+    if (pre && (pre.classList.contains('tree') || pre.classList.contains('no-highlight'))) return;
+
+    const raw = codeEl.textContent;
+    if (!raw.trim()) return;
+
+    // Master syntax token regex:
+    // 1: Comments (//..., #..., /*...*/)
+    // 2: Strings ("...", '...', `...`)
+    // 3: Numbers (\b\d+(\.\d+)?\b)
+    // 4: Keywords
+    // 5: Types / Booleans / Nulls
+    const tokenRegex = /(\/\*[\s\S]*?\*\/|\/\/[^\r\n]*|#[^\r\n]*)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)|(\b\d+(?:\.\d+)?\b)|(\b(?:def|class|function|const|let|var|return|if|else|elif|for|while|import|from|export|async|await|try|except|catch|finally|throw|raise|switch|case|break|continue|new|in|is|lambda|type|struct|interface|select|from|where|insert|into|update|delete|join|create|table|drop|alter|group|by|order|limit|sudo|curl|docker|git|python|python3)\b)|(\b(?:true|false|null|undefined|None|True|False|nil|int|str|float|bool|string|boolean)\b)/gi;
+
+    let result = '';
+    let lastIndex = 0;
+    let match;
+
+    while ((match = tokenRegex.exec(raw)) !== null) {
+      if (match.index > lastIndex) {
+        result += escapeHtml(raw.slice(lastIndex, match.index));
+      }
+
+      const [full, comment, str, num, kw, typeVal] = match;
+
+      if (comment) {
+        result += `<span class="tok-com">${escapeHtml(comment)}</span>`;
+      } else if (str) {
+        const nextChars = raw.slice(match.index + full.length, match.index + full.length + 3);
+        if (/^\s*:/.test(nextChars)) {
+          result += `<span class="tok-prop">${escapeHtml(str)}</span>`;
+        } else {
+          result += `<span class="tok-str">${escapeHtml(str)}</span>`;
+        }
+      } else if (num) {
+        result += `<span class="tok-num">${escapeHtml(num)}</span>`;
+      } else if (kw) {
+        result += `<span class="tok-kw">${escapeHtml(kw)}</span>`;
+      } else if (typeVal) {
+        result += `<span class="tok-type">${escapeHtml(typeVal)}</span>`;
+      }
+
+      lastIndex = match.index + full.length;
+    }
+
+    if (lastIndex < raw.length) {
+      result += escapeHtml(raw.slice(lastIndex));
+    }
+
+    codeEl.innerHTML = result;
+    codeEl.dataset.highlighted = 'true';
+  };
+
+  const initSyntaxHighlighting = () => {
+    document.querySelectorAll('pre:not(.tree) code').forEach(highlightCodeBlock);
+  };
+
+  /* ==========================================================================
+     Code Block Copy Buttons
+     ========================================================================== */
+  const initCopyButtons = () => {
+    document.querySelectorAll('pre').forEach((pre) => {
+      if (pre.querySelector('.copy-btn')) return;
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'copy-btn';
+      btn.textContent = 'Copy';
+      btn.setAttribute('aria-label', 'Copy code to clipboard');
+
+      btn.addEventListener('click', async () => {
+        const code = pre.querySelector('code');
+        const text = code ? code.innerText : pre.innerText;
+        try {
+          await navigator.clipboard.writeText(text);
+          btn.textContent = 'Copied!';
+          btn.classList.add('copied');
+          setTimeout(() => {
+            btn.textContent = 'Copy';
+            btn.classList.remove('copied');
+          }, 2000);
+        } catch (err) {
+          btn.textContent = 'Error';
+          setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+        }
+      });
+
+      pre.appendChild(btn);
+    });
+  };
+
+  /* ==========================================================================
+     Command Palette & Navigation Search (Cmd + K)
+     ========================================================================== */
+  const initSearchModal = () => {
+    if (!window.DOCS_NAV) return;
+
+    const headerRight = document.querySelector('.site-header-right');
+    let trigger = document.getElementById('search-trigger');
+    if (headerRight && !trigger) {
+      trigger = document.createElement('button');
+      trigger.type = 'button';
+      trigger.id = 'search-trigger';
+      trigger.className = 'search-trigger';
+      trigger.innerHTML = '<span>Search</span> <kbd>⌘K</kbd>';
+      trigger.setAttribute('aria-label', 'Search documentation');
+      headerRight.insertBefore(trigger, headerRight.firstChild);
+    }
+
+    let backdrop = document.getElementById('search-backdrop');
+    if (!backdrop) {
+      backdrop = document.createElement('div');
+      backdrop.id = 'search-backdrop';
+      backdrop.className = 'search-backdrop';
+      backdrop.setAttribute('aria-hidden', 'true');
+      backdrop.innerHTML = `
+        <div class="search-dialog" role="dialog" aria-modal="true" aria-label="Search Documentation">
+          <div class="search-input-wrap">
+            <span style="color:var(--muted)">🔍</span>
+            <input type="text" id="search-input" placeholder="Search pages, topics, architecture..." autocomplete="off">
+          </div>
+          <ul class="search-results" id="search-results"></ul>
+          <div class="search-footer">
+            <span>Navigate: ↑ ↓</span>
+            <span>Select: ↵</span>
+            <span>Close: ESC</span>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(backdrop);
+    }
+
+    const input = document.getElementById('search-input');
+    const resultsList = document.getElementById('search-results');
+    let selectedIdx = 0;
+    let filteredItems = [];
+
+    const allItems = [];
+    window.DOCS_NAV.forEach(group => {
+      group.items.forEach(item => {
+        allItems.push({ ...item, group: group.group });
+      });
+    });
+
+    const renderResults = () => {
+      resultsList.innerHTML = '';
+      if (!filteredItems.length) {
+        resultsList.innerHTML = '<li style="padding:16px;text-align:center;color:var(--muted);font-size:0.88rem;">No matching documentation pages</li>';
+        return;
+      }
+      filteredItems.forEach((item, idx) => {
+        const li = document.createElement('li');
+        li.className = 'search-item';
+        const a = document.createElement('a');
+        a.href = rootPrefix + item.path;
+        if (idx === selectedIdx) a.classList.add('selected');
+        a.innerHTML = `<span class="search-title">${item.title}</span><span class="search-group">${item.group}</span>`;
+        li.appendChild(a);
+        resultsList.appendChild(li);
+      });
+    };
+
+    const openSearch = () => {
+      backdrop.classList.add('open');
+      backdrop.setAttribute('aria-hidden', 'false');
+      filteredItems = allItems;
+      selectedIdx = 0;
+      renderResults();
+      setTimeout(() => input.focus(), 50);
+    };
+
+    const closeSearch = () => {
+      backdrop.classList.remove('open');
+      backdrop.setAttribute('aria-hidden', 'true');
+      input.value = '';
+    };
+
+    if (trigger) trigger.addEventListener('click', openSearch);
+    backdrop.addEventListener('click', (e) => {
+      if (e.target === backdrop) closeSearch();
+    });
+
+    input.addEventListener('input', () => {
+      const q = input.value.trim().toLowerCase();
+      if (!q) {
+        filteredItems = allItems;
+      } else {
+        filteredItems = allItems.filter(item => 
+          item.title.toLowerCase().includes(q) || item.group.toLowerCase().includes(q)
+        );
+      }
+      selectedIdx = 0;
+      renderResults();
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedIdx = Math.min(selectedIdx + 1, filteredItems.length - 1);
+        renderResults();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedIdx = Math.max(selectedIdx - 1, 0);
+        renderResults();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (filteredItems[selectedIdx]) {
+          if (window.__ARCHDOC_STANDALONE__ && typeof window.__ARCHDOC_SWITCH_PAGE__ === 'function') {
+            window.__ARCHDOC_SWITCH_PAGE__(filteredItems[selectedIdx].path);
+            closeSearch();
+          } else {
+            window.location.href = rootPrefix + filteredItems[selectedIdx].path;
+          }
+        }
+      } else if (e.key === 'Escape') {
+        closeSearch();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        if (backdrop.classList.contains('open')) closeSearch();
+        else openSearch();
+      } else if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+        e.preventDefault();
+        openSearch();
+      }
+    });
+  };
+
+  /* ==========================================================================
+     Boot Initialization
+     ========================================================================== */
+  document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
+    renderSidebar();
+    initSidebarToggle();
+    initDiagramControls();
+    initTreeControls();
+    initStepTracking();
+    initSyntaxHighlighting();
+    initCopyButtons();
+    initSearchModal();
+    initKeyHandlers();
+  });
+
+  window.__ARCHDOC_HIGHLIGHT__ = initSyntaxHighlighting;
+})();
+
+  </script>
+  <script>
+
+  /* ==========================================================================
+     ArchDoc Standalone Single-File Client-Side Router
+     ========================================================================== */
+  (() => {
+    window.__ARCHDOC_STANDALONE__ = true;
+
+    const getViews = () => document.querySelectorAll('.archdoc-page-view');
+    const defaultPage = 'index.html';
+
+    const switchPage = (targetPath, targetAnchor = null) => {
+      if (!targetPath) targetPath = defaultPage;
+      // Clean path if relative
+      targetPath = targetPath.replace(/^\.\//, '').split('#')[0];
+
+      let targetView = document.getElementById('page-' + targetPath);
+      if (!targetView) {
+        // Fallback to default
+        targetPath = defaultPage;
+        targetView = document.getElementById('page-' + targetPath);
+      }
+      if (!targetView) return;
+
+      // 1. Toggle page view containers
+      getViews().forEach(v => v.classList.remove('active'));
+      targetView.classList.add('active');
+      document.body.dataset.page = targetPath;
+
+      // 2. Update sidebar navigation active item
+      document.querySelectorAll('.site-sidebar .nav-item').forEach(item => {
+        item.classList.remove('active');
+      });
+      document.querySelectorAll('.site-sidebar .nav-link').forEach(link => {
+        link.removeAttribute('aria-current');
+        const href = link.getAttribute('href') || '';
+        const linkPath = href.replace(/^\.\//, '').split('#')[0];
+        if (linkPath === targetPath) {
+          const li = link.closest('.nav-item');
+          if (li) li.classList.add('active');
+          link.setAttribute('aria-current', 'page');
+
+          // Ensure parent group is expanded
+          const group = link.closest('.nav-group');
+          if (group) {
+            group.classList.remove('collapsed');
+            const btn = group.querySelector('.nav-group-btn');
+            if (btn) btn.setAttribute('aria-expanded', 'true');
+          }
+        }
+      });
+
+      // 3. Re-build On-Page TOC if available
+      if (typeof window.__ARCHDOC_UPDATE_TOC__ === 'function') {
+        window.__ARCHDOC_UPDATE_TOC__(targetPath);
+      }
+
+      // 4. Handle scroll position or anchor jump
+      if (targetAnchor) {
+        setTimeout(() => {
+          const anchorEl = targetView.querySelector('#' + targetAnchor) || document.getElementById(targetAnchor);
+          if (anchorEl) {
+            anchorEl.scrollIntoView({ behavior: 'smooth' });
+          } else {
+            window.scrollTo({ top: 0, behavior: 'instant' });
+          }
+        }, 10);
+      } else {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }
+
+      // 5. Update browser history hash
+      const hash = targetAnchor ? `#${targetPath}:${targetAnchor}` : `#${targetPath}`;
+      if (window.location.hash !== hash) {
+        history.replaceState(null, '', hash);
+      }
+
+      // 6. Close mobile sidebar drawer if open
+      document.body.classList.remove('sidebar-open');
+      const toggleBtn = document.getElementById('sidebar-toggle');
+      if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
+
+      // 7. Dispatch resize for SVG and layout recalculation
+      window.dispatchEvent(new Event('resize'));
+    };
+
+    window.__ARCHDOC_SWITCH_PAGE__ = switchPage;
+
+    // Intercept clicks on links pointing to bundled HTML pages
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest('a');
+      if (!a) return;
+
+      const href = a.getAttribute('href');
+      if (!href) return;
+
+      // Check if it's an internal documentation link
+      const isInternalDoc = href.includes('.html');
+      if (isInternalDoc && !href.startsWith('http://') && !href.startsWith('https://')) {
+        e.preventDefault();
+        
+        let path = href;
+        let anchor = null;
+        if (path.includes('#')) {
+          const parts = path.split('#');
+          path = parts[0];
+          anchor = parts[1];
+        }
+        path = path.replace(/^\.\//, '');
+
+        // If clicking on same page with anchor
+        if (!path || path === document.body.dataset.page) {
+          if (anchor) {
+            const el = document.getElementById(anchor);
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          }
+          return;
+        }
+
+        switchPage(path, anchor);
+
+        // Close search dialog if open
+        const searchBackdrop = document.getElementById('search-backdrop');
+        if (searchBackdrop && searchBackdrop.classList.contains('open')) {
+          searchBackdrop.classList.remove('open');
+          searchBackdrop.setAttribute('aria-hidden', 'true');
+        }
+      }
+    });
+
+    // Handle initial hash routing or popstate
+    const handleHash = () => {
+      const rawHash = window.location.hash.replace(/^#/, '');
+      if (rawHash) {
+        let page = rawHash;
+        let anchor = null;
+        if (rawHash.includes(':')) {
+          const parts = rawHash.split(':');
+          page = parts[0];
+          anchor = parts[1];
+        } else if (rawHash.includes('#')) {
+          const parts = rawHash.split('#');
+          page = parts[0];
+          anchor = parts[1];
+        }
+        if (page.endsWith('.html')) {
+          switchPage(page, anchor);
+        }
+      }
+    };
+
+    window.addEventListener('hashchange', handleHash);
+    document.addEventListener('DOMContentLoaded', () => {
+      handleHash();
+    });
+  })();
+  
+  </script>
+</body>
+</html>
