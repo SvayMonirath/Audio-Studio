@@ -512,6 +512,12 @@ class StudioHandler(BaseHTTPRequestHandler):
                 import math
                 study_scale_max = float(scale_max)
                 study_scale_min = float(scale_min)
+                rubric_metric_meta = {}
+                if study_meta and study_meta.get("metrics"):
+                    for m in study_meta["metrics"]:
+                        m_key = m.get("key") or m.get("id") or m.get("name")
+                        if m_key:
+                            rubric_metric_meta[m_key] = m
                 for mid, mdata in model_stats.items():
                     mdata["summary"] = {}
                     for m_key, values in mdata["metrics"].items():
@@ -521,7 +527,13 @@ class StudioHandler(BaseHTTPRequestHandler):
                             variance = sum((x - mean_val) ** 2 for x in values) / n if n > 1 else 0.0
                             std_dev = math.sqrt(variance)
                             margin_of_error = 1.96 * (std_dev / math.sqrt(n)) if n > 1 else 0.0
-                            is_binary = all(x in (0, 1, 0.0, 1.0) for x in values)
+                            # Detect true binary metrics: either explicit type/scale bounds, or all values in {0, 1} and (study_scale_max == 1 or metric contains binary indicators / zero values)
+                            type_declared_binary = (
+                                rubric_metric_meta.get(m_key, {}).get("type") in ("binary_pass_fail", "binary")
+                                or (rubric_metric_meta.get(m_key, {}).get("scale_min") == 0 and rubric_metric_meta.get(m_key, {}).get("scale_max") == 1)
+                            )
+                            has_zero = any(x in (0, 0.0) for x in values)
+                            is_binary = type_declared_binary or (all(x in (0, 1, 0.0, 1.0) for x in values) and (study_scale_max == 1 or has_zero))
                             pass_count = sum(1 for x in values if x == 1 or x == 1.0)
                             pass_rate = round((pass_count / n) * 100, 1)
                             mdata["summary"][m_key] = {
@@ -617,12 +629,13 @@ class StudioHandler(BaseHTTPRequestHandler):
                 defects_summary = [dict(dr) for dr in defect_rows]
 
                 # Word-level defect heatmap (frequently failing words)
+                heatmap_where = f"{where_clause} AND dt.word_text IS NOT NULL AND trim(dt.word_text) != ''" if where_clause else "WHERE dt.word_text IS NOT NULL AND trim(dt.word_text) != ''"
                 sql_words = f"""
                 SELECT dt.word_text, dt.error_code, m.name as model_name, count(*) as count
                 FROM defect_tags dt
                 JOIN evaluations e ON dt.evaluation_id = e.id
                 JOIN models m ON e.model_id = m.id
-                {where_clause}
+                {heatmap_where}
                 GROUP BY dt.word_text, dt.error_code, e.model_id
                 ORDER BY count DESC
                 LIMIT 20
@@ -649,15 +662,15 @@ class StudioHandler(BaseHTTPRequestHandler):
                 # ASR evaluation adjudication breakdown
                 asr_where = f"{where_clause} AND e.asr_adjudication IS NOT NULL" if where_clause else "WHERE e.asr_adjudication IS NOT NULL"
                 sql_asr = f"""
-                SELECT e.asr_adjudication, count(*) as count
+                SELECT upper(e.asr_adjudication) as asr_adjudication, count(*) as count
                 FROM evaluations e
                 {asr_where}
-                GROUP BY e.asr_adjudication
+                GROUP BY upper(e.asr_adjudication)
                 """
                 asr_rows = cur.execute(sql_asr, params).fetchall()
                 total_asr = sum(r["count"] for r in asr_rows)
                 acc_count = sum(r["count"] for r in asr_rows if r["asr_adjudication"] == "ACCEPTABLE_VARIATION")
-                err_count = sum(r["count"] for r in asr_rows if r["asr_adjudication"] == "CRITICAL_ERROR")
+                err_count = sum(r["count"] for r in asr_rows if r["asr_adjudication"] in ("CRITICAL_ERROR", "TRUE_ERROR"))
                 asr_summary = {
                     "total_judgments": total_asr,
                     "acceptable_variations": acc_count,
@@ -723,24 +736,28 @@ class StudioHandler(BaseHTTPRequestHandler):
                 """
                 rows = cur.execute(sql, params).fetchall()
 
-                # Pre-fetch defect tags for all returned evaluations
+                # Pre-fetch defect tags for all returned evaluations (batching in chunks of 500)
                 eval_ids = [r["trial_id"] for r in rows]
                 tags_by_eval = {}
                 if eval_ids:
-                    # SQLite limit friendly batch or direct query
-                    placeholders = ",".join("?" * len(eval_ids))
-                    tag_sql = f"SELECT * FROM defect_tags WHERE evaluation_id IN ({placeholders}) ORDER BY word_index ASC"
-                    tag_rows = cur.execute(tag_sql, eval_ids).fetchall()
-                    for tr in tag_rows:
-                        eid = tr["evaluation_id"]
-                        if eid not in tags_by_eval:
-                            tags_by_eval[eid] = []
-                        tags_by_eval[eid].append({
-                            "word_index": tr["word_index"],
-                            "word_text": tr["word_text"],
-                            "error_code": tr["error_code"],
-                            "note": tr["note"] or ""
-                        })
+                    chunk_size = 500
+                    for i in range(0, len(eval_ids), chunk_size):
+                        chunk = eval_ids[i:i + chunk_size]
+                        placeholders = ",".join("?" * len(chunk))
+                        tag_sql = f"SELECT * FROM defect_tags WHERE evaluation_id IN ({placeholders}) ORDER BY word_index ASC"
+                        tag_rows = cur.execute(tag_sql, chunk).fetchall()
+                        for tr in tag_rows:
+                            eid = tr["evaluation_id"]
+                            if eid not in tags_by_eval:
+                                tags_by_eval[eid] = []
+                            tags_by_eval[eid].append({
+                                "word_index": tr["word_index"],
+                                "word_text": tr["word_text"],
+                                "error_code": tr["error_code"],
+                                "note": tr["note"] or "",
+                                "time_start_ms": tr["time_start_ms"],
+                                "time_end_ms": tr["time_end_ms"]
+                            })
 
                 import csv
                 import io
@@ -1390,8 +1407,8 @@ class StudioHandler(BaseHTTPRequestHandler):
                 cur.execute("DELETE FROM defect_tags WHERE evaluation_id = ?", (actual_eval_id,))
 
                 # Insert new defect tags
-                for tag in defect_tags:
-                    tag_id = f"dt-{int(datetime.now().timestamp() * 1000)}-{tag.get('word_index', 0)}"
+                for idx, tag in enumerate(defect_tags):
+                    tag_id = f"dt-{int(datetime.now().timestamp() * 1000)}-{idx}-{uuid.uuid4().hex[:6]}"
                     cur.execute("""
                     INSERT INTO defect_tags (
                         id, evaluation_id, word_index, word_text, error_code,

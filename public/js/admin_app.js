@@ -3725,7 +3725,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       });
     }
 
-    // Wire Evaluation Inspector Modal close buttons
+    // Wire Evaluation Inspector Modal close buttons and backdrop click
     const closeInspector = () => {
       if (el.modalInspectEvaluation) el.modalInspectEvaluation.classList.add("hidden");
       if (el.inspectEvalAudio) {
@@ -3737,6 +3737,11 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     };
     if (el.btnInspectClose) el.btnInspectClose.addEventListener("click", closeInspector);
     if (el.btnInspectCloseX) el.btnInspectCloseX.addEventListener("click", closeInspector);
+    if (el.modalInspectEvaluation) {
+      el.modalInspectEvaluation.addEventListener("click", (e) => {
+        if (e.target === el.modalInspectEvaluation) closeInspector();
+      });
+    }
 
     // Wire Evaluation Inspector Delete Button
     if (el.btnInspectDeleteEval) {
@@ -3759,12 +3764,29 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       });
     }
 
-    // Wire Rater Deletion / Moderation Modal buttons
+    // Wire Rater Deletion / Moderation Modal buttons and backdrop click
     const closeDeleteRaterModal = () => {
       if (el.modalDeleteRater) el.modalDeleteRater.classList.add("hidden");
       state.moderatingRater = null;
     };
     if (el.btnCancelDeleteRater) el.btnCancelDeleteRater.addEventListener("click", closeDeleteRaterModal);
+    if (el.modalDeleteRater) {
+      el.modalDeleteRater.addEventListener("click", (e) => {
+        if (e.target === el.modalDeleteRater) closeDeleteRaterModal();
+      });
+    }
+
+    // Global Escape key listener for modals
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        if (el.modalInspectEvaluation && !el.modalInspectEvaluation.classList.contains("hidden")) {
+          closeInspector();
+        }
+        if (el.modalDeleteRater && !el.modalDeleteRater.classList.contains("hidden")) {
+          closeDeleteRaterModal();
+        }
+      }
+    });
 
     if (el.btnConfirmClearStudyRater) {
       el.btnConfirmClearStudyRater.addEventListener("click", async () => {
@@ -3861,46 +3883,50 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       if (totalEvals === 0) {
         if (el.analyticsEmptyState) el.analyticsEmptyState.classList.remove("hidden");
         if (el.analyticsDataContent) el.analyticsDataContent.classList.add("hidden");
+        state.evaluationsList = [];
+        renderEvaluationsTable();
         return;
       } else {
         if (el.analyticsEmptyState) el.analyticsEmptyState.classList.add("hidden");
         if (el.analyticsDataContent) el.analyticsDataContent.classList.remove("hidden");
       }
 
-      // Populate el.analyticsModelFilter (preserving current value)
+      // Populate el.analyticsModelFilter (resetting on campaign switch and preserving selection if valid)
       if (el.analyticsModelFilter && data.model_statistics) {
         const currentModelVal = el.analyticsModelFilter.value;
-        const existingOptions = Array.from(el.analyticsModelFilter.options).map(o => o.value);
-        let hasNew = false;
+        el.analyticsModelFilter.innerHTML = '<option value="">All Models</option>';
         data.model_statistics.forEach(m => {
           const mid = m.model_id || m.id;
           const mname = m.name || m.model_name || mid;
-          if (mid && !existingOptions.includes(mid)) {
+          if (mid) {
             const opt = document.createElement("option");
             opt.value = mid;
             opt.textContent = mname;
             el.analyticsModelFilter.appendChild(opt);
-            hasNew = true;
           }
         });
-        if (currentModelVal) el.analyticsModelFilter.value = currentModelVal;
+        if (currentModelVal && Array.from(el.analyticsModelFilter.options).some(o => o.value === currentModelVal)) {
+          el.analyticsModelFilter.value = currentModelVal;
+        }
       }
 
-      // Populate el.analyticsRaterFilter (preserving current value)
+      // Populate el.analyticsRaterFilter (resetting on campaign switch and preserving selection if valid)
       if (el.analyticsRaterFilter && data.rater_statistics) {
         const currentRaterVal = el.analyticsRaterFilter.value;
-        const existingRaterOpts = Array.from(el.analyticsRaterFilter.options).map(o => o.value);
+        el.analyticsRaterFilter.innerHTML = '<option value="">All Raters</option>';
         data.rater_statistics.forEach(r => {
           const rid = r.rater_id || r.id;
           const rname = r.rater_name || r.name || rid;
-          if (rid && !existingRaterOpts.includes(rid)) {
+          if (rid) {
             const opt = document.createElement("option");
             opt.value = rid;
             opt.textContent = rname;
             el.analyticsRaterFilter.appendChild(opt);
           }
         });
-        if (currentRaterVal) el.analyticsRaterFilter.value = currentRaterVal;
+        if (currentRaterVal && Array.from(el.analyticsRaterFilter.options).some(o => o.value === currentRaterVal)) {
+          el.analyticsRaterFilter.value = currentRaterVal;
+        }
       }
 
       // Extract model statistics (supports both array and keyed object formats)
@@ -4288,7 +4314,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       if (ev.scores && typeof ev.scores === "object") {
         const firstKey = Object.keys(ev.scores)[0];
         if (firstKey !== undefined) {
-          primaryScoreText = `${ev.scores[firstKey]} (${firstKey})`;
+          primaryScoreText = `${escapeHtml(String(ev.scores[firstKey]))} (${escapeHtml(firstKey)})`;
         }
       }
 
@@ -4374,9 +4400,10 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     let audioUrl = ev.audio_url || "";
     if (!audioUrl && ev.audio_files_json) {
       try {
-        const af = JSON.parse(ev.audio_files_json);
-        if (typeof af === "object") {
-          audioUrl = af[ev.model_id] || Object.values(af)[0] || "";
+        const af = typeof ev.audio_files_json === "string" ? JSON.parse(ev.audio_files_json) : ev.audio_files_json;
+        if (typeof af === "object" && af !== null) {
+          const rawEntry = af[ev.model_id] || Object.values(af)[0] || "";
+          audioUrl = (typeof rawEntry === "object" && rawEntry !== null) ? (rawEntry.url || "") : String(rawEntry || "");
         }
       } catch (e) {}
     }
@@ -4406,7 +4433,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           badge.className = "p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl space-y-0.5";
           badge.innerHTML = `
             <div class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">${escapeHtml(k)}</div>
-            <div class="text-lg font-bold font-mono text-zinc-900">${scores[k]}</div>
+            <div class="text-lg font-bold font-mono text-zinc-900">${escapeHtml(String(scores[k]))}</div>
           `;
           el.inspectEvalScores.appendChild(badge);
         });
@@ -4417,7 +4444,8 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     if (el.inspectEvalAsrContainer && el.inspectEvalAsr) {
       if (ev.asr_adjudication) {
         el.inspectEvalAsrContainer.classList.remove("hidden");
-        if (ev.asr_adjudication === "acceptable_variation") {
+        const asrNorm = String(ev.asr_adjudication).toUpperCase();
+        if (asrNorm === "ACCEPTABLE_VARIATION") {
           el.inspectEvalAsr.className = "p-2.5 rounded-lg border bg-emerald-50 border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2";
           el.inspectEvalAsr.innerHTML = `
             <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
@@ -4448,20 +4476,29 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           const errCode = escapeHtml(d.error_code || "DEFECT");
           const note = d.note ? `<span class="text-zinc-600 italic">"${escapeHtml(d.note)}"</span>` : "";
 
-          if (d.start_time !== undefined && d.end_time !== undefined) {
+          // Check if this is a time-sliced waveform region
+          const hasTimeRange = (
+            (d.start_time !== undefined && d.end_time !== undefined) ||
+            (d.time_start_ms !== undefined && d.time_end_ms !== undefined && (Number(d.time_end_ms) > Number(d.time_start_ms) || !d.word_text))
+          );
+
+          if (hasTimeRange) {
+            const startSec = d.start_time !== undefined ? Number(d.start_time) : (Number(d.time_start_ms || 0) / 1000);
+            const endSec = d.end_time !== undefined ? Number(d.end_time) : (Number(d.time_end_ms || 0) / 1000);
             itemDiv.innerHTML = `
               <div class="flex items-center gap-2">
                 <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-red-100 text-red-800 border border-red-200">${errCode}</span>
-                <span class="font-mono text-zinc-700">${Number(d.start_time).toFixed(2)}s – ${Number(d.end_time).toFixed(2)}s</span>
+                <span class="font-mono text-zinc-700">${startSec.toFixed(2)}s – ${endSec.toFixed(2)}s</span>
               </div>
               <div>${note}</div>
             `;
-          } else if (d.word_index !== undefined || d.word_text) {
-            const wordTxt = escapeHtml(d.word_text || `Word #${d.word_index}`);
+          } else if (d.word_text && d.word_text.trim()) {
+            const wordTxt = escapeHtml(d.word_text);
             itemDiv.innerHTML = `
               <div class="flex items-center gap-2">
                 <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-100 text-amber-800 border border-amber-200">${errCode}</span>
                 <span class="font-khmer font-semibold text-zinc-900">${wordTxt}</span>
+                <span class="text-[10px] text-zinc-400 font-mono">(Word #${d.word_index || 0})</span>
               </div>
               <div>${note}</div>
             `;

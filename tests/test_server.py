@@ -1476,6 +1476,67 @@ class StudioServerTestCase(unittest.TestCase):
         self.assertIn("modalDeleteRater", js)
         self.assertIn("btnInspectDeleteEval", js)
 
+    def test_multi_region_defects_and_csv_timestamps(self):
+        """Verify multiple waveform defect regions in one eval do not collide, and CSV includes timestamps."""
+        # 1. Register a rater
+        rater_payload = json.dumps({"name": "Multi Region Tester", "role": "Tester"}).encode("utf-8")
+        req_rater = Request(f"http://127.0.0.1:{TEST_PORT}/api/raters", data=rater_payload, headers={"Content-Type": "application/json"})
+        with urlopen(req_rater) as resp:
+            rater_id = json.loads(resp.read().decode())["rater"]["id"]
+
+        # 2. Get first active campaign and its item
+        with urlopen(f"http://127.0.0.1:{TEST_PORT}/api/campaigns") as resp:
+            camp_id = json.loads(resp.read().decode())["campaigns"][0]["id"]
+
+        with urlopen(f"http://127.0.0.1:{TEST_PORT}/api/items?campaign_id={camp_id}") as resp:
+            item_id = json.loads(resp.read().decode())["items"][0]["id"]
+
+        # 3. Submit evaluation with multiple waveform defect regions sharing word_index: 0
+        multi_defects = [
+            {"word_index": 0, "word_text": "", "error_code": "GLITCH", "note": "Pop", "time_start_ms": 120.0, "time_end_ms": 450.0},
+            {"word_index": 0, "word_text": "", "error_code": "PROS", "note": "Rushed", "time_start_ms": 800.0, "time_end_ms": 1200.0},
+            {"word_index": 2, "word_text": "សួស្តី", "error_code": "C_SUB", "note": "Substituted", "time_start_ms": 0.0, "time_end_ms": 0.0}
+        ]
+        eval_payload = {
+            "campaign_id": camp_id,
+            "rater_id": rater_id,
+            "item_id": item_id,
+            "model_id": "model-voxcpm2",
+            "scores": {"naturalness": 4, "intelligibility": 4},
+            "defect_tags": multi_defects,
+            "asr_adjudication": "ACCEPTABLE_VARIATION"
+        }
+        req_eval = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/evaluations",
+            data=json.dumps(eval_payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        with urlopen(req_eval) as resp:
+            self.assertEqual(resp.status, 201)
+
+        # 4. Verify CSV export returns time_start_ms and time_end_ms in defect_tags_json
+        req_csv = Request(f"http://127.0.0.1:{TEST_PORT}/api/admin/export.csv?campaign_id={camp_id}", headers={"X-Admin-PIN": "2026"})
+        with urlopen(req_csv) as resp:
+            self.assertEqual(resp.status, 200)
+            csv_text = resp.read().decode("utf-8")
+            self.assertIn("time_start_ms", csv_text)
+            self.assertIn("time_end_ms", csv_text)
+            self.assertIn("GLITCH", csv_text)
+            self.assertIn("សួស្តី", csv_text)
+
+        # 5. Verify word_defect_heatmap in /api/admin/summary only contains real words (not blank waveform tags)
+        req_sum = Request(f"http://127.0.0.1:{TEST_PORT}/api/admin/summary?campaign_id={camp_id}", headers={"X-Admin-PIN": "2026"})
+        with urlopen(req_sum) as resp:
+            self.assertEqual(resp.status, 200)
+            sum_data = json.loads(resp.read().decode())
+            heatmap = sum_data.get("word_defect_heatmap", [])
+            for w in heatmap:
+                self.assertTrue(bool(w.get("word_text") and w["word_text"].strip()))
+            
+            # ASR summary counts both ACCEPTABLE_VARIATION and errors properly
+            asr_sum = sum_data.get("asr_summary", {})
+            self.assertGreaterEqual(asr_sum.get("acceptable_variations", 0), 1)
+
 
 
 if __name__ == "__main__":

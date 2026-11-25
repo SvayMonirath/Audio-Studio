@@ -561,15 +561,27 @@
           const k = targetMetric.key || targetMetric.id || targetMetric.name;
           const isBinary = targetMetric.type === "binary_pass_fail" || targetMetric.type === "binary" || (targetMetric.scale_min === 0 && targetMetric.scale_max === 1);
           if (isBinary) {
-            if (num === 1) state.currentScores[k] = 1;
-            else if (num === 0 || num === 2) state.currentScores[k] = 0;
+            if (num === 1) {
+              if (state.currentScores[k] === 1) delete state.currentScores[k];
+              else state.currentScores[k] = 1;
+            } else if (num === 0 || num === 2) {
+              if (state.currentScores[k] === 0) delete state.currentScores[k];
+              else state.currentScores[k] = 0;
+            }
           } else {
             if (num >= (targetMetric.scale_min || 1) && num <= (targetMetric.scale_max || 5)) {
-              state.currentScores[k] = num;
+              if (state.currentScores[k] === num) delete state.currentScores[k];
+              else state.currentScores[k] = num;
             }
           }
           if (navigator.vibrate) navigator.vibrate(10);
           updateRubricPillSelection();
+          saveDraftForCurrentItem();
+          if (el.btnResetItem) {
+            const curItem = state.items[state.currentIndex];
+            el.btnResetItem.classList.toggle("hidden", !(curItem && state.drafts && state.drafts[curItem.id]));
+          }
+          renderSidebar();
         }
       } else if (e.key === "Escape") {
         hideRegionPopover();
@@ -1118,6 +1130,11 @@
         }
         updateAsrButtonStyles();
         saveDraftForCurrentItem();
+        if (el.btnResetItem) {
+          const curItem = state.items[state.currentIndex];
+          el.btnResetItem.classList.toggle("hidden", !(curItem && state.drafts && state.drafts[curItem.id]));
+        }
+        renderSidebar();
       });
     }
     if (el.btnAsrError) {
@@ -1132,6 +1149,11 @@
         }
         updateAsrButtonStyles();
         saveDraftForCurrentItem();
+        if (el.btnResetItem) {
+          const curItem = state.items[state.currentIndex];
+          el.btnResetItem.classList.toggle("hidden", !(curItem && state.drafts && state.drafts[curItem.id]));
+        }
+        renderSidebar();
       });
     }
   }
@@ -1613,6 +1635,11 @@
           if (navigator.vibrate) navigator.vibrate(10);
           updateRubricPillSelection();
           saveDraftForCurrentItem();
+          if (el.btnResetItem) {
+            const curItem = state.items[state.currentIndex];
+            el.btnResetItem.classList.toggle("hidden", !(curItem && state.drafts && state.drafts[curItem.id]));
+          }
+          renderSidebar();
         });
 
         const failPill = document.createElement("button");
@@ -1630,6 +1657,11 @@
           if (navigator.vibrate) navigator.vibrate(10);
           updateRubricPillSelection();
           saveDraftForCurrentItem();
+          if (el.btnResetItem) {
+            const curItem = state.items[state.currentIndex];
+            el.btnResetItem.classList.toggle("hidden", !(curItem && state.drafts && state.drafts[curItem.id]));
+          }
+          renderSidebar();
         });
 
         scaleDiv.appendChild(passPill);
@@ -1667,6 +1699,11 @@
             if (navigator.vibrate) navigator.vibrate(10);
             updateRubricPillSelection();
             saveDraftForCurrentItem();
+            if (el.btnResetItem) {
+              const curItem = state.items[state.currentIndex];
+              el.btnResetItem.classList.toggle("hidden", !(curItem && state.drafts && state.drafts[curItem.id]));
+            }
+            renderSidebar();
           });
 
           scaleDiv.appendChild(pill);
@@ -2052,6 +2089,50 @@
     persistDraftsToStorage();
   }
 
+  // Helper to compare current in-memory evaluation state with submitted evaluation
+  function isCurrentStateIdenticalTo(existing) {
+    if (!existing) return false;
+    
+    // Compare scores
+    let existingScores = {};
+    if (existing.scores && typeof existing.scores === "object") {
+      existingScores = existing.scores;
+    } else if (existing.scores_json) {
+      try {
+        existingScores = typeof existing.scores_json === "string" ? JSON.parse(existing.scores_json) : existing.scores_json;
+      } catch (e) {}
+    }
+    const currentScores = state.currentScores || {};
+    const curKeys = Object.keys(currentScores);
+    const exKeys = Object.keys(existingScores);
+    if (curKeys.length !== exKeys.length) return false;
+    for (const k of curKeys) {
+      if (Number(currentScores[k]) !== Number(existingScores[k])) return false;
+    }
+
+    // Compare comments
+    const currentComments = el.evalNotesInput ? el.evalNotesInput.value.trim() : "";
+    const exComments = (existing.comments || "").trim();
+    if (currentComments !== exComments) return false;
+
+    // Compare blind transcript
+    const currentTranscript = el.heardTranscriptInput ? el.heardTranscriptInput.value.trim() : "";
+    const exTranscript = (existing.blind_transcript || "").trim();
+    if (currentTranscript !== exTranscript) return false;
+
+    // Compare ASR adjudication
+    const curAsr = state.currentAsrAdjudication || null;
+    const exAsr = existing.asr_adjudication || null;
+    if (curAsr !== exAsr) return false;
+
+    // Compare defects count
+    const curDefectsLen = (state.currentDefects?.length || 0) + (state.currentWordHighlights?.size || 0);
+    const exDefects = Array.isArray(existing.defect_tags) ? existing.defect_tags : [];
+    if (curDefectsLen !== exDefects.length) return false;
+
+    return true;
+  }
+
   function saveDraftForCurrentItem() {
     if (!state.items || state.items.length === 0) return;
     const item = state.items[state.currentIndex];
@@ -2094,9 +2175,10 @@
       asrAdjudication !== null ||
       defectTags.length > 0;
 
-    if (!hasAnyDraftData) {
-      // If user wiped out everything and there was no existing draft, do nothing.
-      // If there was a draft, clear it.
+    const existing = state.existingEvaluations ? state.existingEvaluations[item.id] : null;
+
+    // If completely empty OR identical to already-submitted evaluation, do not keep a draft
+    if (!hasAnyDraftData || (existing && isCurrentStateIdenticalTo(existing))) {
       if (state.drafts && state.drafts[item.id]) {
         clearDraftForItem(item.id);
       }
@@ -2184,6 +2266,7 @@
       asr_adjudication: state.currentAsrAdjudication || null
     };
 
+    let saveSucceeded = false;
     try {
       el.btnNextItem.disabled = true;
       const resp = await fetch("/api/evaluations", {
@@ -2194,15 +2277,20 @@
 
       if (!resp.ok) {
         const errData = await resp.json().catch(() => ({}));
-        throw new Error(errData.error || `Server status ${resp.status}`);
+        showToast(`Submission rejected: ${errData.error || `Server status ${resp.status}`}`, "error");
+        return;
       }
+      saveSucceeded = true;
     } catch (err) {
       console.warn("Network evaluation save error; saving to local device queue:", err);
       queueOfflineEvaluation(payload);
       showToast("Offline mode: Saved safely on your device. Will auto-sync when online.", "info");
+      saveSucceeded = true;
     } finally {
       el.btnNextItem.disabled = false;
     }
+
+    if (!saveSucceeded) return;
 
     state.existingEvaluations[item.id] = {
       ...payload,
@@ -2242,10 +2330,25 @@
     }
   }
 
-  // Navigate to previous or next item
+  // Navigate to previous or next item within the active model sequence
   function navigateItem(direction) {
-    const nextIdx = state.currentIndex + direction;
-    if (nextIdx >= 0 && nextIdx < state.items.length) {
+    const visibleIndices = getVisibleSequenceIndices();
+    const currentSeqPos = visibleIndices.indexOf(state.currentIndex);
+
+    let nextIdx = -1;
+    if (currentSeqPos !== -1) {
+      const targetPos = currentSeqPos + direction;
+      if (targetPos >= 0 && targetPos < visibleIndices.length) {
+        nextIdx = visibleIndices[targetPos];
+      }
+    } else {
+      const fallbackIdx = state.currentIndex + direction;
+      if (fallbackIdx >= 0 && fallbackIdx < state.items.length) {
+        nextIdx = fallbackIdx;
+      }
+    }
+
+    if (nextIdx !== -1 && nextIdx !== state.currentIndex) {
       saveDraftForCurrentItem();
       state.currentIndex = nextIdx;
       renderCurrentItem();
