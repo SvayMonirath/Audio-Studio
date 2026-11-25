@@ -428,6 +428,13 @@
     analyticsEvaluationsTbody: document.getElementById("analytics-evaluations-tbody"),
     evaluationsSearchInput: document.getElementById("evaluations-search-input"),
     evaluationsCountBadge: document.getElementById("evaluations-count-badge"),
+    resultsSubtabs: document.getElementById("results-subtabs"),
+    subtabEvalsCount: document.getElementById("subtab-evals-count"),
+    subtabRatersCount: document.getElementById("subtab-raters-count"),
+    resultsPanelOverview: document.getElementById("results-panel-overview"),
+    resultsPanelEvaluations: document.getElementById("results-panel-evaluations"),
+    resultsPanelRaters: document.getElementById("results-panel-raters"),
+    resultsPanelDefects: document.getElementById("results-panel-defects"),
 
     // Evaluation Inspector Modal
     modalInspectEvaluation: document.getElementById("modal-inspect-evaluation"),
@@ -439,6 +446,12 @@
     btnInspectCloseX: document.getElementById("btn-inspect-close-x"),
     inspectEvalAudioUrl: document.getElementById("inspect-eval-audio-url"),
     inspectEvalAudio: document.getElementById("inspect-eval-audio"),
+    btnInspectPlay: document.getElementById("btn-inspect-play"),
+    inspectIconPlay: document.getElementById("inspect-icon-play"),
+    inspectIconPause: document.getElementById("inspect-icon-pause"),
+    inspectAudioTimeLabel: document.getElementById("inspect-audio-time-label"),
+    btnInspectSpeed: document.getElementById("btn-inspect-speed"),
+    inspectWaveformCanvas: document.getElementById("inspect-waveform-canvas"),
     inspectEvalScores: document.getElementById("inspect-eval-scores"),
     inspectEvalAsrContainer: document.getElementById("inspect-eval-asr-container"),
     inspectEvalAsr: document.getElementById("inspect-eval-asr"),
@@ -448,6 +461,15 @@
     inspectEvalComments: document.getElementById("inspect-eval-comments"),
     btnInspectDeleteEval: document.getElementById("btn-inspect-delete-eval"),
     btnInspectClose: document.getElementById("btn-inspect-close"),
+
+    // Rater Page-by-Page Coverage Modal
+    modalRaterCoverage: document.getElementById("modal-rater-coverage"),
+    raterCoverageModalName: document.getElementById("rater-coverage-modal-name"),
+    raterCoverageSummary: document.getElementById("rater-coverage-summary"),
+    raterCoverageFilters: document.getElementById("rater-coverage-filters"),
+    raterCoverageGrid: document.getElementById("rater-coverage-grid"),
+    btnCloseRaterCoverageX: document.getElementById("btn-close-rater-coverage-x"),
+    btnCloseRaterCoverage: document.getElementById("btn-close-rater-coverage"),
 
     // Rater Moderation Modal
     modalDeleteRater: document.getElementById("modal-delete-rater"),
@@ -3718,6 +3740,33 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       }
     });
 
+    // Wire Results & Scores Sub-Tabs
+    if (el.resultsSubtabs) {
+      const panels = {
+        overview: el.resultsPanelOverview,
+        evaluations: el.resultsPanelEvaluations,
+        raters: el.resultsPanelRaters,
+        defects: el.resultsPanelDefects
+      };
+      el.resultsSubtabs.querySelectorAll(".results-subtab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const target = btn.dataset.resultsTab;
+          el.resultsSubtabs.querySelectorAll(".results-subtab-btn").forEach(b => {
+            const active = b.dataset.resultsTab === target;
+            b.classList.toggle("bg-white", active);
+            b.classList.toggle("text-zinc-900", active);
+            b.classList.toggle("shadow-2xs", active);
+            b.classList.toggle("font-semibold", active);
+            b.classList.toggle("text-zinc-600", !active);
+            b.classList.toggle("font-medium", !active);
+          });
+          Object.entries(panels).forEach(([k, panel]) => {
+            if (panel) panel.classList.toggle("hidden", k !== target);
+          });
+        });
+      });
+    }
+
     // Wire Real-time search filter for evaluations table
     if (el.evaluationsSearchInput) {
       el.evaluationsSearchInput.addEventListener("input", () => {
@@ -3725,9 +3774,45 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       });
     }
 
+    // Wire Evaluation Inspector DSP Waveform controls
+    const updateInspectPlayIcons = (isPlaying) => {
+      if (el.inspectIconPlay && el.inspectIconPause) {
+        el.inspectIconPlay.classList.toggle("hidden", isPlaying);
+        el.inspectIconPause.classList.toggle("hidden", !isPlaying);
+      }
+    };
+    if (el.btnInspectPlay) {
+      el.btnInspectPlay.addEventListener("click", () => {
+        if (!window.dspEngine) return;
+        if (window.dspEngine.isPlaying) {
+          window.dspEngine.pause();
+          updateInspectPlayIcons(false);
+        } else {
+          window.dspEngine.play();
+          updateInspectPlayIcons(true);
+        }
+      });
+    }
+    if (el.btnInspectSpeed) {
+      el.btnInspectSpeed.addEventListener("click", () => {
+        if (!window.dspEngine) return;
+        const nextRate = window.dspEngine.playbackRate === 1.0 ? 0.8 : 1.0;
+        window.dspEngine.setSpeed(nextRate);
+        el.btnInspectSpeed.textContent = `${nextRate.toFixed(1)}x`;
+      });
+    }
+    if (el.inspectWaveformCanvas && window.dspEngine) {
+      window.dspEngine.attachWaveformEvents(el.inspectWaveformCanvas, "A");
+    }
+
     // Wire Evaluation Inspector Modal close buttons and backdrop click
     const closeInspector = () => {
       if (el.modalInspectEvaluation) el.modalInspectEvaluation.classList.add("hidden");
+      if (window.dspEngine) {
+        window.dspEngine.pause();
+        window.dspEngine.stopSlice();
+      }
+      updateInspectPlayIcons(false);
       if (el.inspectEvalAudio) {
         el.inspectEvalAudio.pause();
         el.inspectEvalAudio.removeAttribute("src");
@@ -3740,6 +3825,35 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     if (el.modalInspectEvaluation) {
       el.modalInspectEvaluation.addEventListener("click", (e) => {
         if (e.target === el.modalInspectEvaluation) closeInspector();
+      });
+    }
+
+    // Wire Rater Coverage Modal close & filter buttons
+    const closeRaterCoverageModal = () => {
+      if (el.modalRaterCoverage) el.modalRaterCoverage.classList.add("hidden");
+      state.coverageModalData = null;
+    };
+    if (el.btnCloseRaterCoverage) el.btnCloseRaterCoverage.addEventListener("click", closeRaterCoverageModal);
+    if (el.btnCloseRaterCoverageX) el.btnCloseRaterCoverageX.addEventListener("click", closeRaterCoverageModal);
+    if (el.modalRaterCoverage) {
+      el.modalRaterCoverage.addEventListener("click", (e) => {
+        if (e.target === el.modalRaterCoverage) closeRaterCoverageModal();
+      });
+    }
+    if (el.raterCoverageFilters) {
+      el.raterCoverageFilters.querySelectorAll(".cov-filter-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          state.coverageFilter = btn.dataset.covFilter || "all";
+          el.raterCoverageFilters.querySelectorAll(".cov-filter-btn").forEach(b => {
+            const active = (b.dataset.covFilter || "all") === state.coverageFilter;
+            b.classList.toggle("bg-white", active);
+            b.classList.toggle("text-zinc-900", active);
+            b.classList.toggle("font-semibold", active);
+            b.classList.toggle("shadow-2xs", active);
+            b.classList.toggle("text-zinc-600", !active);
+          });
+          renderRaterCoverageGrid();
+        });
       });
     }
 
@@ -3784,6 +3898,9 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         }
         if (el.modalDeleteRater && !el.modalDeleteRater.classList.contains("hidden")) {
           closeDeleteRaterModal();
+        }
+        if (el.modalRaterCoverage && !el.modalRaterCoverage.classList.contains("hidden")) {
+          closeRaterCoverageModal();
         }
       }
     });
@@ -4176,6 +4293,10 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       }
 
       // Render Participating Listeners (Raters) Table
+      const totalStudyItems = studyMeta.total_items || 0;
+      if (el.subtabRatersCount) {
+        el.subtabRatersCount.textContent = (data.rater_statistics || []).length;
+      }
       if (el.analyticsRatersTbody) {
         el.analyticsRatersTbody.innerHTML = "";
         const ratersList = data.rater_statistics || [];
@@ -4186,7 +4307,19 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
             const tr = document.createElement("tr");
             const raterName = escapeHtml(r.rater_name || r.name || r.rater_id || "Anonymous");
             const role = escapeHtml(r.role || "Listener");
-            const evalCount = `${r.eval_count || 0} items`;
+            const doneCount = r.eval_count || 0;
+            const pct = totalStudyItems > 0 ? Math.min(100, Math.round((doneCount / totalStudyItems) * 100)) : 0;
+            const progressHtml = totalStudyItems > 0
+              ? `<div class="space-y-1 min-w-[110px]">
+                   <div class="flex items-center justify-between text-[11px] font-mono">
+                     <span class="font-bold text-zinc-900">${doneCount}/${totalStudyItems}</span>
+                     <span class="text-zinc-500">${pct}%</span>
+                   </div>
+                   <div class="w-full h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                     <div class="h-full ${pct >= 100 ? "bg-emerald-500" : "bg-zinc-900"} rounded-full" style="width:${pct}%"></div>
+                   </div>
+                 </div>`
+              : `<span class="font-mono font-medium text-zinc-900">${doneCount} items</span>`;
             const avgTime = `${r.avg_duration_sec !== undefined ? r.avg_duration_sec : 0}s`;
             const meanScore = r.mean_score !== undefined ? Number(r.mean_score).toFixed(2) : "0.00";
             const defectCount = `${r.defect_count || 0} defects`;
@@ -4195,13 +4328,16 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
             tr.innerHTML = `
               <td class="p-3 font-semibold text-zinc-900">${raterName}</td>
               <td class="p-3 text-zinc-600">${role}</td>
-              <td class="p-3 font-mono font-medium text-zinc-900">${evalCount}</td>
+              <td class="p-3">${progressHtml}</td>
               <td class="p-3 font-mono text-zinc-600">${avgTime}</td>
               <td class="p-3 font-mono font-bold text-zinc-900">${meanScore}</td>
               <td class="p-3 text-red-600 font-mono font-medium">${defectCount}</td>
               <td class="p-3 text-zinc-500 font-mono text-[11px]">${lastSubmitted}</td>
               <td class="p-3 text-right">
                 <div class="flex items-center justify-end gap-1.5">
+                  <button type="button" class="btn-view-rater-pages px-2.5 py-1 text-[11px] font-semibold bg-zinc-900 hover:bg-zinc-800 text-white rounded transition cursor-pointer">
+                    View Pages
+                  </button>
                   <button type="button" class="btn-filter-rater-stats px-2 py-1 text-[11px] font-medium bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded transition cursor-pointer">
                     Filter
                   </button>
@@ -4216,6 +4352,13 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
             `;
 
             // Wire action buttons
+            const btnViewPages = tr.querySelector(".btn-view-rater-pages");
+            if (btnViewPages) {
+              btnViewPages.addEventListener("click", () => {
+                openRaterCoverageModal(r);
+              });
+            }
+
             const btnFilter = tr.querySelector(".btn-filter-rater-stats");
             if (btnFilter) {
               btnFilter.addEventListener("click", () => {
@@ -4300,6 +4443,9 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     if (el.evaluationsCountBadge) {
       el.evaluationsCountBadge.textContent = filtered.length;
     }
+    if (el.subtabEvalsCount) {
+      el.subtabEvalsCount.textContent = allEvals.length;
+    }
 
     if (filtered.length === 0) {
       el.analyticsEvaluationsTbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-zinc-400">No matching evaluations found.</td></tr>`;
@@ -4375,7 +4521,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     });
   }
 
-  function openInspectEvaluationModal(ev) {
+  async function openInspectEvaluationModal(ev) {
     if (!el.modalInspectEvaluation || !ev) return;
     state.inspectingEvaluation = ev;
 
@@ -4410,7 +4556,85 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     if (el.inspectEvalAudioUrl) {
       el.inspectEvalAudioUrl.textContent = audioUrl || "No direct audio link";
     }
-    if (el.inspectEvalAudio) {
+
+    // Show modal first so canvas has layout dimensions
+    el.modalInspectEvaluation.classList.remove("hidden");
+
+    // Reset play icons & time label
+    if (el.inspectIconPlay && el.inspectIconPause) {
+      el.inspectIconPlay.classList.remove("hidden");
+      el.inspectIconPause.classList.add("hidden");
+    }
+    if (el.inspectAudioTimeLabel) {
+      el.inspectAudioTimeLabel.textContent = audioUrl ? "Loading waveform..." : "No audio file";
+    }
+    if (el.btnInspectSpeed && window.dspEngine) {
+      window.dspEngine.setSpeed(1.0);
+      el.btnInspectSpeed.textContent = "1.0x";
+    }
+
+    // Load into DSP Engine & render waveform with defect regions
+    if (window.dspEngine && el.inspectWaveformCanvas) {
+      window.dspEngine.pause();
+      window.dspEngine.stopSlice();
+      window.dspEngine.clearRegions();
+      window.dspEngine.setWaveformMode("scrub");
+
+      const defectsForWave = Array.isArray(ev.defect_tags) ? ev.defect_tags : [];
+      defectsForWave.forEach((d, idx) => {
+        const hasRange = (d.start_time !== undefined && d.end_time !== undefined) ||
+          (d.time_start_ms !== undefined && d.time_end_ms !== undefined && Number(d.time_end_ms) > Number(d.time_start_ms));
+        if (hasRange) {
+          const startSec = d.start_time !== undefined ? Number(d.start_time) : (Number(d.time_start_ms || 0) / 1000);
+          const endSec = d.end_time !== undefined ? Number(d.end_time) : (Number(d.time_end_ms || 0) / 1000);
+          window.dspEngine.addRegion({
+            id: `insp-reg-${idx}`,
+            startSec,
+            endSec,
+            errorCode: d.error_code || "DEFECT",
+            errorLabel: d.error_code || "DEFECT",
+            note: d.note || ""
+          });
+        }
+      });
+
+      window.dspEngine.onProgressCallback = (cur, dur) => {
+        if (el.inspectAudioTimeLabel) {
+          el.inspectAudioTimeLabel.textContent = `${cur.toFixed(2)}s / ${dur.toFixed(2)}s`;
+        }
+      };
+      window.dspEngine.onEndedCallback = () => {
+        if (el.inspectIconPlay && el.inspectIconPause) {
+          el.inspectIconPlay.classList.remove("hidden");
+          el.inspectIconPause.classList.add("hidden");
+        }
+      };
+      window.dspEngine.onRegionClick = (reg) => {
+        if (reg && reg.startSec !== undefined && reg.endSec !== undefined) {
+          window.dspEngine.playSlice(reg.startSec, reg.endSec);
+        }
+      };
+
+      if (audioUrl) {
+        const res = await window.dspEngine.loadAudio(audioUrl);
+        if (res.success) {
+          if (el.inspectAudioTimeLabel) {
+            el.inspectAudioTimeLabel.textContent = `0.00s / ${res.duration.toFixed(2)}s`;
+          }
+          window.dspEngine.renderWaveform(el.inspectWaveformCanvas, "A");
+          if (el.inspectEvalAudio) el.inspectEvalAudio.classList.add("hidden");
+        } else {
+          if (el.inspectAudioTimeLabel) el.inspectAudioTimeLabel.textContent = "Waveform fallback";
+          if (el.inspectEvalAudio) {
+            el.inspectEvalAudio.src = audioUrl;
+            el.inspectEvalAudio.classList.remove("hidden");
+          }
+        }
+      } else if (el.inspectEvalAudio) {
+        el.inspectEvalAudio.removeAttribute("src");
+        el.inspectEvalAudio.classList.add("hidden");
+      }
+    } else if (el.inspectEvalAudio) {
       if (audioUrl) {
         el.inspectEvalAudio.src = audioUrl;
         el.inspectEvalAudio.classList.remove("hidden");
@@ -4489,9 +4713,18 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
               <div class="flex items-center gap-2">
                 <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-red-100 text-red-800 border border-red-200">${errCode}</span>
                 <span class="font-mono text-zinc-700">${startSec.toFixed(2)}s – ${endSec.toFixed(2)}s</span>
+                <button type="button" class="btn-play-defect-slice px-2 py-0.5 rounded text-[10px] font-semibold bg-white border border-zinc-200 hover:bg-zinc-100 text-zinc-800 cursor-pointer transition">Play Slice</button>
               </div>
               <div>${note}</div>
             `;
+            const sliceBtn = itemDiv.querySelector(".btn-play-defect-slice");
+            if (sliceBtn) {
+              sliceBtn.addEventListener("click", () => {
+                if (window.dspEngine) {
+                  window.dspEngine.playSlice(startSec, endSec);
+                }
+              });
+            }
           } else if (d.word_text && d.word_text.trim()) {
             const wordTxt = escapeHtml(d.word_text);
             itemDiv.innerHTML = `
@@ -4525,8 +4758,170 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     if (el.inspectEvalComments) {
       el.inspectEvalComments.textContent = ev.comments || "No comments entered.";
     }
+  }
 
-    el.modalInspectEvaluation.classList.remove("hidden");
+  async function openRaterCoverageModal(rater) {
+    if (!el.modalRaterCoverage || !rater) return;
+    const campaignId = el.analyticsCampaignSelect?.value;
+    if (!campaignId) return;
+
+    state.coverageFilter = "all";
+    if (el.raterCoverageFilters) {
+      el.raterCoverageFilters.querySelectorAll(".cov-filter-btn").forEach(b => {
+        const active = (b.dataset.covFilter || "all") === "all";
+        b.classList.toggle("bg-white", active);
+        b.classList.toggle("text-zinc-900", active);
+        b.classList.toggle("font-semibold", active);
+        b.classList.toggle("shadow-2xs", active);
+        b.classList.toggle("text-zinc-600", !active);
+      });
+    }
+
+    if (el.raterCoverageModalName) {
+      el.raterCoverageModalName.textContent = `Page Coverage — ${rater.rater_name || rater.name || rater.rater_id}`;
+    }
+    if (el.raterCoverageSummary) {
+      el.raterCoverageSummary.textContent = "Loading study items and evaluations...";
+    }
+    if (el.raterCoverageGrid) {
+      el.raterCoverageGrid.innerHTML = `<div class="py-8 text-center text-xs text-zinc-400">Loading...</div>`;
+    }
+    el.modalRaterCoverage.classList.remove("hidden");
+
+    try {
+      const [itemsResp, evalsResp] = await Promise.all([
+        adminFetch(`/api/items?campaign_id=${encodeURIComponent(campaignId)}`),
+        adminFetch(`/api/evaluations?campaign_id=${encodeURIComponent(campaignId)}&rater_id=${encodeURIComponent(rater.rater_id)}`)
+      ]);
+      const itemsData = itemsResp.ok ? await itemsResp.json() : { items: [] };
+      const evalsData = evalsResp.ok ? await evalsResp.json() : { evaluations: [] };
+
+      const items = itemsData.items || [];
+      const evals = evalsData.evaluations || [];
+      const evalByItemId = {};
+      evals.forEach(ev => {
+        evalByItemId[ev.item_id] = ev;
+      });
+
+      state.coverageModalData = { rater, items, evalByItemId };
+      const completedCount = items.filter(it => !!evalByItemId[it.id]).length;
+      const pct = items.length > 0 ? Math.round((completedCount / items.length) * 100) : 0;
+      if (el.raterCoverageSummary) {
+        el.raterCoverageSummary.textContent = `${completedCount} of ${items.length} pages evaluated (${pct}%) • ${items.length - completedCount} remaining`;
+      }
+      renderRaterCoverageGrid();
+    } catch (err) {
+      if (el.raterCoverageSummary) {
+        el.raterCoverageSummary.textContent = "Failed to load coverage data.";
+      }
+      if (el.raterCoverageGrid) {
+        el.raterCoverageGrid.innerHTML = `<div class="py-6 text-center text-xs text-red-600">${escapeHtml(err.message)}</div>`;
+      }
+    }
+  }
+
+  function renderRaterCoverageGrid() {
+    if (!el.raterCoverageGrid || !state.coverageModalData) return;
+    const { items, evalByItemId } = state.coverageModalData;
+    const filter = state.coverageFilter || "all";
+
+    el.raterCoverageGrid.innerHTML = "";
+    if (items.length === 0) {
+      el.raterCoverageGrid.innerHTML = `<div class="py-8 text-center text-xs text-zinc-400">No items found in this study.</div>`;
+      return;
+    }
+
+    // Group items by model
+    const groups = new Map();
+    items.forEach(it => {
+      let mId = it.model_id || "default";
+      let mName = it.model_name || "";
+      if ((!mName || mId === "default") && it.audio_files_json) {
+        try {
+          const af = typeof it.audio_files_json === "string" ? JSON.parse(it.audio_files_json) : it.audio_files_json;
+          if (af.model_id) mId = af.model_id;
+          if (af.model_name) mName = af.model_name;
+          const fk = Object.keys(af)[0];
+          if (!mName && fk && af[fk]?.model_name) mName = af[fk].model_name;
+        } catch (e) {}
+      }
+      const label = mName || mId;
+      if (!groups.has(label)) groups.set(label, []);
+      groups.get(label).push(it);
+    });
+
+    let renderedAny = false;
+    groups.forEach((groupItems, groupLabel) => {
+      const visibleItems = groupItems.filter(it => {
+        const isDone = !!evalByItemId[it.id];
+        if (filter === "evaluated") return isDone;
+        if (filter === "missing") return !isDone;
+        return true;
+      });
+      if (visibleItems.length === 0) return;
+      renderedAny = true;
+
+      const section = document.createElement("div");
+      section.className = "space-y-2";
+      const doneInGroup = groupItems.filter(it => !!evalByItemId[it.id]).length;
+      section.innerHTML = `
+        <div class="flex items-center justify-between text-xs font-bold text-zinc-800 border-b border-zinc-100 pb-1">
+          <span>${escapeHtml(groupLabel)}</span>
+          <span class="font-mono text-[11px] font-normal text-zinc-500">${doneInGroup}/${groupItems.length} evaluated</span>
+        </div>
+      `;
+
+      const grid = document.createElement("div");
+      grid.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2";
+
+      visibleItems.forEach((it, idx) => {
+        const ev = evalByItemId[it.id];
+        const card = document.createElement("button");
+        card.type = "button";
+        const keyText = escapeHtml(it.item_key || `Item ${idx + 1}`);
+        const promptSnippet = escapeHtml((it.text || it.source_text || "").slice(0, 48));
+
+        if (ev) {
+          let scoreSummary = "Rated";
+          if (ev.scores && typeof ev.scores === "object") {
+            const k = Object.keys(ev.scores)[0];
+            if (k !== undefined) scoreSummary = `${ev.scores[k]} (${k})`;
+          }
+          const defectsLen = (ev.defect_tags && ev.defect_tags.length) || 0;
+          card.className = "p-2.5 rounded-xl border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/80 text-left transition cursor-pointer space-y-1";
+          card.innerHTML = `
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs font-bold text-emerald-900 truncate">${keyText}</span>
+              <span class="px-1.5 py-0.5 rounded bg-emerald-600 text-white font-mono text-[10px] font-semibold shrink-0">${escapeHtml(scoreSummary)}</span>
+            </div>
+            <div class="text-[11px] font-khmer text-zinc-700 truncate">${promptSnippet || "—"}</div>
+            <div class="text-[10px] text-emerald-800 font-medium">${defectsLen > 0 ? `${defectsLen} defect(s) • ` : ""}Click to inspect</div>
+          `;
+          card.addEventListener("click", () => {
+            openInspectEvaluationModal(ev);
+          });
+        } else {
+          card.className = "p-2.5 rounded-xl border border-zinc-200 bg-zinc-50 text-left space-y-1 opacity-75 cursor-default";
+          card.innerHTML = `
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs font-semibold text-zinc-700 truncate">${keyText}</span>
+              <span class="px-1.5 py-0.5 rounded bg-zinc-200 text-zinc-600 font-mono text-[10px] shrink-0">Pending</span>
+            </div>
+            <div class="text-[11px] font-khmer text-zinc-500 truncate">${promptSnippet || "—"}</div>
+            <div class="text-[10px] text-zinc-400">Not evaluated yet</div>
+          `;
+        }
+
+        grid.appendChild(card);
+      });
+
+      section.appendChild(grid);
+      el.raterCoverageGrid.appendChild(section);
+    });
+
+    if (!renderedAny) {
+      el.raterCoverageGrid.innerHTML = `<div class="py-8 text-center text-xs text-zinc-400">No items match the selected filter.</div>`;
+    }
   }
 
   function openDeleteRaterModal(rater) {

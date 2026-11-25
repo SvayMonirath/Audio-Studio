@@ -65,6 +65,11 @@
     onboardCampaignTitle: document.getElementById("onboard-campaign-title"),
     onboardCampaignDesc: document.getElementById("onboard-campaign-desc"),
     onboardForm: document.getElementById("onboard-form"),
+    onboardContinueBox: document.getElementById("onboard-continue-box"),
+    onboardContinueName: document.getElementById("onboard-continue-name"),
+    btnContinueAsRater: document.getElementById("btn-continue-as-rater"),
+    btnContinueNameSpan: document.getElementById("btn-continue-name-span"),
+    btnSwitchRater: document.getElementById("btn-switch-rater"),
     raterNameInput: document.getElementById("rater-name-input"),
     onboardErrorMsg: document.getElementById("onboard-error-msg"),
     btnOnboardSubmit: document.getElementById("btn-onboard-submit"),
@@ -230,22 +235,37 @@
     const storedId = localStorage.getItem("tts_rater_id");
 
     if (!storedName || !storedId) {
-      showOnboarding();
+      showOnboarding(false);
     } else {
       state.rater = { id: storedId, name: storedName };
       el.raterDisplayName.textContent = storedName;
-      el.onboardingScreen.classList.add("hidden");
+      showOnboardingConfirm(storedName);
     }
 
     setupEventListeners();
     await loadCampaignData();
   }
 
-  function showOnboarding() {
+  function showOnboarding(clearInput = false) {
     el.onboardingScreen.classList.remove("hidden");
     if (el.onboardErrorMsg) el.onboardErrorMsg.classList.add("hidden");
-    el.raterNameInput.value = state.rater.name || localStorage.getItem("tts_rater_name") || "";
+    if (el.onboardContinueBox) el.onboardContinueBox.classList.add("hidden");
+    if (el.onboardForm) el.onboardForm.classList.remove("hidden");
+    el.raterNameInput.value = clearInput ? "" : (state.rater.name || localStorage.getItem("tts_rater_name") || "");
     el.raterNameInput.focus();
+  }
+
+  function showOnboardingConfirm(name) {
+    if (!el.onboardContinueBox || !el.onboardForm) {
+      el.onboardingScreen.classList.add("hidden");
+      return;
+    }
+    el.onboardingScreen.classList.remove("hidden");
+    if (el.onboardErrorMsg) el.onboardErrorMsg.classList.add("hidden");
+    el.onboardForm.classList.add("hidden");
+    el.onboardContinueBox.classList.remove("hidden");
+    if (el.onboardContinueName) el.onboardContinueName.textContent = name;
+    if (el.btnContinueNameSpan) el.btnContinueNameSpan.textContent = name;
   }
 
   function setupEventListeners() {
@@ -253,6 +273,18 @@
     if (el.tabEvalMode && el.tabTryoutMode) {
       el.tabEvalMode.addEventListener("click", () => switchMainMode("eval"));
       el.tabTryoutMode.addEventListener("click", () => switchMainMode("tryout"));
+    }
+
+    // Cached rater confirmation actions
+    if (el.btnContinueAsRater) {
+      el.btnContinueAsRater.addEventListener("click", () => {
+        el.onboardingScreen.classList.add("hidden");
+      });
+    }
+    if (el.btnSwitchRater) {
+      el.btnSwitchRater.addEventListener("click", () => {
+        showOnboarding(true);
+      });
     }
 
     // Onboarding form submit (Zero PIN required - simply enter name/nickname)
@@ -336,7 +368,7 @@
 
     // Change rater
     el.btnChangeRater.addEventListener("click", () => {
-      showOnboarding();
+      showOnboarding(true);
     });
 
     // Mobile sidebar slide-over drawer toggle & backdrop

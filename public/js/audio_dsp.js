@@ -285,10 +285,12 @@ class AudioDSPEngine {
   updateAllWaveforms() {
     const canvas = document.getElementById("waveform-canvas");
     const tryoutCanvas = document.getElementById("tryout-waveform-canvas");
+    const inspectCanvas = document.getElementById("inspect-waveform-canvas");
     const canvasA = document.getElementById("waveform-canvas-a");
     const canvasB = document.getElementById("waveform-canvas-b");
     if (canvas && (this.audioBufferA || this.audioBufferB)) this.renderWaveform(canvas, "A");
     if (tryoutCanvas && (this.audioBufferA || this.audioBufferB)) this.renderWaveform(tryoutCanvas, "A");
+    if (inspectCanvas && (this.audioBufferA || this.audioBufferB)) this.renderWaveform(inspectCanvas, "A");
     if (canvasA && this.audioBufferA) this.renderWaveform(canvasA, "A");
     if (canvasB && (this.audioBufferB || this.audioBufferA)) this.renderWaveform(canvasB, "B");
   }

@@ -913,7 +913,27 @@
       </div>
 
       <!-- Main Analytics Data Content -->
-      <div id="analytics-data-content" class="space-y-6">
+      <div id="analytics-data-content" class="space-y-5">
+        <!-- Results Sub-Tab Navigation -->
+        <div class="flex flex-wrap items-center gap-1.5 p-1 bg-zinc-100 border border-zinc-200/80 rounded-xl w-fit" id="results-subtabs">
+          <button type="button" data-results-tab="overview" class="results-subtab-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white text-zinc-900 shadow-2xs cursor-pointer transition">
+            Overview
+          </button>
+          <button type="button" data-results-tab="evaluations" class="results-subtab-btn px-3.5 py-1.5 rounded-lg text-xs font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer transition flex items-center gap-1.5">
+            <span>All Evaluations</span>
+            <span id="subtab-evals-count" class="px-1.5 py-0.5 rounded bg-zinc-200/80 text-zinc-700 font-mono text-[10px]">0</span>
+          </button>
+          <button type="button" data-results-tab="raters" class="results-subtab-btn px-3.5 py-1.5 rounded-lg text-xs font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer transition flex items-center gap-1.5">
+            <span>Raters &amp; Progress</span>
+            <span id="subtab-raters-count" class="px-1.5 py-0.5 rounded bg-zinc-200/80 text-zinc-700 font-mono text-[10px]">0</span>
+          </button>
+          <button type="button" data-results-tab="defects" class="results-subtab-btn px-3.5 py-1.5 rounded-lg text-xs font-medium text-zinc-600 hover:text-zinc-900 cursor-pointer transition">
+            Defects &amp; Transcripts
+          </button>
+        </div>
+
+        <!-- SUB-TAB 1: OVERVIEW -->
+        <div id="results-panel-overview" class="space-y-6">
         <!-- Overview Cards -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div class="studio-card p-4">
@@ -986,7 +1006,10 @@
             </tbody>
           </table>
         </div>
+        </div> <!-- End #results-panel-overview -->
 
+        <!-- SUB-TAB 4: DEFECTS & TRANSCRIPTS -->
+        <div id="results-panel-defects" class="hidden space-y-6">
         <!-- ASR Adjudication Summary Card (Dynamic for ASR studies) -->
         <div id="analytics-asr-card" class="hidden studio-card p-5 space-y-3">
           <div class="flex items-center justify-between border-b border-zinc-100 pb-2.5">
@@ -1093,7 +1116,10 @@
             </tbody>
           </table>
         </div>
+        </div> <!-- End #results-panel-defects -->
 
+        <!-- SUB-TAB 3: RATERS & PROGRESS -->
+        <div id="results-panel-raters" class="hidden space-y-6">
         <!-- Participating Listeners (Raters) Table Card -->
         <div class="studio-card p-0 overflow-hidden">
           <div class="px-5 py-3 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
@@ -1122,7 +1148,10 @@
             </tbody>
           </table>
         </div>
+        </div> <!-- End #results-panel-raters -->
 
+        <!-- SUB-TAB 2: ALL EVALUATIONS -->
+        <div id="results-panel-evaluations" class="hidden space-y-6">
         <!-- All Submitted Evaluations Table Card -->
         <div class="studio-card p-0 overflow-hidden">
           <div class="px-5 py-3 border-b border-zinc-200 bg-zinc-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1161,7 +1190,7 @@
             </tbody>
           </table>
         </div>
-      </div>
+        </div> <!-- End #results-panel-evaluations -->
       </div>
     </section>
 
@@ -1280,13 +1309,25 @@
           <button type="button" id="btn-inspect-close-x" class="text-zinc-400 hover:text-zinc-800 p-1 rounded-lg text-lg leading-none cursor-pointer">&times;</button>
         </div>
 
-        <!-- Audio Player Deck -->
-        <div class="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2">
-          <div class="flex items-center justify-between text-[11px] text-zinc-600 font-medium">
-            <span>Audio Sample Playback:</span>
-            <span id="inspect-eval-audio-url" class="font-mono text-[10px] text-zinc-400 truncate max-w-xs"></span>
+        <!-- Interactive DSP Waveform Audio Player Deck -->
+        <div class="p-3.5 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2.5">
+          <div class="flex items-center justify-between gap-2 text-[11px] text-zinc-600 font-medium">
+            <div class="flex items-center gap-2">
+              <button type="button" id="btn-inspect-play" class="w-8 h-8 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white flex items-center justify-center transition cursor-pointer shrink-0 shadow-xs" title="Play / Pause">
+                <svg id="inspect-icon-play" class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                <svg id="inspect-icon-pause" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+              </button>
+              <span id="inspect-audio-time-label" class="font-mono text-xs font-semibold text-zinc-800">0.00s / 0.00s</span>
+              <button type="button" id="btn-inspect-speed" class="px-2 py-0.5 rounded bg-white border border-zinc-200 text-[11px] font-mono font-semibold text-zinc-700 hover:bg-zinc-100 cursor-pointer transition" title="Toggle Playback Speed">
+                1.0x
+              </button>
+            </div>
+            <span id="inspect-eval-audio-url" class="font-mono text-[10px] text-zinc-400 truncate max-w-[200px]"></span>
           </div>
-          <audio id="inspect-eval-audio" controls class="w-full"></audio>
+          <div id="inspect-waveform-box" class="relative w-full">
+            <canvas id="inspect-waveform-canvas" class="w-full h-[76px] rounded-lg bg-white border border-zinc-200 cursor-pointer block"></canvas>
+          </div>
+          <audio id="inspect-eval-audio" controls class="w-full hidden"></audio>
         </div>
 
         <!-- Scores Grid -->
@@ -1337,6 +1378,39 @@
           <button type="button" id="btn-inspect-close" class="btn-carbon text-xs cursor-pointer">
             Close
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rater Page-by-Page Coverage Modal -->
+    <div id="modal-rater-coverage" class="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+      <div class="bg-white rounded-2xl border border-zinc-200 p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-4">
+        <div class="flex items-start justify-between gap-4 border-b border-zinc-100 pb-3">
+          <div>
+            <h3 id="rater-coverage-modal-name" class="text-sm font-bold text-zinc-900">Rater Page Coverage</h3>
+            <p id="rater-coverage-summary" class="text-xs text-zinc-500 mt-0.5">Loading item completion status...</p>
+          </div>
+          <button type="button" id="btn-close-rater-coverage-x" class="text-zinc-400 hover:text-zinc-800 p-1 rounded-lg text-lg leading-none cursor-pointer">&times;</button>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-1.5 p-0.5 bg-zinc-100 rounded-lg text-xs" id="rater-coverage-filters">
+            <button type="button" data-cov-filter="all" class="cov-filter-btn px-2.5 py-1 rounded-md bg-white text-zinc-900 font-semibold shadow-2xs cursor-pointer">All</button>
+            <button type="button" data-cov-filter="evaluated" class="cov-filter-btn px-2.5 py-1 rounded-md text-zinc-600 hover:text-zinc-900 cursor-pointer">Evaluated</button>
+            <button type="button" data-cov-filter="missing" class="cov-filter-btn px-2.5 py-1 rounded-md text-zinc-600 hover:text-zinc-900 cursor-pointer">Not Evaluated</button>
+          </div>
+          <div class="flex items-center gap-3 text-[11px] text-zinc-500">
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block"></span> Evaluated (click to inspect)</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm bg-zinc-200 inline-block"></span> Not Evaluated</span>
+          </div>
+        </div>
+
+        <div id="rater-coverage-grid" class="space-y-4">
+          <!-- Rendered dynamically by admin_app.js -->
+        </div>
+
+        <div class="flex justify-end pt-3 border-t border-zinc-100">
+          <button type="button" id="btn-close-rater-coverage" class="btn-carbon text-xs cursor-pointer">Close</button>
         </div>
       </div>
     </div>

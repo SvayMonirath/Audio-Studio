@@ -1475,6 +1475,16 @@ class StudioServerTestCase(unittest.TestCase):
         self.assertIn("inspectEvalAudio", js)
         self.assertIn("modalDeleteRater", js)
         self.assertIn("btnInspectDeleteEval", js)
+        self.assertIn("inspect-waveform-canvas", html)
+        self.assertIn("modal-rater-coverage", html)
+        self.assertIn("results-subtabs", html)
+        self.assertIn("openRaterCoverageModal", js)
+
+        eval_html_path = os.path.join(TOOL_DIR, "public", "eval.html")
+        with open(eval_html_path, "r", encoding="utf-8") as f:
+            eval_html = f.read()
+        self.assertIn("onboard-continue-box", eval_html)
+        self.assertIn("btn-switch-rater", eval_html)
 
     def test_multi_region_defects_and_csv_timestamps(self):
         """Verify multiple waveform defect regions in one eval do not collide, and CSV includes timestamps."""
