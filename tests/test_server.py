@@ -1183,8 +1183,7 @@ class StudioServerTestCase(unittest.TestCase):
             self.assertEqual(res.status, 200)
 
         # 4. Verify evaluation and defect_tags are gone from DB
-        import sqlite3
-        conn = sqlite3.connect("workbench.db")
+        conn = get_connection(TEST_DB_PATH)
         cur = conn.cursor()
         e_count = cur.execute("SELECT COUNT(*) FROM evaluations WHERE id = ?", (eval_id,)).fetchone()[0]
         dt_count = cur.execute("SELECT COUNT(*) FROM defect_tags WHERE evaluation_id = ?", (eval_id,)).fetchone()[0]
