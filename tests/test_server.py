@@ -1547,6 +1547,117 @@ class StudioServerTestCase(unittest.TestCase):
             asr_sum = sum_data.get("asr_summary", {})
             self.assertGreaterEqual(asr_sum.get("acceptable_variations", 0), 1)
 
+    def test_evaluation_api_audio_files_and_cascade_delete(self):
+        """Verify GET /api/evaluations returns audio_files_json and DELETE cascades defect_tags."""
+        # 1. Register rater and submit evaluation with defect tag
+        rater_req = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/raters",
+            data=json.dumps({"name": "Cascade Auditor"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        with urlopen(rater_req) as res:
+            rater_id = json.loads(res.read().decode("utf-8"))["rater"]["id"]
+
+        eval_payload = {
+            "campaign_id": "camp-dev23-4models",
+            "rater_id": rater_id,
+            "item_id": "item-dev23-KH01-mms",
+            "model_id": "model-mms",
+            "scores": {"pronunciation": 4},
+            "defect_tags": [{
+                "word_index": 0,
+                "word_text": "សាកល្បង",
+                "error_code": "SUB_FAIL",
+                "time_start_ms": 250,
+                "time_end_ms": 650,
+                "note": "Test defect"
+            }]
+        }
+        eval_req = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/evaluations",
+            data=json.dumps(eval_payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        with urlopen(eval_req) as res:
+            self.assertEqual(res.status, 201)
+
+        # 2. Verify GET returns audio_files_json
+        get_req = Request(f"http://127.0.0.1:{TEST_PORT}/api/evaluations?campaign_id=camp-dev23-4models&rater_id={rater_id}")
+        with urlopen(get_req) as res:
+            data = json.loads(res.read().decode("utf-8"))
+            evals = data.get("evaluations", [])
+            self.assertTrue(len(evals) > 0)
+            target_eval = evals[0]
+            self.assertIn("audio_files_json", target_eval)
+            self.assertTrue(len(target_eval["defect_tags"]) > 0)
+            eval_id = target_eval["id"]
+
+        # 3. Test DELETE cascade (with Admin PIN)
+        del_req = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/evaluations?id={eval_id}",
+            headers={"X-Admin-PIN": "2026"},
+            method="DELETE"
+        )
+        with urlopen(del_req) as res:
+            self.assertEqual(res.status, 200)
+
+        # 4. Verify evaluation and defect_tags are gone from DB
+        conn = get_connection(TEST_DB_PATH)
+        cur = conn.cursor()
+        e_count = cur.execute("SELECT COUNT(*) FROM evaluations WHERE id = ?", (eval_id,)).fetchone()[0]
+        dt_count = cur.execute("SELECT COUNT(*) FROM defect_tags WHERE evaluation_id = ?", (eval_id,)).fetchone()[0]
+        conn.close()
+        self.assertEqual(e_count, 0)
+        self.assertEqual(dt_count, 0)
+
+    def test_admin_rename_rater(self):
+        """Verify POST /api/admin/raters/rename updates rater name and enforces PIN."""
+        # 1. Unauthenticated request should fail with 401
+        unauth_req = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/admin/raters/rename",
+            data=json.dumps({"rater_id": "rater-bora", "name": "Bora Lead"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        try:
+            with urlopen(unauth_req) as res:
+                self.fail("Should require admin auth")
+        except HTTPError as e:
+            self.assertEqual(e.code, 401)
+
+        # 2. Authenticated request should succeed
+        auth_req = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/admin/raters/rename",
+            data=json.dumps({"rater_id": "rater-bora", "name": "Bora Renamed"}).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(auth_req) as res:
+            self.assertEqual(res.status, 200)
+            data = json.loads(res.read().decode("utf-8"))
+            self.assertTrue(data.get("success"))
+            self.assertEqual(data.get("name"), "Bora Renamed")
+
+        # 3. Verify in DB
+        conn = get_connection(TEST_DB_PATH)
+        name_in_db = conn.execute("SELECT name FROM raters WHERE id = 'rater-bora'").fetchone()[0]
+        conn.close()
+        self.assertEqual(name_in_db, "Bora Renamed")
+
+    def test_admin_dynamic_elements_and_waveform(self):
+        """Verify public/admin.html and public/js/admin_app.js support dynamic labels, rename, and DSP waveform."""
+        with open("public/admin.html", "r", encoding="utf-8") as f:
+            html = f.read()
+        self.assertIn('id="stat-primary-label"', html)
+        self.assertIn('id="chart-mos-title"', html)
+        self.assertIn('id="chart-mos-subtitle"', html)
+        self.assertIn('id="chart-mos-badge"', html)
+        self.assertIn('id="analytics-scorecard-title"', html)
+        self.assertIn('id="inspect-waveform-canvas"', html)
+
+        with open("public/js/admin_app.js", "r", encoding="utf-8") as f:
+            js = f.read()
+        self.assertIn("btn-rename-rater-row", js)
+        self.assertIn("inspectWaveformCanvas", js)
+        self.assertIn("btnPlaySlice", js) if "btnPlaySlice" in js else self.assertIn("btn-play-defect-slice", js)
 
 
 if __name__ == "__main__":

@@ -153,6 +153,7 @@
 
     // Instructions Modal
     phoneFilterWrapper: document.getElementById("phone-filter-wrapper"),
+    phoneFilterActiveBanner: document.getElementById("phone-filter-active-banner"),
     btnPhoneFilterToggle: document.getElementById("btn-phone-filter-toggle"),
     promptGatingOverlay: document.getElementById("prompt-gating-overlay"),
     btnRevealPrompt: document.getElementById("btn-reveal-prompt"),
@@ -234,7 +235,7 @@
     const storedName = localStorage.getItem("tts_rater_name");
     const storedId = localStorage.getItem("tts_rater_id");
 
-    if (!storedName || !storedId) {
+    if (!storedName || !storedId || storedName.startsWith("rater-") || storedName.trim().length === 0) {
       showOnboarding(false);
     } else {
       state.rater = { id: storedId, name: storedName };
@@ -1274,10 +1275,10 @@
 
     if (!heardText) {
       el.heardDiffPreview.classList.add("hidden");
-      if (el.heardIndicatorBadge) el.heardIndicatorBadge.classList.add("hidden");
+      updateTranscriptionRequirement();
       return;
     }
-    if (el.heardIndicatorBadge) el.heardIndicatorBadge.classList.remove("hidden");
+    updateTranscriptionRequirement();
 
     const diff = computeKhmerDiff(expectedText, heardText);
     el.heardDiffContent.innerHTML = diff.html;
@@ -1292,6 +1293,38 @@
       if (el.diffStatusBadge) {
         el.diffStatusBadge.textContent = "Differences detected (មានភាពខុសគ្នា)";
         el.diffStatusBadge.className = "font-medium text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200";
+      }
+    }
+  }
+
+  function updateTranscriptionRequirement() {
+    if (!el.heardTranscriptInput) return;
+    const hasDefects = Boolean(state.currentDefects && state.currentDefects.length > 0);
+    const heardText = el.heardTranscriptInput.value.trim();
+
+    if (hasDefects) {
+      if (el.heardIndicatorBadge) {
+        el.heardIndicatorBadge.textContent = "Required (Defect Flagged)";
+        el.heardIndicatorBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300 animate-pulse";
+        el.heardIndicatorBadge.classList.remove("hidden");
+      }
+      el.heardTranscriptInput.placeholder = "Defect flagged: please type the exact word or sound you heard...";
+      if (!heardText) {
+        el.heardTranscriptInput.classList.add("border-amber-400");
+      } else {
+        el.heardTranscriptInput.classList.remove("ring-2", "ring-rose-500", "border-rose-500", "border-amber-400");
+      }
+    } else {
+      el.heardTranscriptInput.classList.remove("ring-2", "ring-rose-500", "border-rose-500", "border-amber-400");
+      el.heardTranscriptInput.placeholder = "Click 'Copy Prompt' to start with the prompt text, or type what you heard...";
+      if (el.heardIndicatorBadge) {
+        if (heardText) {
+          el.heardIndicatorBadge.textContent = "Edited";
+          el.heardIndicatorBadge.className = "px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300";
+          el.heardIndicatorBadge.classList.remove("hidden");
+        } else {
+          el.heardIndicatorBadge.classList.add("hidden");
+        }
       }
     }
   }
@@ -1374,12 +1407,12 @@
       if (el.phoneFilterWrapper) el.phoneFilterWrapper.classList.remove("hidden");
       if (el.btnPhoneFilterToggle) {
         el.btnPhoneFilterToggle.onchange = (e) => {
-          window.dspEngine.setPhoneFilter(e.target.checked);
-          showToast(e.target.checked ? "8 kHz Telephone Bandpass Filter active." : "8 kHz Telephone Filter bypassed.", "info");
+          togglePhoneFilter(e.target.checked);
         };
       }
     } else {
       if (el.phoneFilterWrapper) el.phoneFilterWrapper.classList.add("hidden");
+      if (el.phoneFilterActiveBanner) el.phoneFilterActiveBanner.classList.add("hidden");
     }
 
     // 2. Blind-Gated Presentation (Subtle Blur Prompt until revealed)
@@ -1600,11 +1633,27 @@
   }
 
   // Toggle 8 kHz Phone Filter Helper
-  function togglePhoneFilter() {
+  function togglePhoneFilter(forcedState) {
     if (!el.btnPhoneFilterToggle) return;
-    el.btnPhoneFilterToggle.checked = !el.btnPhoneFilterToggle.checked;
-    window.dspEngine.setPhoneFilter(el.btnPhoneFilterToggle.checked);
-    showToast(el.btnPhoneFilterToggle.checked ? "8 kHz Telephone Bandpass Filter active." : "8 kHz Telephone Filter bypassed.", "info");
+    const nextState = typeof forcedState === "boolean" ? forcedState : !el.btnPhoneFilterToggle.checked;
+    el.btnPhoneFilterToggle.checked = nextState;
+    window.dspEngine.setPhoneFilter(nextState);
+
+    // Update Banner & Pill visuals
+    if (el.phoneFilterActiveBanner) {
+      if (nextState) el.phoneFilterActiveBanner.classList.remove("hidden");
+      else el.phoneFilterActiveBanner.classList.add("hidden");
+    }
+    if (el.phoneFilterWrapper) {
+      if (nextState) {
+        el.phoneFilterWrapper.classList.add("bg-amber-100", "border-amber-400", "ring-2", "ring-amber-300");
+        el.phoneFilterWrapper.classList.remove("bg-amber-50", "border-amber-300");
+      } else {
+        el.phoneFilterWrapper.classList.remove("bg-amber-100", "border-amber-400", "ring-2", "ring-amber-300");
+        el.phoneFilterWrapper.classList.add("bg-amber-50", "border-amber-300");
+      }
+    }
+    showToast(nextState ? "8 kHz Telephone Bandpass Filter active (300 Hz – 3,400 Hz)." : "8 kHz Telephone Filter bypassed.", "info");
   }
 
   // Render dynamic rubric criteria
@@ -1621,8 +1670,17 @@
     for (const metric of metrics) {
       const metricKey = metric.key || metric.id || metric.name;
       const titleEn = metric.label_en || metric.label || metric.name || metricKey;
-      const descEn = metric.desc_en || metric.desc || "";
-      const isBinary = metric.type === "binary_pass_fail" || metric.type === "binary" || (metric.scale_min === 0 && metric.scale_max === 1);
+      let descEn = metric.desc_en || metric.desc || "";
+      const isBinary = metric.type === "binary_pass_fail" || 
+                       metric.type === "binary" || 
+                       (metric.scale_min === 0 && metric.scale_max === 1) || 
+                       (metric.scale_min === 1 && metric.scale_max === 2) || 
+                       metric.scale_max <= 2 || 
+                       state.campaign.scale_max <= 2 || 
+                       (state.campaign.protocol_type || "").toLowerCase() === "diagnostic";
+      if (isBinary && (/score from 1 to 2/i.test(descEn) || /score from 0 to 1/i.test(descEn) || /^score from \d/i.test(descEn))) {
+        descEn = "";
+      }
       const isPhoneMetric = (metricKey || "").toLowerCase().includes("phone") || (metricKey || "").toLowerCase().includes("telephone");
 
       const row = document.createElement("div");
@@ -1757,7 +1815,16 @@
     el.ratingFormContainer.querySelectorAll(".score-pill").forEach(pill => {
       const mKey = pill.dataset.metricKey;
       const score = parseInt(pill.dataset.score, 10);
-      const isSelected = state.currentScores[mKey] === score;
+      const isPassPill = pill.classList.contains("score-pill-pass");
+      const isFailPill = pill.classList.contains("score-pill-fail");
+      let isSelected = false;
+      if (isPassPill) {
+        isSelected = (state.currentScores[mKey] === 1 || state.currentScores[mKey] === 2);
+      } else if (isFailPill) {
+        isSelected = (state.currentScores[mKey] === 0);
+      } else {
+        isSelected = state.currentScores[mKey] === score;
+      }
       pill.classList.toggle("active", isSelected);
     });
 
@@ -1972,6 +2039,7 @@
 
     if (state.currentDefects.length === 0) {
       el.defectTagsList.innerHTML = `<span class="text-xs text-zinc-400 italic">No defects flagged for this sample</span>`;
+      updateTranscriptionRequirement();
       return;
     }
 
@@ -1996,6 +2064,7 @@
 
       el.defectTagsList.appendChild(badge);
     }
+    updateTranscriptionRequirement();
   }
 
   // Resolve item model ID
@@ -2255,6 +2324,19 @@
       }
     }
 
+    // Validate conditional mandatory transcription when defects are flagged
+    if (state.campaign?.collect_transcription && state.currentDefects && state.currentDefects.length > 0) {
+      const heardVal = el.heardTranscriptInput ? el.heardTranscriptInput.value.trim() : "";
+      if (!heardVal) {
+        showToast("Defect flagged: Please type what you heard in the transcription box before submitting.", "warning");
+        if (el.heardTranscriptInput) {
+          el.heardTranscriptInput.focus();
+          el.heardTranscriptInput.classList.add("ring-2", "ring-rose-500", "border-rose-500");
+        }
+        return;
+      }
+    }
+
     const item = state.items[state.currentIndex];
     const durationSeconds = (Date.now() - state.itemStartTime) / 1000;
 
@@ -2288,6 +2370,7 @@
     const payload = {
       campaign_id: state.campaignId,
       rater_id: state.rater.id,
+      rater_name: state.rater.name || "",
       item_id: item.id,
       model_id: modelId,
       scores: state.currentScores,

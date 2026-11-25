@@ -81,6 +81,7 @@
   let renderCanvas = () => {};
   let renderInspector = () => {};
   let updateSmartGuide = () => {};
+  let applyStarterKit = () => {};
 
   // LocalStorage Key for Draft Persistence
   const DRAFT_STORAGE_KEY = "audio_studio_creator_draft_v1";
@@ -420,6 +421,11 @@
     statTotalEvals: document.getElementById("stat-total-evals"),
     statTotalRaters: document.getElementById("stat-total-raters"),
     statMeanMos: document.getElementById("stat-mean-mos"),
+    statMeanLabel: document.getElementById("stat-mean-label"),
+    chartMosTitle: document.getElementById("chart-mos-title"),
+    chartMosSubtitle: document.getElementById("chart-mos-subtitle"),
+    chartMosBadge: document.getElementById("chart-mos-badge"),
+    analyticsScorecardTitle: document.getElementById("analytics-scorecard-title"),
     analyticsMosThead: document.getElementById("analytics-mos-thead"),
     analyticsMosTbody: document.getElementById("analytics-mos-tbody"),
     analyticsDefectsTbody: document.getElementById("analytics-defects-tbody"),
@@ -1002,6 +1008,9 @@
         return;
       }
       state.maxUnlockedStep = Math.max(state.maxUnlockedStep, 3);
+      if ((!state.wizardData.ui_config.blocks || state.wizardData.ui_config.blocks.length === 0) && typeof applyStarterKit === "function") {
+        applyStarterKit("mos");
+      }
       goToStep(3);
     });
 
@@ -1076,6 +1085,7 @@
   function resetWizardToStep1() {
     clearWizardDraft();
     state.createdCampaignId = null;
+    state.wizardPublished = false;
     state.wizardStep = 1;
     state.maxUnlockedStep = 1;
     state.wizardData.name = "";
@@ -2193,7 +2203,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     }
 
     // 1-Click Starter Kits
-    function applyStarterKit(kitName) {
+    applyStarterKit = function(kitName) {
       if (kitName === "mos") {
         state.wizardData.ui_config.dsp.phone_filter_8khz = false;
         state.wizardData.ui_config.presentation.blind_gating = false;
@@ -2508,15 +2518,15 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
               <div class="flex items-center gap-4 pt-1">
                 <button
                   type="button"
-                  class="w-12 h-12 flex-shrink-0 rounded-full bg-zinc-900 text-white flex items-center justify-center shadow-sm cursor-default"
-                  title="Audio Playback Preview"
+                  class="btn-preview-audio-play w-12 h-12 flex-shrink-0 rounded-full bg-zinc-900 hover:bg-zinc-800 text-white flex items-center justify-center shadow-sm cursor-pointer transition active:scale-95"
+                  title="Play / Pause Audio Preview"
                 >
-                  <svg class="w-5 h-5 ml-0.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  <svg class="preview-play-icon w-5 h-5 ml-0.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                 </button>
 
                 <div class="flex-1 min-w-0 flex flex-col gap-1.5">
                   <div class="flex items-center justify-between text-[11px] text-zinc-500">
-                    <span class="font-medium text-xs font-mono">0.00s / 0.01.3</span>
+                    <span class="preview-audio-time font-medium text-xs font-mono">0.00s / 0:01.3</span>
                     <span class="hidden sm:inline text-zinc-400">Click & drag on waveform to tag defect region • ចុចអូសលើរលកសំឡេងដើម្បីសម្គាល់កំហុស</span>
                   </div>
                   <div class="waveform-canvas-box rounded-lg overflow-hidden h-[76px] relative bg-white border border-zinc-200">
@@ -2581,32 +2591,34 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
                 <div class="text-[11px] text-zinc-400 mt-0.5">Click to select this card and add rating questions in the right panel.</div>
               </div>
             `;
-          } else {
+          } else if (scaleMax <= 2) {
             const criteriaColsHtml = criteria.map(c => `
               <div class="p-2.5 bg-white border border-zinc-200 rounded-lg space-y-1.5">
                 <div class="flex items-baseline justify-between">
                   <div class="text-xs font-bold text-zinc-900">${escapeHtml(c.name)}</div>
-                  <span class="text-[9px] text-zinc-400">1 to ${scaleMax}</span>
+                  <span class="text-[9px] font-bold text-zinc-500 uppercase font-mono">Pass / Fail</span>
                 </div>
                 <div class="text-[10px] text-zinc-500 truncate" title="${escapeHtml(c.desc || "")}">${escapeHtml(c.desc || "")}</div>
-                <div class="flex gap-1 pt-1">
-                  ${Array.from({ length: scaleMax }, (_, i) => i + 1).map(num => `
-                    <div class="flex-1 h-7 rounded border ${num === 4 ? "bg-zinc-900 border-zinc-900 text-white" : "bg-zinc-50 border-zinc-200 text-zinc-700"} flex items-center justify-center text-xs font-semibold">
-                      ${num}
-                    </div>
-                  `).join("")}
+                <div class="flex gap-2 pt-1">
+                  <div class="flex-1 h-7 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-800 flex items-center justify-center text-xs font-bold shadow-2xs">
+                    Pass [1]
+                  </div>
+                  <div class="flex-1 h-7 rounded-lg bg-rose-50 border border-rose-300 text-rose-800 flex items-center justify-center text-xs font-bold shadow-2xs">
+                    Fail [0]
+                  </div>
                 </div>
               </div>
             `).join("");
 
             previewHtml = `
               <div class="mt-3 p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl space-y-2">
-                <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Evaluator Rubric • លក្ខណៈវិនិច្ឆ័យ</div>
+                <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Evaluator Rubric • លក្ខណៈវិនិច្ឆ័យ (Pass / Fail)</div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   ${criteriaColsHtml}
                 </div>
               </div>
             `;
+          } else {
           }
         } else if (block.type === "transcription") {
           const showDiff = Boolean(block.show_diff);
@@ -2730,9 +2742,79 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       el.builderCanvas.querySelectorAll(".preview-waveform-canvas").forEach((canvas) => {
         drawPreviewWaveform(canvas);
       });
+
+      // Wire interactive audio playback in Step 3 Preview Card
+      el.builderCanvas.querySelectorAll(".btn-preview-audio-play").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const card = btn.closest(".builder-card");
+          const canvas = card ? card.querySelector(".preview-waveform-canvas") : null;
+          const timeLabel = card ? card.querySelector(".preview-audio-time") : null;
+
+          if (wizardPreviewAudio && !wizardPreviewAudio.paused) {
+            wizardPreviewAudio.pause();
+            if (wizardPreviewAnim) {
+              cancelAnimationFrame(wizardPreviewAnim);
+              wizardPreviewAnim = null;
+            }
+            btn.innerHTML = `<svg class="w-5 h-5 ml-0.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+            return;
+          }
+
+          const sampleItem = state.wizardData.items[0];
+          let audioSrc = sampleItem ? (sampleItem.audio_url || (sampleItem.base64 ? `data:audio/wav;base64,${sampleItem.base64}` : null)) : null;
+          if (!audioSrc) {
+            audioSrc = "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH01.wav";
+          }
+
+          if (!wizardPreviewAudio || wizardPreviewAudio.src !== audioSrc) {
+            if (wizardPreviewAudio) {
+              try { wizardPreviewAudio.pause(); } catch (err) {}
+            }
+            wizardPreviewAudio = new Audio(audioSrc);
+          }
+
+          btn.innerHTML = `<svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+
+          const updateProgress = () => {
+            if (!wizardPreviewAudio || wizardPreviewAudio.paused) return;
+            const cur = wizardPreviewAudio.currentTime;
+            const dur = wizardPreviewAudio.duration || 1.3;
+            if (timeLabel) {
+              const curSec = cur.toFixed(2);
+              const durSec = dur.toFixed(1);
+              timeLabel.textContent = `${curSec}s / 0:${durSec < 10 ? '0' : ''}${durSec}`;
+            }
+            if (canvas) {
+              drawPreviewWaveform(canvas, cur / dur);
+            }
+            wizardPreviewAnim = requestAnimationFrame(updateProgress);
+          };
+
+          wizardPreviewAudio.onended = () => {
+            if (wizardPreviewAnim) {
+              cancelAnimationFrame(wizardPreviewAnim);
+              wizardPreviewAnim = null;
+            }
+            btn.innerHTML = `<svg class="w-5 h-5 ml-0.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+            if (timeLabel) timeLabel.textContent = `0.00s / 0:${(wizardPreviewAudio.duration || 1.3).toFixed(1)}`;
+            if (canvas) drawPreviewWaveform(canvas, 0);
+          };
+
+          wizardPreviewAudio.play().then(() => {
+            wizardPreviewAnim = requestAnimationFrame(updateProgress);
+          }).catch(err => {
+            console.warn("Audio preview playback failed:", err);
+            btn.innerHTML = `<svg class="w-5 h-5 ml-0.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+          });
+        });
+      });
     }
 
-    function drawPreviewWaveform(canvas) {
+    let wizardPreviewAudio = null;
+    let wizardPreviewAnim = null;
+
+    function drawPreviewWaveform(canvas, progress = 0) {
       if (!canvas) return;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
@@ -2758,6 +2840,11 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       const unplayedGrad = ctx.createLinearGradient(0, midY - (maxBarHeight / 2), 0, midY + (maxBarHeight / 2));
       unplayedGrad.addColorStop(0, "#D4D4D8");
       unplayedGrad.addColorStop(1, "#E4E4E7");
+
+      // Played gradient matching audio_dsp.js
+      const playedGrad = ctx.createLinearGradient(0, midY - (maxBarHeight / 2), 0, midY + (maxBarHeight / 2));
+      playedGrad.addColorStop(0, "#09090B");
+      playedGrad.addColorStop(1, "#27272A");
 
       // Realistic speech waveform packet synthesis with 4 natural utterances separated by small pauses
       // Matching real eval.html waveform screenshot exactly
@@ -2792,7 +2879,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         const barH = Math.max(4, amp * maxBarHeight);
         const y = midY - (barH / 2);
 
-        ctx.fillStyle = unplayedGrad;
+        ctx.fillStyle = norm <= progress ? playedGrad : unplayedGrad;
         const radius = Math.min(barWidth / 2, barH / 2);
         ctx.beginPath();
         if (typeof ctx.roundRect === "function") {
@@ -2801,6 +2888,13 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           ctx.rect(x, y, barWidth, barH);
         }
         ctx.fill();
+      }
+
+      // Draw subtle playhead cursor if currently playing
+      if (progress > 0 && progress < 1) {
+        const playheadX = progress * width;
+        ctx.fillStyle = "#09090B";
+        ctx.fillRect(playheadX - 1, 4, 2, height - 8);
       }
 
       ctx.restore();
@@ -3092,6 +3186,12 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
             const panel = defectSection.querySelector("#insp-defect-settings-panel");
             if (panel) panel.classList.toggle("hidden", !checked);
             state.wizardData.ui_config.waveform_defect_tagging = checked;
+            if (!checked) {
+              state.wizardData.collectTranscription = false;
+            } else {
+              const trInput = panel?.querySelector("#insp-audio-transcription-toggle");
+              state.wizardData.collectTranscription = trInput ? trInput.checked : true;
+            }
           }
         });
         defectSection.appendChild(defectToggle);
@@ -3174,6 +3274,23 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           state.wizardData.defectTypes = allDefectCategories.filter(c => c.code === "C_DEL");
           updateDefectChips();
         });
+
+        // Sub-setting: Listener Perceived Hearing (Transcription)
+        const transcriptionSubSection = document.createElement("div");
+        transcriptionSubSection.className = "pt-3 border-t border-zinc-200/80 space-y-2";
+        const transcriptionToggle = createCustomSwitch({
+          id: "insp-audio-transcription-toggle",
+          checked: state.wizardData.collectTranscription !== false,
+          label: "Listener Perceived Hearing (Transcription)",
+          description: "Prompts listeners to type what they heard. Optional by default; becomes mandatory when a defect is flagged on the waveform.",
+          onChange: (checked) => {
+            state.wizardData.collectTranscription = checked;
+            selected.collect_transcription = checked;
+            saveWizardDraft();
+          }
+        });
+        transcriptionSubSection.appendChild(transcriptionToggle);
+        defectPanel.appendChild(transcriptionSubSection);
 
         defectSection.appendChild(defectPanel);
         container.appendChild(defectSection);
@@ -3263,7 +3380,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         const scaleOptions = [
           { value: "5", label: "1 to 5 Stars (Standard MOS)", desc: "ITU-T P.800 standard speech quality scale" },
           { value: "7", label: "1 to 7 Points (High Detail)", desc: "Fine-grained comparative scoring" },
-          { value: "2", label: "Pass / Fail", desc: "Binary acceptance threshold" }
+          { value: "2", label: "Pass / Fail (Binary)", desc: "Binary acceptance threshold (Pass / Fail)" }
         ];
         const scaleDropdown = createCustomDropdown({
           id: "insp-scoring-scale",
@@ -3440,14 +3557,26 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     if (el.summaryStudyTranscription) {
       el.summaryStudyTranscription.textContent = state.wizardData.collectTranscription ? "Enabled" : "Disabled";
     }
-    el.summaryStudyScale.textContent = `1 to ${state.wizardData.scaleMax} Points`;
+    el.summaryStudyScale.textContent = state.wizardData.scaleMax <= 2 ? "Pass / Fail" : `1 to ${state.wizardData.scaleMax} Points`;
 
-    el.shareableLinkContainer.classList.add("hidden");
-    el.launchActionBox.classList.remove("hidden");
+    if (state.createdCampaignId && state.wizardPublished) {
+      const fullShareUrl = `${window.location.origin}/eval?id=${state.createdCampaignId}`;
+      el.shareLinkUrl.textContent = fullShareUrl;
+      el.btnOpenAsRater.href = fullShareUrl;
+      el.shareableLinkContainer.classList.remove("hidden");
+      el.launchActionBox.classList.add("hidden");
+    } else {
+      el.shareableLinkContainer.classList.add("hidden");
+      el.launchActionBox.classList.remove("hidden");
+    }
   }
 
   function setupLaunchAndShare() {
     el.btnLaunchStudy.addEventListener("click", async () => {
+      if (state.createdCampaignId && state.wizardPublished) {
+        showToast("This study has already been launched. Evaluators can access it with the shareable link.", "info");
+        return;
+      }
       try {
         el.btnLaunchStudy.disabled = true;
         el.btnLaunchStudy.textContent = "Launching Study...";
@@ -3505,14 +3634,15 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         }
 
         // 3. Create Rubric
+        const isBinary = state.wizardData.scaleMax <= 2;
         const rubricMetrics = state.wizardData.criteria.map(c => ({
           key: c.id,
           label_en: c.name,
           label_km: c.name,
           desc: c.desc,
-          type: c.type || (state.wizardData.scaleMax === 1 ? "binary_pass_fail" : "scale_1_5"),
-          scale_min: c.scale_min || 1,
-          scale_max: c.scale_max || state.wizardData.scaleMax || 5
+          type: isBinary ? "binary_pass_fail" : (c.type || "scale_1_5"),
+          scale_min: isBinary ? 0 : (c.scale_min || 1),
+          scale_max: isBinary ? 1 : (c.scale_max || state.wizardData.scaleMax || 5)
         }));
 
         const rubricResp = await adminFetch("/api/rubrics", {
@@ -3520,9 +3650,9 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: `${state.wizardData.name} Rubric`,
-            protocol_type: "ACR",
-            scale_min: 1,
-            scale_max: state.wizardData.scaleMax,
+            protocol_type: isBinary ? "Diagnostic" : "ACR",
+            scale_min: isBinary ? 0 : 1,
+            scale_max: isBinary ? 1 : state.wizardData.scaleMax,
             metrics: rubricMetrics
           })
         });
@@ -3616,6 +3746,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         if (!campaignResp.ok) throw new Error("Failed to create study campaign.");
         const campaignJson = await campaignResp.json();
         state.createdCampaignId = campaignJson.campaign_id;
+        state.wizardPublished = true;
         clearWizardDraft();
 
         // 5. Reveal Shareable Link Box
@@ -4169,26 +4300,30 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           el.analyticsMosTbody.appendChild(tr);
         });
 
-        // Update KPI Card 3:
-        // - If binary metric: label "Overall Pass Rate", value `${primaryStat.pass_rate}%`.
-        // - If ASR: label "Acceptable Speech Rate", value `${data.asr_summary?.acceptable_rate || 0}%`.
-        // - If standard scale: label `Average Score (1 to ${study_meta.scale_max || 5})`, value formatted MOS.
+        // Update KPI Card 3 & dynamic chart/scorecard badges
         const isAsr = studyMeta.modality === "ASR" || (data.asr_summary && data.asr_summary.total_judgments > 0);
-        const hasBinary = allPassRates.length > 0 && allMeans.length === 0;
+        const hasBinary = (allPassRates.length > 0 && allMeans.length === 0) ||
+                          (activeCampaign && (activeCampaign.protocol_type === "binary" || activeCampaign.scale_max === 1));
 
         if (isAsr) {
           if (el.statPrimaryLabel) el.statPrimaryLabel.textContent = "Acceptable Speech Rate";
-          el.statMeanMos.textContent = `${data.asr_summary?.acceptable_rate || 0}%`;
+          if (el.statMeanMos) el.statMeanMos.textContent = `${data.asr_summary?.acceptable_rate || 0}%`;
+          if (el.chartMosBadge) el.chartMosBadge.textContent = "ASR Review";
+          if (el.analyticsScorecardTitle) el.analyticsScorecardTitle.textContent = "ASR Adjudication & Model Summary";
         } else if (hasBinary) {
-          const avgPass = (allPassRates.reduce((a, b) => a + b, 0) / allPassRates.length).toFixed(1);
+          const avgPass = allPassRates.length > 0 ? (allPassRates.reduce((a, b) => a + b, 0) / allPassRates.length).toFixed(1) : "0.0";
           if (el.statPrimaryLabel) el.statPrimaryLabel.textContent = "Overall Pass Rate";
-          el.statMeanMos.textContent = `${avgPass}%`;
+          if (el.statMeanMos) el.statMeanMos.textContent = `${avgPass}%`;
+          if (el.chartMosBadge) el.chartMosBadge.textContent = "Pass Rate (%)";
+          if (el.analyticsScorecardTitle) el.analyticsScorecardTitle.textContent = "Model Accuracy & Pass Rates";
         } else {
           const scaleMax = studyMeta.scale_max || 5;
           const scaleMin = studyMeta.scale_min || 1;
           if (el.statPrimaryLabel) el.statPrimaryLabel.textContent = `Average Score (${scaleMin} to ${scaleMax})`;
           const avgMos = allMeans.length > 0 ? (allMeans.reduce((a, b) => a + b, 0) / allMeans.length).toFixed(2) : "0.00";
-          el.statMeanMos.textContent = avgMos;
+          if (el.statMeanMos) el.statMeanMos.textContent = avgMos;
+          if (el.chartMosBadge) el.chartMosBadge.textContent = "95% CI Error Ticks";
+          if (el.analyticsScorecardTitle) el.analyticsScorecardTitle.textContent = "Average Scores by Audio Model / Sample";
         }
       }
 
@@ -4305,7 +4440,8 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         } else {
           ratersList.forEach(r => {
             const tr = document.createElement("tr");
-            const raterName = escapeHtml(r.rater_name || r.name || r.rater_id || "Anonymous");
+            const rawName = r.rater_name || r.name || r.rater_id || "Anonymous";
+            const raterName = escapeHtml(rawName);
             const role = escapeHtml(r.role || "Listener");
             const doneCount = r.eval_count || 0;
             const pct = totalStudyItems > 0 ? Math.min(100, Math.round((doneCount / totalStudyItems) * 100)) : 0;
@@ -4326,7 +4462,14 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
             const lastSubmitted = r.last_submitted_at ? String(r.last_submitted_at).slice(0, 16) : "—";
 
             tr.innerHTML = `
-              <td class="p-3 font-semibold text-zinc-900">${raterName}</td>
+              <td class="p-3 font-semibold text-zinc-900">
+                <div class="flex items-center gap-1.5">
+                  <span>${raterName}</span>
+                  <button type="button" class="btn-rename-rater-row text-zinc-400 hover:text-zinc-800 p-0.5 rounded hover:bg-zinc-100 transition cursor-pointer" title="Rename evaluator">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                  </button>
+                </div>
+              </td>
               <td class="p-3 text-zinc-600">${role}</td>
               <td class="p-3">${progressHtml}</td>
               <td class="p-3 font-mono text-zinc-600">${avgTime}</td>
@@ -4352,6 +4495,31 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
             `;
 
             // Wire action buttons
+            const btnRenameRow = tr.querySelector(".btn-rename-rater-row");
+            if (btnRenameRow) {
+              btnRenameRow.addEventListener("click", async () => {
+                const newName = prompt("Enter new name for this evaluator:", rawName);
+                if (newName && newName.trim() && newName.trim() !== rawName) {
+                  try {
+                    const resp = await adminFetch("/api/admin/raters/rename", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ rater_id: r.rater_id, name: newName.trim() })
+                    });
+                    const d = await resp.json();
+                    if (resp.ok && d.success) {
+                      showToast("Evaluator renamed.", "success");
+                      loadAnalyticsData();
+                    } else {
+                      showToast(d.error || "Failed to rename evaluator", "error");
+                    }
+                  } catch (err) {
+                    showToast("Network error: " + err.message, "error");
+                  }
+                }
+              });
+            }
+
             const btnViewPages = tr.querySelector(".btn-view-rater-pages");
             if (btnViewPages) {
               btnViewPages.addEventListener("click", () => {
@@ -5009,7 +5177,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
 
     // Bars and CI ticks
     modelsList.forEach((m, idx) => {
-      const name = m.name || m.model_name || "Sample";
+      const name = m.name || m.model_name || m.candidate_code || m.code || "Sample";
       const summary = m.summary || {};
       const primaryStat = summary[activeKey] || summary[Object.keys(summary)[0]] || {};
 
@@ -5058,9 +5226,9 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       }
 
       // Model label on bottom
-      const truncName = name.length > 12 ? name.slice(0, 10) + "…" : name;
+      const truncName = name.length > 15 ? name.slice(0, 13) + "…" : name;
       svg += `
-        <text x="${centerX}" y="${chartHeight - 12}" text-anchor="middle" font-size="10" font-weight="500" fill="#3F3F46">${escapeHtml(truncName)}</text>
+        <text x="${centerX}" y="${chartHeight - 12}" text-anchor="middle" font-size="10" font-weight="600" fill="#27272A">${escapeHtml(truncName)}</text>
       `;
     });
 
@@ -5307,7 +5475,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           </div>
           <div>
             <div class="text-[10px] text-zinc-500 font-medium">Rubric Scale</div>
-            <div class="font-bold text-zinc-900">1 - ${camp.scale_max || 5} ${escapeHtml(camp.protocol_type || "ACR")}</div>
+            <div class="font-bold text-zinc-900">${(camp.scale_max <= 2 || (camp.protocol_type || '').toLowerCase() === 'diagnostic') ? 'Pass / Fail' : `1 - ${camp.scale_max || 5} ${escapeHtml(camp.protocol_type || "ACR")}`}</div>
           </div>
         </div>
 
@@ -5321,7 +5489,6 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           <div class="flex flex-wrap items-center gap-2">
             <button type="button" class="btn-ghost text-xs btn-copy-card-link" data-url="${shareUrl}">Copy Link</button>
             <a href="${shareUrl}" target="_blank" class="btn-ghost text-xs">Evaluate</a>
-            <button type="button" class="btn-carbon text-xs btn-view-card-results" data-id="${camp.id}">Results & MOS</button>
             <button type="button" class="px-2.5 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg font-medium cursor-pointer transition btn-delete-card" data-id="${camp.id}" data-name="${escapeHtml(camp.name)}">
               Delete
             </button>
@@ -5339,13 +5506,6 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         } catch (err) {
           showToast(`Study URL: ${shareUrl}`, "info");
         }
-      });
-
-      // View Results
-      card.querySelector(".btn-view-card-results").addEventListener("click", () => {
-        el.tabBtnResults.click();
-        el.analyticsCampaignSelect.value = camp.id;
-        loadAnalyticsData();
       });
 
       // Toggle Status

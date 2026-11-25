@@ -53,22 +53,28 @@ class AudioDSPEngine {
       this.gainNode = this.audioCtx.createGain();
       this.gainNode.gain.value = 1.0;
 
-      // Telephone Bandpass Simulation: 300 Hz Highpass + 3,400 Hz Lowpass
+      // Telephone Bandpass Simulation: 300 Hz Highpass + 3,400 Hz Lowpass + 1800 Hz Presence Peak
       this.highpassFilter = this.audioCtx.createBiquadFilter();
       this.highpassFilter.type = "highpass";
-      this.highpassFilter.frequency.value = 300;
-      this.highpassFilter.Q.value = 0.707;
+      this.highpassFilter.frequency.value = 350;
+      this.highpassFilter.Q.value = 1.2;
 
       this.lowpassFilter = this.audioCtx.createBiquadFilter();
       this.lowpassFilter.type = "lowpass";
       this.lowpassFilter.frequency.value = 3400;
-      this.lowpassFilter.Q.value = 0.707;
+      this.lowpassFilter.Q.value = 1.2;
+
+      this.phonePeakFilter = this.audioCtx.createBiquadFilter();
+      this.phonePeakFilter.type = "peaking";
+      this.phonePeakFilter.frequency.value = 1800;
+      this.phonePeakFilter.Q.value = 1.0;
+      this.phonePeakFilter.gain.value = 4.0;
 
       // Real-time Analyser for Spectrogram
       this.analyserNode = this.audioCtx.createAnalyser();
       this.analyserNode.fftSize = 256;
 
-      // Initial direct wiring (bypass filter by default)
+      // Initial wiring
       this.reconnectNodes();
     }
 
@@ -82,36 +88,31 @@ class AudioDSPEngine {
 
     try {
       this.gainNode.disconnect();
+      if (this.highpassFilter) this.highpassFilter.disconnect();
+      if (this.lowpassFilter) this.lowpassFilter.disconnect();
+      if (this.phonePeakFilter) this.phonePeakFilter.disconnect();
       this.analyserNode.disconnect();
     } catch (e) {}
 
-    // Pure, unaltered audio playback: Gain -> Analyser -> Destination
-    this.gainNode.connect(this.analyserNode);
-    this.analyserNode.connect(this.audioCtx.destination);
-  }
-
-  setPhoneFilter(enabled) {
-    this.isPhoneFilterEnabled = !!enabled;
-    if (!this.audioCtx) return;
-
-    try {
-      this.gainNode.disconnect();
-      this.highpassFilter.disconnect();
-      this.lowpassFilter.disconnect();
-      this.analyserNode.disconnect();
-    } catch (e) {}
-
-    if (this.isPhoneFilterEnabled) {
-      // Bandpass 300Hz - 3400Hz telephone simulation
+    if (this.isPhoneFilterEnabled && this.highpassFilter && this.lowpassFilter && this.phonePeakFilter) {
+      // 8 kHz Telephony Simulation: Gain -> Highpass (350Hz) -> Lowpass (3400Hz) -> Peak (1800Hz) -> Analyser -> Destination
       this.gainNode.connect(this.highpassFilter);
       this.highpassFilter.connect(this.lowpassFilter);
-      this.lowpassFilter.connect(this.analyserNode);
+      this.lowpassFilter.connect(this.phonePeakFilter);
+      this.phonePeakFilter.connect(this.analyserNode);
       this.analyserNode.connect(this.audioCtx.destination);
     } else {
       // Pure, unaltered audio playback: Gain -> Analyser -> Destination
       this.gainNode.connect(this.analyserNode);
       this.analyserNode.connect(this.audioCtx.destination);
     }
+  }
+
+  setPhoneFilter(enabled) {
+    this.isPhoneFilterEnabled = !!enabled;
+    this.ensureContext();
+    this.reconnectNodes();
+    this.updateAllWaveforms();
   }
 
   setVolume(vol) {
@@ -156,11 +157,11 @@ class AudioDSPEngine {
     }
   }
 
-  async play() {
+  play() {
     this.ensureContext();
     if (this.audioCtx && this.audioCtx.state === "suspended") {
       try {
-        await this.audioCtx.resume();
+        this.audioCtx.resume();
       } catch (e) {}
     }
     if (this.isPlaying) return;
@@ -175,12 +176,19 @@ class AudioDSPEngine {
     // Pure Unaltered Audio Wiring (Direct gain -> analyser -> destination)
     source.connect(this.gainNode);
 
-    const offset = Math.min(this.pausedAt, buffer.duration - 0.05);
+    // If offset is already at or past the buffer end, restart cleanly from 0
+    let offset = this.pausedAt || 0;
+    if (offset >= buffer.duration - 0.05) {
+      offset = 0;
+      this.pausedAt = 0;
+    }
+
     const now = this.audioCtx.currentTime;
-    source.start(now, Math.max(0, offset));
+    source.start(0, Math.max(0, offset));
 
     source.onended = () => {
-      if (this.isPlaying && this.getCurrentTime() >= buffer.duration - 0.05) {
+      // Check if this source wasn't superseded or stopped manually
+      if (this.sourceNodeA === source || this.sourceNodeB === source) {
         this.isPlaying = false;
         this.pausedAt = 0;
         cancelAnimationFrame(this.animationFrameId);
@@ -202,7 +210,8 @@ class AudioDSPEngine {
 
   pause() {
     if (!this.isPlaying) return;
-    this.pausedAt = this.getCurrentTime();
+    const curTime = this.getCurrentTime();
+    this.pausedAt = (this.duration && curTime >= this.duration - 0.05) ? 0 : curTime;
     this.isPlaying = false;
     cancelAnimationFrame(this.animationFrameId);
     this.updateAllWaveforms();
@@ -570,12 +579,22 @@ class AudioDSPEngine {
 
     // Draw waveform bars with Fish Audio gradient depth and rounded pill capsules
     const playedGrad = ctx.createLinearGradient(0, midY - (maxBarHeight / 2), 0, midY + (maxBarHeight / 2));
-    playedGrad.addColorStop(0, "#09090B");
-    playedGrad.addColorStop(1, "#27272A");
+    if (this.isPhoneFilterEnabled) {
+      playedGrad.addColorStop(0, "#D97706");
+      playedGrad.addColorStop(1, "#B45309");
+    } else {
+      playedGrad.addColorStop(0, "#09090B");
+      playedGrad.addColorStop(1, "#27272A");
+    }
 
     const unplayedGrad = ctx.createLinearGradient(0, midY - (maxBarHeight / 2), 0, midY + (maxBarHeight / 2));
-    unplayedGrad.addColorStop(0, "#D4D4D8");
-    unplayedGrad.addColorStop(1, "#E4E4E7");
+    if (this.isPhoneFilterEnabled) {
+      unplayedGrad.addColorStop(0, "#FDE68A");
+      unplayedGrad.addColorStop(1, "#FEF3C7");
+    } else {
+      unplayedGrad.addColorStop(0, "#D4D4D8");
+      unplayedGrad.addColorStop(1, "#E4E4E7");
+    }
 
     for (let i = 0; i < numBars; i++) {
       const x = i * (barWidth + barGap);
