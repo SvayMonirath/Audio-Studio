@@ -881,6 +881,41 @@ class StudioHandler(BaseHTTPRequestHandler):
                 self.send_json_response({"success": True, "deleted_evaluation_id": e_id})
                 return
 
+            if path == "/api/raters":
+                rater_id = query.get("id", [None])[0] or query.get("rater_id", [None])[0]
+                campaign_id = query.get("campaign_id", [None])[0]
+
+                if not rater_id:
+                    self.send_json_response({"error": "id parameter required."}, status=400)
+                    return
+
+                r_row = cur.execute("SELECT id, name FROM raters WHERE id = ?", (rater_id,)).fetchone()
+                if not r_row:
+                    self.send_json_response({"error": "Rater not found."}, status=404)
+                    return
+
+                if campaign_id:
+                    cur.execute("DELETE FROM evaluations WHERE rater_id = ? AND campaign_id = ?", (rater_id, campaign_id))
+                    deleted_count = cur.rowcount
+                    conn.commit()
+                    self.send_json_response({
+                        "success": True,
+                        "scope": "campaign",
+                        "rater_id": rater_id,
+                        "campaign_id": campaign_id,
+                        "deleted_evaluations": deleted_count
+                    })
+                    return
+                else:
+                    cur.execute("DELETE FROM raters WHERE id = ?", (rater_id,))
+                    conn.commit()
+                    self.send_json_response({
+                        "success": True,
+                        "scope": "global",
+                        "rater_id": rater_id
+                    })
+                    return
+
             self.send_error(404, "Delete endpoint not found")
 
         except Exception as e:

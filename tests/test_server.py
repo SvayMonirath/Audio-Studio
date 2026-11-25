@@ -1290,6 +1290,136 @@ class StudioServerTestCase(unittest.TestCase):
             self.assertIn(camp_id, row_data)
             self.assertIn("MISPRONUNCIATION", row_data)
 
+    def test_delete_rater_scoped_and_global(self):
+        """Verify DELETE /api/raters endpoint for scoped and global deletion."""
+        # 1. Unauthenticated request should fail with 401
+        del_url = f"http://127.0.0.1:{TEST_PORT}/api/raters?id=rater-dummy"
+        req_unauth = Request(del_url, method="DELETE")
+        with self.assertRaises(HTTPError) as ctx:
+            urlopen(req_unauth)
+        self.assertEqual(ctx.exception.code, 401)
+
+        # 2. Setup 2 campaigns and 1 rater with evaluations in both
+        # Register rater
+        req_reg = Request(f"http://127.0.0.1:{TEST_PORT}/api/raters",
+                          data=json.dumps({"name": f"ModeratedRater_{int(time.time()*1000)}", "role": "Evaluator"}).encode("utf-8"),
+                          headers={"Content-Type": "application/json"})
+        with urlopen(req_reg) as resp:
+            rater_data = json.loads(resp.read().decode())
+            rater_id = rater_data["rater"]["id"]
+
+        camp1_id = "camp-dev23-4models"
+        # Create camp2
+        suite_id = f"suite-{int(time.time()*1000)}"
+        req_suite = Request(f"http://127.0.0.1:{TEST_PORT}/api/suites",
+                            data=json.dumps({
+                                "id": suite_id,
+                                "name": "Suite for Moderation",
+                                "items": [{"model_id": "model-voxcpm2", "audio_url": "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH01.wav", "text": "Test"}]
+                            }).encode("utf-8"),
+                            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"})
+        with urlopen(req_suite) as resp:
+            self.assertEqual(resp.status, 201)
+
+        camp2_id = f"camp-{int(time.time()*1000)}"
+        req_camp2 = Request(f"http://127.0.0.1:{TEST_PORT}/api/campaigns",
+                            data=json.dumps({"id": camp2_id, "name": "Moderation Study 2", "suite_id": suite_id}).encode("utf-8"),
+                            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"})
+        with urlopen(req_camp2) as resp:
+            self.assertEqual(resp.status, 201)
+            camp2_id = json.loads(resp.read().decode())["campaign_id"]
+
+        # Submit eval to camp1
+        # Fetch an item from camp1
+        with urlopen(f"http://127.0.0.1:{TEST_PORT}/api/items?campaign_id={camp1_id}") as resp:
+            item1 = json.loads(resp.read().decode())["items"][0]
+
+        eval1_payload = {
+            "campaign_id": camp1_id,
+            "item_id": item1["id"],
+            "model_id": "model-voxcpm2",
+            "rater_id": rater_id,
+            "scores": {"overall_quality": 4},
+            "defect_tags": [{"category": "NOISE", "severity": 2}]
+        }
+        req_eval1 = Request(f"http://127.0.0.1:{TEST_PORT}/api/evaluations",
+                            data=json.dumps(eval1_payload).encode("utf-8"),
+                            headers={"Content-Type": "application/json"})
+        with urlopen(req_eval1) as resp:
+            self.assertEqual(resp.status, 201)
+
+        # Submit eval to camp2
+        with urlopen(f"http://127.0.0.1:{TEST_PORT}/api/items?campaign_id={camp2_id}") as resp:
+            item2 = json.loads(resp.read().decode())["items"][0]
+
+        eval2_payload = {
+            "campaign_id": camp2_id,
+            "item_id": item2["id"],
+            "model_id": "model-voxcpm2",
+            "rater_id": rater_id,
+            "scores": {"overall_quality": 3},
+            "defect_tags": [{"category": "MISPRONUNCIATION", "severity": 3}]
+        }
+        req_eval2 = Request(f"http://127.0.0.1:{TEST_PORT}/api/evaluations",
+                            data=json.dumps(eval2_payload).encode("utf-8"),
+                            headers={"Content-Type": "application/json"})
+        with urlopen(req_eval2) as resp:
+            self.assertEqual(resp.status, 201)
+
+        # Verify DB has evaluations for rater in both campaigns
+        conn = get_connection(TEST_DB_PATH)
+        c1_count = conn.execute("SELECT COUNT(*) FROM evaluations WHERE rater_id = ? AND campaign_id = ?", (rater_id, camp1_id)).fetchone()[0]
+        c2_count = conn.execute("SELECT COUNT(*) FROM evaluations WHERE rater_id = ? AND campaign_id = ?", (rater_id, camp2_id)).fetchone()[0]
+        self.assertGreaterEqual(c1_count, 1)
+        self.assertGreaterEqual(c2_count, 1)
+        conn.close()
+
+        # 3. Test Scoped clear (campaign_id provided)
+        del_scoped_url = f"http://127.0.0.1:{TEST_PORT}/api/raters?id={rater_id}&campaign_id={camp1_id}"
+        req_scoped = Request(del_scoped_url, method="DELETE", headers={"X-Admin-PIN": "2026"})
+        with urlopen(req_scoped) as resp:
+            self.assertEqual(resp.status, 200)
+            data = json.loads(resp.read().decode())
+            self.assertTrue(data.get("success"))
+            self.assertEqual(data.get("scope"), "campaign")
+            self.assertEqual(data.get("rater_id"), rater_id)
+            self.assertEqual(data.get("campaign_id"), camp1_id)
+            self.assertEqual(data.get("deleted_evaluations"), c1_count)
+
+        # Verify rater still exists in DB, camp1 evals gone, camp2 evals remain
+        conn = get_connection(TEST_DB_PATH)
+        rater_exists = conn.execute("SELECT COUNT(*) FROM raters WHERE id = ?", (rater_id,)).fetchone()[0]
+        self.assertEqual(rater_exists, 1)
+        c1_after = conn.execute("SELECT COUNT(*) FROM evaluations WHERE rater_id = ? AND campaign_id = ?", (rater_id, camp1_id)).fetchone()[0]
+        c2_after = conn.execute("SELECT COUNT(*) FROM evaluations WHERE rater_id = ? AND campaign_id = ?", (rater_id, camp2_id)).fetchone()[0]
+        self.assertEqual(c1_after, 0)
+        self.assertEqual(c2_after, c2_count)
+        conn.close()
+
+        # 4. Test Global delete (no campaign_id provided)
+        del_global_url = f"http://127.0.0.1:{TEST_PORT}/api/raters?id={rater_id}"
+        req_global = Request(del_global_url, method="DELETE", headers={"X-Admin-PIN": "2026"})
+        with urlopen(req_global) as resp:
+            self.assertEqual(resp.status, 200)
+            data = json.loads(resp.read().decode())
+            self.assertTrue(data.get("success"))
+            self.assertEqual(data.get("scope"), "global")
+            self.assertEqual(data.get("rater_id"), rater_id)
+
+        # Verify rater is deleted and remaining evals are deleted via cascade
+        conn = get_connection(TEST_DB_PATH)
+        rater_exists_after = conn.execute("SELECT COUNT(*) FROM raters WHERE id = ?", (rater_id,)).fetchone()[0]
+        self.assertEqual(rater_exists_after, 0)
+        c2_global_after = conn.execute("SELECT COUNT(*) FROM evaluations WHERE rater_id = ?", (rater_id,)).fetchone()[0]
+        self.assertEqual(c2_global_after, 0)
+        conn.close()
+
+        # 5. Non-existent rater delete should return 404
+        req_notfound = Request(f"http://127.0.0.1:{TEST_PORT}/api/raters?id=nonexistent-id", method="DELETE", headers={"X-Admin-PIN": "2026"})
+        with self.assertRaises(HTTPError) as ctx:
+            urlopen(req_notfound)
+        self.assertEqual(ctx.exception.code, 404)
+
 
 if __name__ == "__main__":
     unittest.main()
