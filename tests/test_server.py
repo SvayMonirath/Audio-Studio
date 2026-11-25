@@ -1420,6 +1420,25 @@ class StudioServerTestCase(unittest.TestCase):
             urlopen(req_notfound)
         self.assertEqual(ctx.exception.code, 404)
 
+    def test_eval_portal_draft_reset_and_state_contracts(self):
+        """Verify Task 3 contracts for eval portal draft reset, client persistence and sorting."""
+        eval_html_path = os.path.join(TOOL_DIR, "public", "eval.html")
+        eval_js_path = os.path.join(TOOL_DIR, "public", "js", "eval_app.js")
+
+        with open(eval_html_path, "r", encoding="utf-8") as f:
+            html_content = f.read()
+        self.assertIn('id="btn-reset-item"', html_content)
+
+        with open(eval_js_path, "r", encoding="utf-8") as f:
+            js_content = f.read()
+        self.assertIn("saveDraftForCurrentItem", js_content)
+        self.assertIn("sortItemsForSidebar", js_content)
+        self.assertIn("getVisibleSequenceIndices", js_content)
+        self.assertIn("currentWordHighlights", js_content)
+        # autoSaveCurrentItem is removed/no longer in code
+        self.assertNotIn("autoSaveCurrentItem", js_content)
+
 
 if __name__ == "__main__":
+
     unittest.main()

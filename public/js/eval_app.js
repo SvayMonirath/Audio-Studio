@@ -41,6 +41,8 @@
     currentAudioUrl: null,
     currentScores: {}, // { [metricKey]: score }
     currentDefects: [], // [ { id, startSec, endSec, startMs, endMs, errorCode, errorLabel, note } ]
+    drafts: {}, // { [itemId]: draftObject }
+    currentWordHighlights: new Map(), // Map(wIdx -> { word_index, word_text, error_code })
     activeSelection: null,
     existingEvaluations: {}, // { [itemId]: evalObject }
     itemStartTime: Date.now(),
@@ -187,6 +189,7 @@
     // Navigation
     btnPrevItem: document.getElementById("btn-prev-item"),
     btnNextItem: document.getElementById("btn-next-item"),
+    btnResetItem: document.getElementById("btn-reset-item"),
     evalStatusIndicator: document.getElementById("eval-status-indicator"),
 
     // Completion
@@ -294,6 +297,7 @@
         if (state.items.length === 0) {
           await loadCampaignData();
         } else {
+          loadDraftsFromStorage();
           await fetchPriorEvaluations();
           renderSidebar();
           renderCurrentItem();
@@ -458,6 +462,16 @@
     // Next & Previous buttons
     el.btnNextItem.addEventListener("click", submitAndNext);
     el.btnPrevItem.addEventListener("click", () => navigateItem(-1));
+    if (el.btnResetItem) {
+      el.btnResetItem.addEventListener("click", () => {
+        const item = state.items[state.currentIndex];
+        if (!item) return;
+        clearDraftForItem(item.id);
+        renderCurrentItem();
+        renderSidebar();
+        showToast("Reset draft for this sample.", "info");
+      });
+    }
     setupAsrControls();
 
     // Rater Heard Transcription Quick-Copy & Live Diff Listeners
@@ -483,9 +497,20 @@
       });
     }
 
+    if (el.evalNotesInput) {
+      el.evalNotesInput.addEventListener("input", () => {
+        saveDraftForCurrentItem();
+        if (el.btnResetItem) el.btnResetItem.classList.remove("hidden");
+        renderSidebar();
+      });
+    }
+
     if (el.heardTranscriptInput) {
       el.heardTranscriptInput.addEventListener("input", () => {
         updateHeardDiff();
+        saveDraftForCurrentItem();
+        if (el.btnResetItem) el.btnResetItem.classList.remove("hidden");
+        renderSidebar();
       });
     }
 
@@ -690,13 +715,14 @@
       // Fetch Items
       const itemsResp = await fetch(`/api/items?campaign_id=${state.campaignId}`);
       const itemsData = await itemsResp.json();
-      state.items = itemsData.items || [];
+      state.items = sortItemsForSidebar(itemsData.items || []);
 
       if (state.items.length === 0) {
         showToast("No test audio items found in this study.", "error");
         return;
       }
 
+      loadDraftsFromStorage();
       await fetchPriorEvaluations();
 
       // Find first uncompleted item
@@ -717,6 +743,51 @@
     } finally {
       isLoadingCampaign = false;
     }
+  }
+
+  // Sort Items for predictable model-grouped natural ordering
+  function sortItemsForSidebar(items) {
+    if (!Array.isArray(items) || items.length === 0) return [];
+    const modelOrder = [];
+    const modelGroups = new Map();
+
+    items.forEach(it => {
+      const mId = resolveItemModelId(it) || "unknown";
+      if (!modelGroups.has(mId)) {
+        modelOrder.push(mId);
+        modelGroups.set(mId, []);
+      }
+      modelGroups.get(mId).push(it);
+    });
+
+    const naturalCompare = (a, b) => {
+      const keyA = `${a.item_key || ""} ${a.filename || ""}`;
+      const keyB = `${b.item_key || ""} ${b.filename || ""}`;
+      return keyA.localeCompare(keyB, undefined, { numeric: true, sensitivity: "base" });
+    };
+
+    const sorted = [];
+    modelOrder.forEach(mId => {
+      const group = modelGroups.get(mId);
+      group.sort(naturalCompare);
+      sorted.push(...group);
+    });
+    return sorted;
+  }
+
+  // Get visible sequence indices based on model filter
+  function getVisibleSequenceIndices() {
+    if (!state.items || state.items.length === 0) return [];
+    if (!state.selectedModelFilter || state.selectedModelFilter === "all") {
+      return state.items.map((_, idx) => idx);
+    }
+    const indices = [];
+    state.items.forEach((it, idx) => {
+      if (resolveItemModelId(it) === state.selectedModelFilter) {
+        indices.push(idx);
+      }
+    });
+    return indices;
   }
 
   // Render Sidebar Model Tabs, Zero-Scroll Matrix Grid, and Progress
@@ -822,11 +893,23 @@
 
       // Helper function to create interactive matrix cell with model-relative word index
       const createCell = (it, globalIndex, mName, modelRelativeIndex) => {
+        const hasDraft = !!(state.drafts && state.drafts[it.id]);
         const isCompleted = !!state.existingEvaluations[it.id];
         const isActive = globalIndex === state.currentIndex;
         const cell = document.createElement("button");
         cell.type = "button";
-        cell.className = `matrix-cell ${isActive ? "active" : ""} ${isCompleted ? "completed" : ""}`;
+
+        let statusClass = "";
+        let statusLabel = "Unrated";
+        if (hasDraft) {
+          statusClass = "border-amber-400 bg-amber-50 text-amber-900 font-semibold";
+          statusLabel = "Draft";
+        } else if (isCompleted) {
+          statusClass = "completed";
+          statusLabel = "Completed";
+        }
+
+        cell.className = `matrix-cell ${isActive ? "active" : ""} ${statusClass}`;
 
         // Extract clean word/sentence index: W001 -> "1", KH01 -> "1", or fallback to sequential index in this model
         let cellText = `${modelRelativeIndex || globalIndex + 1}`;
@@ -846,11 +929,11 @@
         }
 
         cell.innerHTML = `<span>${cellText}</span>`;
-        cell.title = `${mName || "Model"} • #${cellText} (${it.item_key || it.filename || `Sample ${modelRelativeIndex || globalIndex + 1}`})\n${it.source_text || it.text || ""}\nStatus: ${isCompleted ? "Completed" : "Unrated"}`;
+        cell.title = `${mName || "Model"} • #${cellText} (${it.item_key || it.filename || `Sample ${modelRelativeIndex || globalIndex + 1}`})\n${it.source_text || it.text || ""}\nStatus: ${statusLabel}`;
 
-        cell.addEventListener("click", async () => {
+        cell.addEventListener("click", () => {
           if (globalIndex !== state.currentIndex) {
-            await autoSaveCurrentItem();
+            saveDraftForCurrentItem();
             state.currentIndex = globalIndex;
             renderCurrentItem();
             renderSidebar();
@@ -950,11 +1033,12 @@
           return;
         }
 
+        const hasDraft = !!(state.drafts && state.drafts[item.id]);
         const isCompleted = !!state.existingEvaluations[item.id];
         const isActive = idx === state.currentIndex;
 
-        if (state.sidebarFilter === "unrated" && isCompleted) return;
-        if (state.sidebarFilter === "completed" && !isCompleted) return;
+        if (state.sidebarFilter === "unrated" && (isCompleted || hasDraft)) return;
+        if (state.sidebarFilter === "completed" && (!isCompleted || hasDraft)) return;
 
         const itemCard = document.createElement("div");
         itemCard.className = `p-2.5 rounded-xl border text-xs cursor-pointer transition flex items-start justify-between gap-2 ${
@@ -966,6 +1050,15 @@
         const modelName = resolveItemModelName(item);
         const codeSnippet = item.item_key ? item.item_key.split("•")[0].trim() : `Sample ${idx + 1}`;
         const textSnippet = (item.source_text || item.text || item.prompt_text || "Audio Item").slice(0, 30);
+
+        let badgeHtml = "";
+        if (hasDraft) {
+          badgeHtml = `<span class="flex-shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Draft</span>`;
+        } else if (isCompleted) {
+          badgeHtml = `<span class="flex-shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Completed</span>`;
+        } else {
+          badgeHtml = `<span class="flex-shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700">Unrated</span>`;
+        }
 
         itemCard.innerHTML = `
           <div class="min-w-0">
@@ -979,18 +1072,12 @@
               ${escapeHtml(textSnippet)}${(item.source_text || item.text || "").length > 30 ? "..." : ""}
             </div>
           </div>
-          <span class="flex-shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-            isCompleted
-              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-              : "bg-zinc-100 text-zinc-700"
-          }">
-            ${isCompleted ? "Completed" : "Unrated"}
-          </span>
+          ${badgeHtml}
         `;
 
-        itemCard.addEventListener("click", async () => {
+        itemCard.addEventListener("click", () => {
           if (idx !== state.currentIndex) {
-            await autoSaveCurrentItem();
+            saveDraftForCurrentItem();
             state.currentIndex = idx;
             renderCurrentItem();
             renderSidebar();
@@ -1021,18 +1108,30 @@
   function setupAsrControls() {
     if (el.btnAsrAcceptable) {
       el.btnAsrAcceptable.addEventListener("click", () => {
-        state.currentAsrAdjudication = "ACCEPTABLE_VARIATION";
         state.currentScores = state.currentScores || {};
-        state.currentScores["accuracy"] = 5;
+        if (state.currentAsrAdjudication === "ACCEPTABLE_VARIATION") {
+          state.currentAsrAdjudication = null;
+          delete state.currentScores["accuracy"];
+        } else {
+          state.currentAsrAdjudication = "ACCEPTABLE_VARIATION";
+          state.currentScores["accuracy"] = 5;
+        }
         updateAsrButtonStyles();
+        saveDraftForCurrentItem();
       });
     }
     if (el.btnAsrError) {
       el.btnAsrError.addEventListener("click", () => {
-        state.currentAsrAdjudication = "TRUE_ERROR";
         state.currentScores = state.currentScores || {};
-        state.currentScores["accuracy"] = 1;
+        if (state.currentAsrAdjudication === "TRUE_ERROR") {
+          state.currentAsrAdjudication = null;
+          delete state.currentScores["accuracy"];
+        } else {
+          state.currentAsrAdjudication = "TRUE_ERROR";
+          state.currentScores["accuracy"] = 1;
+        }
         updateAsrButtonStyles();
+        saveDraftForCurrentItem();
       });
     }
   }
@@ -1160,6 +1259,16 @@
     const isLast = state.currentIndex === total - 1;
     el.btnNextItem.querySelector("span").textContent = isLast ? "Submit & Finish" : "Submit & Next";
 
+    // Draft / Reset button visibility
+    const currentDraft = state.drafts && state.drafts[item.id];
+    if (el.btnResetItem) {
+      if (currentDraft) {
+        el.btnResetItem.classList.remove("hidden");
+      } else {
+        el.btnResetItem.classList.add("hidden");
+      }
+    }
+
     // Header label & Model Badge
     const modelName = resolveItemModelName(item);
     const codeSnippet = item.item_key ? item.item_key.split("•")[0].trim() : `Sample ${state.currentIndex + 1}`;
@@ -1167,6 +1276,10 @@
     if (el.audioModelBadge) {
       el.audioModelBadge.textContent = modelName || "Model";
     }
+
+    // Determine state source: draft takes precedence over existing submission
+    const existing = state.existingEvaluations[item.id];
+    const source = currentDraft || existing || null;
 
     // 1. Verbatim Raw Continuous Khmer Script or ASR Diff
     const isAsr = (state.campaign && state.campaign.modality === "ASR");
@@ -1179,8 +1292,7 @@
       if (el.asrReferenceText) el.asrReferenceText.textContent = ref;
       if (el.asrHypothesisText) el.asrHypothesisText.textContent = hyp;
 
-      const existing = state.existingEvaluations[item.id];
-      state.currentAsrAdjudication = (existing && existing.asr_adjudication) || null;
+      state.currentAsrAdjudication = (source && source.asr_adjudication) || null;
       updateAsrButtonStyles();
     } else {
       if (el.ttsTranscriptContainer) el.ttsTranscriptContainer.classList.remove("hidden");
@@ -1233,24 +1345,57 @@
     }
 
     // 3. Word-Level Tagging Pills (if word_tagger active)
+    state.currentWordHighlights.clear();
+    const defectTags = (source && source.defect_tags) ? source.defect_tags : [];
+    if (Array.isArray(defectTags)) {
+      defectTags.forEach(dt => {
+        if (dt.word_text) {
+          const wIdx = parseInt(dt.word_index, 10);
+          state.currentWordHighlights.set(isNaN(wIdx) ? dt.word_text : wIdx, {
+            word_index: isNaN(wIdx) ? 0 : wIdx,
+            word_text: dt.word_text,
+            error_code: dt.error_code || "WORD_FLAG"
+          });
+        }
+      });
+    }
+
     const taggerBlock = uiConfig?.blocks?.find(b => b.type === "word_tagger");
     if (taggerBlock && el.wordPillsContainer && !isAsr) {
       const rawText = item.source_text || item.text || item.prompt_text || "";
       const words = rawText.split(/\s+/).filter(Boolean);
       if (words.length > 0) {
         el.wordPillsContainer.classList.remove("hidden");
-        el.wordPillsContainer.innerHTML = words.map((w, wIdx) => `
-          <button type="button" class="px-2 py-0.5 rounded-lg text-xs font-khmer transition cursor-pointer word-pill-btn word-pill-amber" data-word="${escapeHtml(w)}" data-widx="${wIdx}">
-            ${escapeHtml(w)}
-          </button>
-        `).join("");
+        el.wordPillsContainer.innerHTML = words.map((w, wIdx) => {
+          const isHighlighted = state.currentWordHighlights.has(wIdx);
+          const activeClasses = isHighlighted ? "bg-amber-100 border-amber-500 text-amber-900" : "";
+          return `
+            <button type="button" class="px-2 py-0.5 rounded-lg text-xs font-khmer transition cursor-pointer word-pill-btn word-pill-amber ${activeClasses}" data-word="${escapeHtml(w)}" data-widx="${wIdx}">
+              ${escapeHtml(w)}
+            </button>
+          `;
+        }).join("");
 
         el.wordPillsContainer.querySelectorAll(".word-pill-btn").forEach(pBtn => {
           pBtn.onclick = () => {
-            pBtn.classList.toggle("bg-amber-100");
-            pBtn.classList.toggle("border-amber-500");
-            pBtn.classList.toggle("text-amber-900");
-            showToast(`Marked word "${pBtn.dataset.word}"`, "info");
+            const wIdx = parseInt(pBtn.dataset.widx, 10);
+            const wText = pBtn.dataset.word;
+            if (state.currentWordHighlights.has(wIdx)) {
+              state.currentWordHighlights.delete(wIdx);
+              pBtn.classList.remove("bg-amber-100", "border-amber-500", "text-amber-900");
+              showToast(`Unmarked word "${wText}"`, "info");
+            } else {
+              state.currentWordHighlights.set(wIdx, {
+                word_index: wIdx,
+                word_text: wText,
+                error_code: "WORD_FLAG"
+              });
+              pBtn.classList.add("bg-amber-100", "border-amber-500", "text-amber-900");
+              showToast(`Marked word "${wText}"`, "info");
+            }
+            saveDraftForCurrentItem();
+            if (el.btnResetItem) el.btnResetItem.classList.remove("hidden");
+            renderSidebar();
           };
         });
       } else {
@@ -1269,6 +1414,29 @@
     state.currentDefects = [];
     state.activeSelection = null;
     window.dspEngine.clearRegions();
+
+    // Restore waveform defects from source
+    if (Array.isArray(defectTags)) {
+      defectTags.forEach(d => {
+        const hasTimeRange = (d.time_end_ms > d.time_start_ms) || (d.endSec > d.startSec);
+        if (hasTimeRange || !d.word_text) {
+          const startMs = d.time_start_ms !== undefined ? d.time_start_ms : Math.round((d.startSec || 0) * 1000);
+          const endMs = d.time_end_ms !== undefined ? d.time_end_ms : Math.round((d.endSec || 0) * 1000);
+          const defect = {
+            id: d.id || `def-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            startSec: d.startSec !== undefined ? d.startSec : (startMs / 1000),
+            endSec: d.endSec !== undefined ? d.endSec : (endMs / 1000),
+            startMs: startMs,
+            endMs: endMs,
+            errorCode: d.error_code || d.errorCode || "DEFECT",
+            errorLabel: d.errorLabel || d.error_code || "Defect",
+            note: d.note || ""
+          };
+          state.currentDefects.push(defect);
+          window.dspEngine.addRegion(defect);
+        }
+      });
+    }
     renderDefectTagsList();
 
     // Load Audio into DSP
@@ -1287,26 +1455,29 @@
     // 3. Render Dynamic Rubric Criteria Form (2x2 Compact Zero-Scroll Grid)
     renderRubricForm();
 
-    // 4. Restore existing evaluation if already evaluated
-    const existing = state.existingEvaluations[item.id];
-    if (existing) {
-      if (existing.scores_json) {
+    // 4. Restore scores & text from source
+    if (source) {
+      if (source.scores) {
+        state.currentScores = { ...source.scores };
+      } else if (source.scores_json) {
         try {
-          const sc = typeof existing.scores_json === "string" ? JSON.parse(existing.scores_json) : existing.scores_json;
+          const sc = typeof source.scores_json === "string" ? JSON.parse(source.scores_json) : source.scores_json;
           state.currentScores = { ...sc };
-          updateRubricPillSelection();
-        } catch (e) {}
-      }
-      if (existing.comments) {
-        el.evalNotesInput.value = existing.comments;
+        } catch (e) {
+          state.currentScores = {};
+        }
       } else {
-        el.evalNotesInput.value = "";
+        state.currentScores = {};
       }
+      updateRubricPillSelection();
+
+      el.evalNotesInput.value = source.comments || "";
       if (el.heardTranscriptInput) {
-        el.heardTranscriptInput.value = existing.blind_transcript || "";
+        el.heardTranscriptInput.value = source.blind_transcript || "";
       }
     } else {
       state.currentScores = {};
+      updateRubricPillSelection();
       el.evalNotesInput.value = "";
       if (el.heardTranscriptInput) {
         el.heardTranscriptInput.value = "";
@@ -1434,9 +1605,14 @@
         passPill.dataset.score = "1";
         passPill.dataset.metricKey = metricKey;
         passPill.addEventListener("click", () => {
-          state.currentScores[metricKey] = 1;
+          if (state.currentScores[metricKey] === 1) {
+            delete state.currentScores[metricKey];
+          } else {
+            state.currentScores[metricKey] = 1;
+          }
           if (navigator.vibrate) navigator.vibrate(10);
           updateRubricPillSelection();
+          saveDraftForCurrentItem();
         });
 
         const failPill = document.createElement("button");
@@ -1446,9 +1622,14 @@
         failPill.dataset.score = "0";
         failPill.dataset.metricKey = metricKey;
         failPill.addEventListener("click", () => {
-          state.currentScores[metricKey] = 0;
+          if (state.currentScores[metricKey] === 0) {
+            delete state.currentScores[metricKey];
+          } else {
+            state.currentScores[metricKey] = 0;
+          }
           if (navigator.vibrate) navigator.vibrate(10);
           updateRubricPillSelection();
+          saveDraftForCurrentItem();
         });
 
         scaleDiv.appendChild(passPill);
@@ -1478,9 +1659,14 @@
           pill.dataset.metricKey = metricKey;
 
           pill.addEventListener("click", () => {
-            state.currentScores[metricKey] = s;
+            if (state.currentScores[metricKey] === s) {
+              delete state.currentScores[metricKey];
+            } else {
+              state.currentScores[metricKey] = s;
+            }
             if (navigator.vibrate) navigator.vibrate(10);
             updateRubricPillSelection();
+            saveDraftForCurrentItem();
           });
 
           scaleDiv.appendChild(pill);
@@ -1695,6 +1881,9 @@
     window.dspEngine.addRegion(defect);
     renderDefectTagsList();
     hideRegionPopover();
+    saveDraftForCurrentItem();
+    if (el.btnResetItem) el.btnResetItem.classList.remove("hidden");
+    renderSidebar();
   }
 
   // Remove existing tagged region
@@ -1703,6 +1892,9 @@
       state.currentDefects = state.currentDefects.filter(d => d.id !== region.id);
       window.dspEngine.removeRegion(region.id);
       renderDefectTagsList();
+      saveDraftForCurrentItem();
+      if (el.btnResetItem) el.btnResetItem.classList.remove("hidden");
+      renderSidebar();
     }
   }
 
@@ -1728,6 +1920,9 @@
         state.currentDefects = state.currentDefects.filter(d => d.id !== def.id);
         window.dspEngine.removeRegion(def.id);
         renderDefectTagsList();
+        saveDraftForCurrentItem();
+        if (el.btnResetItem) el.btnResetItem.classList.remove("hidden");
+        renderSidebar();
       });
 
       el.defectTagsList.appendChild(badge);
@@ -1824,51 +2019,101 @@
   window.addEventListener("online", flushOfflineQueue);
   setInterval(flushOfflineQueue, 15000);
 
-  // Auto-save current ratings if user is jumping to another item
-  async function autoSaveCurrentItem() {
-    const metrics = state.campaign.metrics || [];
-    const scoredKeys = Object.keys(state.currentScores);
-    if (scoredKeys.length === 0 && !el.evalNotesInput.value.trim() && state.currentDefects.length === 0) {
-      return; // Nothing to save
+  // Draft Lifecycle Management
+  function getDraftStorageKey() {
+    return `audio_studio_rater_drafts_v1:${state.campaignId}:${state.rater.id}`;
+  }
+
+  function loadDraftsFromStorage() {
+    if (!state.campaignId || !state.rater.id) {
+      state.drafts = {};
+      return;
     }
+    try {
+      const stored = localStorage.getItem(getDraftStorageKey());
+      state.drafts = stored ? JSON.parse(stored) : {};
+    } catch (e) {
+      state.drafts = {};
+    }
+  }
 
+  function persistDraftsToStorage() {
+    if (!state.campaignId || !state.rater.id) return;
+    try {
+      localStorage.setItem(getDraftStorageKey(), JSON.stringify(state.drafts || {}));
+    } catch (e) {
+      console.warn("Error persisting drafts to localStorage:", e);
+    }
+  }
+
+  function clearDraftForItem(itemId) {
+    if (!itemId || !state.drafts) return;
+    delete state.drafts[itemId];
+    persistDraftsToStorage();
+  }
+
+  function saveDraftForCurrentItem() {
+    if (!state.items || state.items.length === 0) return;
     const item = state.items[state.currentIndex];
-    const durationSeconds = (Date.now() - state.itemStartTime) / 1000;
+    if (!item) return;
 
-    const defectTagsPayload = state.currentDefects.map(d => ({
+    // Serialize waveform regions
+    const regionDefects = (state.currentDefects || []).map(d => ({
       word_index: 0,
       word_text: "",
-      error_code: d.errorCode,
-      note: d.note,
-      time_start_ms: d.startMs,
-      time_end_ms: d.endMs
+      error_code: d.errorCode || "DEFECT",
+      note: d.note || "",
+      time_start_ms: d.startMs || Math.round((d.startSec || 0) * 1000),
+      time_end_ms: d.endMs || Math.round((d.endSec || 0) * 1000)
     }));
 
-    const modelId = resolveItemModelId(item);
-
-    const payload = {
-      campaign_id: state.campaignId,
-      rater_id: state.rater.id,
-      item_id: item.id,
-      model_id: modelId,
-      scores: state.currentScores,
-      blind_transcript: el.heardTranscriptInput ? el.heardTranscriptInput.value.trim() : "",
-      comments: el.evalNotesInput.value.trim(),
-      duration_seconds: durationSeconds,
-      defect_tags: defectTagsPayload,
-      asr_adjudication: state.currentAsrAdjudication || null
-    };
-
-    try {
-      await fetch("/api/evaluations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      state.existingEvaluations[item.id] = payload;
-    } catch (e) {
-      console.warn("Auto-save error:", e);
+    // Serialize word highlights
+    const wordHighlights = [];
+    if (state.currentWordHighlights && state.currentWordHighlights.size > 0) {
+      for (const w of state.currentWordHighlights.values()) {
+        wordHighlights.push({
+          word_index: w.word_index,
+          word_text: w.word_text,
+          error_code: w.error_code || "WORD_FLAG",
+          note: "",
+          time_start_ms: 0,
+          time_end_ms: 0
+        });
+      }
     }
+
+    const defectTags = [...regionDefects, ...wordHighlights];
+    const comments = el.evalNotesInput ? el.evalNotesInput.value.trim() : "";
+    const blindTranscript = el.heardTranscriptInput ? el.heardTranscriptInput.value.trim() : "";
+    const asrAdjudication = state.currentAsrAdjudication || null;
+    const scores = state.currentScores ? { ...state.currentScores } : {};
+
+    const hasAnyDraftData = Object.keys(scores).length > 0 ||
+      comments.length > 0 ||
+      blindTranscript.length > 0 ||
+      asrAdjudication !== null ||
+      defectTags.length > 0;
+
+    if (!hasAnyDraftData) {
+      // If user wiped out everything and there was no existing draft, do nothing.
+      // If there was a draft, clear it.
+      if (state.drafts && state.drafts[item.id]) {
+        clearDraftForItem(item.id);
+      }
+      return;
+    }
+
+    state.drafts = state.drafts || {};
+    state.drafts[item.id] = {
+      scores,
+      scores_json: JSON.stringify(scores),
+      comments,
+      blind_transcript: blindTranscript,
+      asr_adjudication: asrAdjudication,
+      defect_tags: defectTags,
+      saved_at: Date.now()
+    };
+    persistDraftsToStorage();
   }
 
   // Submit Evaluation and Advance
@@ -1899,14 +2144,30 @@
     const item = state.items[state.currentIndex];
     const durationSeconds = (Date.now() - state.itemStartTime) / 1000;
 
-    const defectTagsPayload = state.currentDefects.map(d => ({
+    const regionDefects = (state.currentDefects || []).map(d => ({
       word_index: 0,
       word_text: "",
-      error_code: d.errorCode,
-      note: d.note,
-      time_start_ms: d.startMs,
-      time_end_ms: d.endMs
+      error_code: d.errorCode || "DEFECT",
+      note: d.note || "",
+      time_start_ms: d.startMs || Math.round((d.startSec || 0) * 1000),
+      time_end_ms: d.endMs || Math.round((d.endSec || 0) * 1000)
     }));
+
+    const wordHighlights = [];
+    if (state.currentWordHighlights && state.currentWordHighlights.size > 0) {
+      for (const w of state.currentWordHighlights.values()) {
+        wordHighlights.push({
+          word_index: w.word_index,
+          word_text: w.word_text,
+          error_code: w.error_code || "WORD_FLAG",
+          note: "",
+          time_start_ms: 0,
+          time_end_ms: 0
+        });
+      }
+    }
+
+    const defectTagsPayload = [...regionDefects, ...wordHighlights];
 
     const modelId = resolveItemModelId(item);
 
@@ -1943,37 +2204,49 @@
       el.btnNextItem.disabled = false;
     }
 
-    state.existingEvaluations[item.id] = payload;
+    state.existingEvaluations[item.id] = {
+      ...payload,
+      scores_json: JSON.stringify(payload.scores),
+      defect_tags: payload.defect_tags
+    };
+    clearDraftForItem(item.id);
 
-    // Check if there are other unrated items
-    const nextUnrated = state.items.findIndex((it, idx) => idx > state.currentIndex && !state.existingEvaluations[it.id]);
+    // Predictable Ordered Navigation within visible sequence
+    const visibleIndices = getVisibleSequenceIndices();
+    const currentSeqPos = visibleIndices.indexOf(state.currentIndex);
 
-    if (nextUnrated !== -1) {
-      state.currentIndex = nextUnrated;
-      renderCurrentItem();
-      renderSidebar();
-    } else if (state.currentIndex < state.items.length - 1) {
-      state.currentIndex++;
+    if (currentSeqPos !== -1 && currentSeqPos < visibleIndices.length - 1) {
+      // Advance strictly to the next index in that sequence
+      state.currentIndex = visibleIndices[currentSeqPos + 1];
       renderCurrentItem();
       renderSidebar();
     } else {
-      // If all items are completed, finish!
-      const anyUnrated = state.items.findIndex(it => !state.existingEvaluations[it.id]);
-      if (anyUnrated === -1) {
+      // At the end of the sequence
+      const allCompleted = state.items.length > 0 && state.items.every(it => !!state.existingEvaluations[it.id]);
+      if (allCompleted) {
         showCompletionScreen();
       } else {
-        state.currentIndex = anyUnrated;
-        renderCurrentItem();
-        renderSidebar();
+        // Find first unrated item across all items (switching model filter to "all" if needed)
+        const firstUnrated = state.items.findIndex(it => !state.existingEvaluations[it.id]);
+        if (firstUnrated !== -1) {
+          if (state.selectedModelFilter !== "all") {
+            state.selectedModelFilter = "all";
+          }
+          state.currentIndex = firstUnrated;
+          renderCurrentItem();
+          renderSidebar();
+        } else {
+          showCompletionScreen();
+        }
       }
     }
   }
 
   // Navigate to previous or next item
-  async function navigateItem(direction) {
+  function navigateItem(direction) {
     const nextIdx = state.currentIndex + direction;
     if (nextIdx >= 0 && nextIdx < state.items.length) {
-      await autoSaveCurrentItem();
+      saveDraftForCurrentItem();
       state.currentIndex = nextIdx;
       renderCurrentItem();
       renderSidebar();
@@ -2002,6 +2275,7 @@
 
   // Mode Navigation: Evaluation Studio vs Try Out Playground
   function switchMainMode(mode) {
+    saveDraftForCurrentItem();
     if (mode === "tryout") {
       el.evalStage.classList.add("hidden");
       el.audioSidebar.classList.add("hidden");
