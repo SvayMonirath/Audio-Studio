@@ -402,6 +402,20 @@
     chartMosComparison: document.getElementById("chart-mos-comparison"),
     chartDefectDistribution: document.getElementById("chart-defect-distribution"),
     analyticsCampaignSelect: document.getElementById("analytics-campaign-select"),
+    analyticsModelFilter: document.getElementById("analytics-model-filter"),
+    analyticsRaterFilter: document.getElementById("analytics-rater-filter"),
+    statPrimaryLabel: document.getElementById("stat-primary-label"),
+    chartMetricSelect: document.getElementById("chart-metric-select"),
+    chartMosTitle: document.getElementById("chart-mos-title"),
+    chartMosSubtitle: document.getElementById("chart-mos-subtitle"),
+    analyticsAsrCard: document.getElementById("analytics-asr-card"),
+    analyticsAsrAcceptableCount: document.getElementById("analytics-asr-acceptable-count"),
+    analyticsAsrAcceptablePct: document.getElementById("analytics-asr-acceptable-pct"),
+    analyticsAsrErrorCount: document.getElementById("analytics-asr-error-count"),
+    analyticsAsrErrorPct: document.getElementById("analytics-asr-error-pct"),
+    analyticsAsrBar: document.getElementById("analytics-asr-bar"),
+    analyticsAsrBarPct: document.getElementById("analytics-asr-bar-pct"),
+    analyticsWordHeatmapTbody: document.getElementById("analytics-word-heatmap-tbody"),
     btnExportCsv: document.getElementById("btn-export-csv"),
     statTotalEvals: document.getElementById("stat-total-evals"),
     statTotalRaters: document.getElementById("stat-total-raters"),
@@ -3620,14 +3634,42 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     }
 
     el.analyticsCampaignSelect.addEventListener("change", () => {
+      if (el.analyticsModelFilter) el.analyticsModelFilter.value = "";
+      if (el.analyticsRaterFilter) el.analyticsRaterFilter.value = "";
       loadAnalyticsData();
     });
+
+    if (el.analyticsModelFilter) {
+      el.analyticsModelFilter.addEventListener("change", () => {
+        loadAnalyticsData();
+      });
+    }
+
+    if (el.analyticsRaterFilter) {
+      el.analyticsRaterFilter.addEventListener("change", () => {
+        loadAnalyticsData();
+      });
+    }
+
+    if (el.chartMetricSelect) {
+      el.chartMetricSelect.addEventListener("change", () => {
+        if (state.lastModelsList) {
+          renderMosComparisonChart(state.lastModelsList, el.chartMetricSelect.value, state.lastStudyMeta);
+        }
+      });
+    }
 
     el.btnExportCsv.addEventListener("click", async () => {
       const campId = el.analyticsCampaignSelect.value;
       if (campId) {
         try {
-          const resp = await adminFetch(`/api/admin/export.csv?campaign_id=${campId}`);
+          const modelId = el.analyticsModelFilter?.value || "";
+          const raterId = el.analyticsRaterFilter?.value || "";
+          let exportUrl = `/api/admin/export.csv?campaign_id=${encodeURIComponent(campId)}`;
+          if (modelId) exportUrl += `&model_id=${encodeURIComponent(modelId)}`;
+          if (raterId) exportUrl += `&rater_id=${encodeURIComponent(raterId)}`;
+
+          const resp = await adminFetch(exportUrl);
           if (!resp.ok) throw new Error("Failed to export CSV");
           const blob = await resp.blob();
           const downloadUrl = URL.createObjectURL(blob);
@@ -3679,8 +3721,17 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       if (el.analyticsTranscriptionsTbody) {
         el.analyticsTranscriptionsTbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-zinc-400">Loading transcriptions...</td></tr>`;
       }
+      if (el.analyticsWordHeatmapTbody) {
+        el.analyticsWordHeatmapTbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-zinc-400">Loading word defect heatmap...</td></tr>`;
+      }
 
-      const resp = await adminFetch(`/api/admin/summary?campaign_id=${campaignId}`);
+      const modelId = el.analyticsModelFilter?.value || "";
+      const raterId = el.analyticsRaterFilter?.value || "";
+      let summaryUrl = `/api/admin/summary?campaign_id=${encodeURIComponent(campaignId)}`;
+      if (modelId) summaryUrl += `&model_id=${encodeURIComponent(modelId)}`;
+      if (raterId) summaryUrl += `&rater_id=${encodeURIComponent(raterId)}`;
+
+      const resp = await adminFetch(summaryUrl);
       if (!resp.ok) throw new Error("Failed to load analytics.");
       const data = await resp.json();
 
@@ -3697,12 +3748,53 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         if (el.analyticsDataContent) el.analyticsDataContent.classList.remove("hidden");
       }
 
+      // Populate el.analyticsModelFilter (preserving current value)
+      if (el.analyticsModelFilter && data.model_statistics) {
+        const currentModelVal = el.analyticsModelFilter.value;
+        const existingOptions = Array.from(el.analyticsModelFilter.options).map(o => o.value);
+        let hasNew = false;
+        data.model_statistics.forEach(m => {
+          const mid = m.model_id || m.id;
+          const mname = m.name || m.model_name || mid;
+          if (mid && !existingOptions.includes(mid)) {
+            const opt = document.createElement("option");
+            opt.value = mid;
+            opt.textContent = mname;
+            el.analyticsModelFilter.appendChild(opt);
+            hasNew = true;
+          }
+        });
+        if (currentModelVal) el.analyticsModelFilter.value = currentModelVal;
+      }
+
+      // Populate el.analyticsRaterFilter (preserving current value)
+      if (el.analyticsRaterFilter && data.rater_statistics) {
+        const currentRaterVal = el.analyticsRaterFilter.value;
+        const existingRaterOpts = Array.from(el.analyticsRaterFilter.options).map(o => o.value);
+        data.rater_statistics.forEach(r => {
+          const rid = r.rater_id || r.id;
+          const rname = r.rater_name || r.name || rid;
+          if (rid && !existingRaterOpts.includes(rid)) {
+            const opt = document.createElement("option");
+            opt.value = rid;
+            opt.textContent = rname;
+            el.analyticsRaterFilter.appendChild(opt);
+          }
+        });
+        if (currentRaterVal) el.analyticsRaterFilter.value = currentRaterVal;
+      }
+
       // Extract model statistics (supports both array and keyed object formats)
       const modelsList = data.model_statistics || (Array.isArray(data.model_performance) ? data.model_performance : Object.values(data.model_performance || {}));
-      
+      const studyMeta = data.study_meta || {};
+      state.lastModelsList = modelsList;
+      state.lastStudyMeta = studyMeta;
+
       // Determine active metric keys across all returned models or campaign config
       const activeCampaign = state.campaignsList.find(c => c.id === campaignId);
-      const campaignMetrics = (activeCampaign && activeCampaign.metrics) || [];
+      const campaignMetrics = (studyMeta.metrics && studyMeta.metrics.length > 0)
+        ? studyMeta.metrics
+        : ((activeCampaign && activeCampaign.metrics) || []);
       
       let metricKeys = [];
       let metricLabels = {};
@@ -3733,6 +3825,23 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         });
       }
 
+      // Populate el.chartMetricSelect
+      if (el.chartMetricSelect) {
+        const curMetric = el.chartMetricSelect.value;
+        el.chartMetricSelect.innerHTML = "";
+        metricKeys.forEach(k => {
+          const opt = document.createElement("option");
+          opt.value = k;
+          opt.textContent = metricLabels[k] || k;
+          el.chartMetricSelect.appendChild(opt);
+        });
+        if (curMetric && metricKeys.includes(curMetric)) {
+          el.chartMetricSelect.value = curMetric;
+        } else if (metricKeys.length > 0) {
+          el.chartMetricSelect.value = metricKeys[0];
+        }
+      }
+
       // Render Dynamic Dynamic Table Headers
       if (el.analyticsMosThead) {
         let theadHtml = `
@@ -3750,6 +3859,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
 
       el.analyticsMosTbody.innerHTML = "";
       let allMeans = [];
+      let allPassRates = [];
 
       if (!modelsList || modelsList.length === 0) {
         const colSpan = 2 + metricKeys.length;
@@ -3759,9 +3869,10 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         modelsList.forEach(mInfo => {
           const summary = mInfo.summary || {};
           const tr = document.createElement("tr");
+          const modelDisplayName = mInfo.name || mInfo.model_name || "Audio Sample";
 
           let trHtml = `
-            <td class="p-3 font-semibold text-zinc-900">${escapeHtml(mInfo.model_name || "Audio Sample")}</td>
+            <td class="p-3 font-semibold text-zinc-900">${escapeHtml(modelDisplayName)}</td>
             <td class="p-3 text-zinc-600 font-mono">${mInfo.eval_count || 0}</td>
           `;
 
@@ -3769,6 +3880,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
             const mSummary = summary[k] || {};
             if (mSummary.mean !== undefined && mSummary.mean !== null) {
               if (mSummary.is_binary) {
+                allPassRates.push(mSummary.pass_rate);
                 trHtml += `
                   <td class="p-3 font-mono">
                     <span class="inline-flex items-center gap-1.5 font-bold ${mSummary.pass_rate >= 80 ? 'text-emerald-700' : 'text-amber-700'}">
@@ -3795,19 +3907,38 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           el.analyticsMosTbody.appendChild(tr);
         });
 
-        const avgMos = allMeans.length > 0 ? (allMeans.reduce((a, b) => a + b, 0) / allMeans.length).toFixed(2) : "0.00";
-        el.statMeanMos.textContent = avgMos;
+        // Update KPI Card 3:
+        // - If binary metric: label "Overall Pass Rate", value `${primaryStat.pass_rate}%`.
+        // - If ASR: label "Acceptable Speech Rate", value `${data.asr_summary?.acceptable_rate || 0}%`.
+        // - If standard scale: label `Average Score (1 to ${study_meta.scale_max || 5})`, value formatted MOS.
+        const isAsr = studyMeta.modality === "ASR" || (data.asr_summary && data.asr_summary.total_judgments > 0);
+        const hasBinary = allPassRates.length > 0 && allMeans.length === 0;
+
+        if (isAsr) {
+          if (el.statPrimaryLabel) el.statPrimaryLabel.textContent = "Acceptable Speech Rate";
+          el.statMeanMos.textContent = `${data.asr_summary?.acceptable_rate || 0}%`;
+        } else if (hasBinary) {
+          const avgPass = (allPassRates.reduce((a, b) => a + b, 0) / allPassRates.length).toFixed(1);
+          if (el.statPrimaryLabel) el.statPrimaryLabel.textContent = "Overall Pass Rate";
+          el.statMeanMos.textContent = `${avgPass}%`;
+        } else {
+          const scaleMax = studyMeta.scale_max || 5;
+          const scaleMin = studyMeta.scale_min || 1;
+          if (el.statPrimaryLabel) el.statPrimaryLabel.textContent = `Average Score (${scaleMin} to ${scaleMax})`;
+          const avgMos = allMeans.length > 0 ? (allMeans.reduce((a, b) => a + b, 0) / allMeans.length).toFixed(2) : "0.00";
+          el.statMeanMos.textContent = avgMos;
+        }
       }
+
+      // Render Visual SVG Charts
+      const activeMetricKey = el.chartMetricSelect?.value || metricKeys[0];
+      renderMosComparisonChart(modelsList, activeMetricKey, studyMeta);
 
       // Defect Breakdown Table
       const defects = data.defects_summary || data.defects_breakdown || [];
-
-      // Render Visual SVG Charts
-      renderMosComparisonChart(modelsList);
       renderDefectDistributionChart(defects);
 
       el.analyticsDefectsTbody.innerHTML = "";
-
       if (defects.length === 0) {
         el.analyticsDefectsTbody.innerHTML = `<tr><td colspan="3" class="py-8 text-center text-xs text-zinc-400 font-medium">No acoustic defect regions tagged yet.</td></tr>`;
       } else {
@@ -3820,6 +3951,53 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           `;
           el.analyticsDefectsTbody.appendChild(tr);
         });
+      }
+
+      // Render ASR Adjudication Summary Card
+      const asr = data.asr_summary;
+      const isAsrMode = studyMeta.modality === "ASR" || (asr && asr.total_judgments > 0);
+      if (el.analyticsAsrCard) {
+        if (isAsrMode && asr && asr.total_judgments > 0) {
+          el.analyticsAsrCard.classList.remove("hidden");
+          const totalJudgments = asr.total_judgments || 1;
+          const accCount = asr.acceptable_variations || 0;
+          const errCount = asr.critical_errors || 0;
+          const accPct = Math.round((accCount / totalJudgments) * 100);
+          const errPct = Math.round((errCount / totalJudgments) * 100);
+
+          if (el.analyticsAsrAcceptableCount) el.analyticsAsrAcceptableCount.textContent = accCount;
+          if (el.analyticsAsrAcceptablePct) el.analyticsAsrAcceptablePct.textContent = `(${accPct}%)`;
+          if (el.analyticsAsrErrorCount) el.analyticsAsrErrorCount.textContent = errCount;
+          if (el.analyticsAsrErrorPct) el.analyticsAsrErrorPct.textContent = `(${errPct}%)`;
+          if (el.analyticsAsrBar) el.analyticsAsrBar.style.width = `${accPct}%`;
+          if (el.analyticsAsrBarPct) el.analyticsAsrBarPct.textContent = `${accPct}%`;
+        } else {
+          el.analyticsAsrCard.classList.add("hidden");
+        }
+      }
+
+      // Render Word-Level Defect Heatmap Table
+      if (el.analyticsWordHeatmapTbody) {
+        el.analyticsWordHeatmapTbody.innerHTML = "";
+        const wordDefects = data.word_defect_heatmap || [];
+        if (wordDefects.length === 0) {
+          el.analyticsWordHeatmapTbody.innerHTML = `<tr><td colspan="4" class="py-8 text-center text-xs text-zinc-400 font-medium">No word-level defects recorded yet.</td></tr>`;
+        } else {
+          wordDefects.forEach(w => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td class="p-3 font-khmer font-semibold text-zinc-900">${escapeHtml(w.word_text || "—")}</td>
+              <td class="p-3">
+                <span class="inline-block px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-red-50 text-red-700 border border-red-200">
+                  ${escapeHtml(w.error_code || "DEFECT")}
+                </span>
+              </td>
+              <td class="p-3 text-zinc-600">${escapeHtml(w.model_name || "Audio Sample")}</td>
+              <td class="p-3 text-right font-mono font-bold text-zinc-900">${w.count}</td>
+            `;
+            el.analyticsWordHeatmapTbody.appendChild(tr);
+          });
+        }
       }
 
       // Perceived Speech Transcriptions Table ("What raters heard")
@@ -3857,7 +4035,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     }
   }
 
-  function renderMosComparisonChart(modelsList) {
+  function renderMosComparisonChart(modelsList, selectedMetricKey, studyMeta) {
     if (!el.chartMosComparison) return;
     if (!modelsList || modelsList.length === 0) {
       el.chartMosComparison.innerHTML = `<div class="text-xs text-zinc-400 py-10">No model comparison data available</div>`;
@@ -3874,19 +4052,33 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     const barWidth = Math.min(50, Math.floor(innerWidth / (count * 1.6)));
     const step = innerWidth / count;
 
-    // Detect if primary metric is binary pass/fail
-    const firstMetricKey = Object.keys(modelsList[0]?.summary || {})[0];
-    const isBinaryChart = modelsList.some(m => m.summary?.[firstMetricKey]?.is_binary);
+    // Detect metric to plot
+    const activeKey = selectedMetricKey || Object.keys(modelsList[0]?.summary || {})[0] || "naturalness";
+    const isBinaryChart = modelsList.some(m => m.summary?.[activeKey]?.is_binary);
 
-    // Y-scale: 0..100% or 1.0..5.0
+    const scaleMin = (studyMeta && studyMeta.scale_min !== undefined) ? studyMeta.scale_min : 1;
+    const scaleMax = (studyMeta && studyMeta.scale_max !== undefined) ? studyMeta.scale_max : 5;
+
+    // Update Chart subtitle and title if available
+    if (el.chartMosTitle) {
+      el.chartMosTitle.textContent = isBinaryChart ? "Model Pass Rate Comparison" : "Model Comparison";
+    }
+    if (el.chartMosSubtitle) {
+      el.chartMosSubtitle.textContent = isBinaryChart
+        ? "Percentage of successful completions"
+        : `Scores (${scaleMin}–${scaleMax}) with 95% confidence intervals`;
+    }
+
+    // Y-scale: 0..100% or scaleMin..scaleMax
     const yScale = isBinaryChart
       ? (val) => {
           const clamped = Math.max(0, Math.min(100, val));
           return padding.top + innerHeight - (clamped / 100) * innerHeight;
         }
       : (val) => {
-          const clamped = Math.max(1, Math.min(5, val));
-          return padding.top + innerHeight - ((clamped - 1) / 4) * innerHeight;
+          const range = Math.max(1, scaleMax - scaleMin);
+          const clamped = Math.max(scaleMin, Math.min(scaleMax, val));
+          return padding.top + innerHeight - ((clamped - scaleMin) / range) * innerHeight;
         };
 
     let svg = `<svg viewBox="0 0 ${chartWidth} ${chartHeight}" class="w-full h-auto max-h-[220px]" style="font-family: inherit;">`;
@@ -3901,21 +4093,26 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         `;
       }
     } else {
-      // Horizontal grid lines (1 to 5)
-      for (let s = 1; s <= 5; s++) {
+      // Horizontal grid lines across scaleMin to scaleMax
+      const stepVal = Math.max(1, Math.round((scaleMax - scaleMin) / 4));
+      const gridVals = new Set([scaleMin, scaleMax]);
+      for (let s = scaleMin; s <= scaleMax; s += stepVal) {
+        gridVals.add(s);
+      }
+      Array.from(gridVals).sort((a, b) => a - b).forEach(s => {
         const y = yScale(s);
         svg += `
-          <line x1="${padding.left}" y1="${y}" x2="${chartWidth - padding.right}" y2="${y}" stroke="#E4E4E7" stroke-width="1" stroke-dasharray="${s === 1 ? 'none' : '3,3'}" />
+          <line x1="${padding.left}" y1="${y}" x2="${chartWidth - padding.right}" y2="${y}" stroke="#E4E4E7" stroke-width="1" stroke-dasharray="${s === scaleMin ? 'none' : '3,3'}" />
           <text x="${padding.left - 8}" y="${y + 3}" text-anchor="end" font-size="10" fill="#71717A" font-family="monospace">${s}.0</text>
         `;
-      }
+      });
     }
 
     // Bars and CI ticks
     modelsList.forEach((m, idx) => {
-      const name = m.model_name || "Sample";
+      const name = m.name || m.model_name || "Sample";
       const summary = m.summary || {};
-      const primaryStat = summary[firstMetricKey] || summary.naturalness || summary[Object.keys(summary)[0]] || {};
+      const primaryStat = summary[activeKey] || summary[Object.keys(summary)[0]] || {};
 
       const x = padding.left + (idx * step) + (step / 2) - (barWidth / 2);
       const centerX = x + (barWidth / 2);
@@ -3937,7 +4134,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         const ciLower = primaryStat.ci_lower !== undefined ? primaryStat.ci_lower : mean;
         const ciUpper = primaryStat.ci_upper !== undefined ? primaryStat.ci_upper : mean;
         const barY = yScale(mean);
-        const barH = yScale(1) - barY;
+        const barH = Math.max(0, yScale(scaleMin) - barY);
 
         svg += `
           <rect x="${x}" y="${barY}" width="${barWidth}" height="${barH}" rx="4" fill="#18181B" opacity="0.9">
@@ -3945,7 +4142,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           </rect>
         `;
 
-        if (ciUpper > ciLower && ciUpper > 1) {
+        if (ciUpper > ciLower && ciUpper > scaleMin) {
           const topY = yScale(ciUpper);
           const botY = yScale(ciLower);
           const tickWidth = 8;

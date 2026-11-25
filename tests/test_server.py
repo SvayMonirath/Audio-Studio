@@ -998,6 +998,17 @@ class StudioServerTestCase(unittest.TestCase):
         self.assertIn('id="chart-mos-comparison"', html)
         self.assertIn('id="chart-defect-distribution"', html)
         self.assertIn('id="analytics-empty-state"', html)
+
+    def test_admin_results_dynamic_ui_containers(self):
+        """Verify Task 4 requirements: admin.html has dynamic filters, metric select, ASR card, and word heatmap."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            html = f.read()
+        self.assertIn('id="analytics-model-filter"', html)
+        self.assertIn('id="analytics-rater-filter"', html)
+        self.assertIn('id="chart-metric-select"', html)
+        self.assertIn('id="analytics-asr-card"', html)
+        self.assertIn('id="analytics-word-heatmap-tbody"', html)
         self.assertIn('id="analytics-data-content"', html)
 
 
