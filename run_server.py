@@ -388,7 +388,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                 where_sql = ("WHERE " + " AND ".join(clauses)) if clauses else ""
                 sql = f"""
                 SELECT e.*, r.name as rater_name, m.name as model_name, m.repo_id,
-                       i.item_key, i.text as item_text
+                       i.item_key, i.text as item_text, i.audio_files_json
                 FROM evaluations e
                 JOIN raters r ON e.rater_id = r.id
                 JOIN models m ON e.model_id = m.id
@@ -441,6 +441,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                         model_stats[mid] = {
                             "model_id": mid,
                             "name": row["model_name"],
+                            "model_name": row["model_name"],
                             "code": row["candidate_code"],
                             "eval_count": 0,
                             "metrics": {}
@@ -693,6 +694,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                 if not e_id:
                     self.send_json_response({"error": "id parameter required."}, status=400)
                     return
+                cur.execute("DELETE FROM defect_tags WHERE evaluation_id = ?", (e_id,))
                 cur.execute("DELETE FROM evaluations WHERE id = ?", (e_id,))
                 conn.commit()
                 self.send_json_response({"success": True, "deleted_evaluation_id": e_id})
@@ -1101,9 +1103,24 @@ class StudioHandler(BaseHTTPRequestHandler):
                 self.send_json_response({"success": True, "rater": new_rater}, status=201)
                 return
 
+            if path == "/api/admin/raters/rename":
+                if not self.is_authenticated_admin():
+                    self.send_json_response({"error": "Admin authentication required. Please provide X-Admin-PIN header."}, status=401)
+                    return
+                r_id = payload.get("rater_id")
+                new_name = payload.get("name", "").strip()
+                if not r_id or not new_name:
+                    self.send_json_response({"error": "rater_id and name are required."}, status=400)
+                    return
+                cur.execute("UPDATE raters SET name = ? WHERE id = ?", (new_name, r_id))
+                conn.commit()
+                self.send_json_response({"success": True, "rater_id": r_id, "name": new_name}, status=200)
+                return
+
             if path == "/api/evaluations":
                 campaign_id = payload.get("campaign_id")
                 rater_id = payload.get("rater_id")
+                rater_name = payload.get("rater_name", "").strip()
                 item_id = payload.get("item_id")
                 model_id = payload.get("model_id")
                 scores = payload.get("scores", {})
@@ -1130,7 +1147,10 @@ class StudioHandler(BaseHTTPRequestHandler):
                     if existing_by_name:
                         rater_id = existing_by_name["id"]
                     else:
-                        cur.execute("INSERT OR IGNORE INTO raters (id, name, role) VALUES (?, ?, 'Evaluator')", (rater_id, rater_id))
+                        initial_name = rater_name if (rater_name and not rater_name.startswith("rater-")) else rater_id
+                        cur.execute("INSERT OR IGNORE INTO raters (id, name, role) VALUES (?, ?, 'Evaluator')", (rater_id, initial_name))
+                elif rater_name and not rater_name.startswith("rater-"):
+                    cur.execute("UPDATE raters SET name = ? WHERE id = ? AND (name LIKE 'rater-%' OR name = id)", (rater_name, rater_id))
 
                 m_check = cur.execute("SELECT id FROM models WHERE id = ?", (model_id,)).fetchone()
                 if not m_check:

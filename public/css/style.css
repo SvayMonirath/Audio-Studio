@@ -362,8 +362,8 @@ h3 {
 }
 
 /* Semantic Score Illumination - Clean Elevated Depth */
-.score-pill[data-score="1"].active,
-.score-pill[data-score="2"].active {
+.score-pill:not(.score-pill-pass)[data-score="1"].active,
+.score-pill:not(.score-pill-pass)[data-score="2"].active {
   background: #E11D48 !important;
   border-color: #BE123C !important;
   color: #FFFFFF !important;
@@ -399,7 +399,9 @@ h3 {
   border-color: #059669;
   color: #047857;
 }
-.score-pill-pass.active {
+.score-pill-pass.active,
+.score-pill[data-score="1"].score-pill-pass.active,
+.score-pill.score-pill-pass.active {
   background: #059669 !important;
   border-color: #047857 !important;
   color: #FFFFFF !important;
@@ -417,7 +419,9 @@ h3 {
   border-color: #E11D48;
   color: #881337;
 }
-.score-pill-fail.active {
+.score-pill-fail.active,
+.score-pill[data-score="0"].score-pill-fail.active,
+.score-pill.score-pill-fail.active {
   background: #E11D48 !important;
   border-color: #BE123C !important;
   color: #FFFFFF !important;

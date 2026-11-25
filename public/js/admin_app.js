@@ -81,6 +81,7 @@
   let renderCanvas = () => {};
   let renderInspector = () => {};
   let updateSmartGuide = () => {};
+  let applyStarterKit = () => {};
 
   // LocalStorage Key for Draft Persistence
   const DRAFT_STORAGE_KEY = "audio_studio_creator_draft_v1";
@@ -406,10 +407,25 @@
     statTotalEvals: document.getElementById("stat-total-evals"),
     statTotalRaters: document.getElementById("stat-total-raters"),
     statMeanMos: document.getElementById("stat-mean-mos"),
+    statMeanLabel: document.getElementById("stat-mean-label"),
+    chartMosTitle: document.getElementById("chart-mos-title"),
+    chartMosSubtitle: document.getElementById("chart-mos-subtitle"),
+    chartMosBadge: document.getElementById("chart-mos-badge"),
+    analyticsScorecardTitle: document.getElementById("analytics-scorecard-title"),
     analyticsMosThead: document.getElementById("analytics-mos-thead"),
     analyticsMosTbody: document.getElementById("analytics-mos-tbody"),
     analyticsDefectsTbody: document.getElementById("analytics-defects-tbody"),
     analyticsTranscriptionsTbody: document.getElementById("analytics-transcriptions-tbody"),
+    analyticsRatersCard: document.getElementById("analytics-raters-card"),
+    analyticsRatersGrid: document.getElementById("analytics-raters-grid"),
+    auditRaterCountBadge: document.getElementById("audit-rater-count-badge"),
+    auditSearchInput: document.getElementById("audit-search-input"),
+    auditFilterRater: document.getElementById("audit-filter-rater"),
+    auditFilterModel: document.getElementById("audit-filter-model"),
+    auditFilterDefect: document.getElementById("audit-filter-defect"),
+    auditSortSelect: document.getElementById("audit-sort-select"),
+    auditCountBadge: document.getElementById("audit-count-badge"),
+    analyticsAuditTbody: document.getElementById("analytics-audit-tbody"),
 
     // Studies & Backup
     btnExportBackup: document.getElementById("btn-export-backup"),
@@ -935,6 +951,9 @@
         return;
       }
       state.maxUnlockedStep = Math.max(state.maxUnlockedStep, 3);
+      if ((!state.wizardData.ui_config.blocks || state.wizardData.ui_config.blocks.length === 0) && typeof applyStarterKit === "function") {
+        applyStarterKit("mos");
+      }
       goToStep(3);
     });
 
@@ -1009,6 +1028,7 @@
   function resetWizardToStep1() {
     clearWizardDraft();
     state.createdCampaignId = null;
+    state.wizardPublished = false;
     state.wizardStep = 1;
     state.maxUnlockedStep = 1;
     state.wizardData.name = "";
@@ -2126,7 +2146,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     }
 
     // 1-Click Starter Kits
-    function applyStarterKit(kitName) {
+    applyStarterKit = function(kitName) {
       if (kitName === "mos") {
         state.wizardData.ui_config.dsp.phone_filter_8khz = false;
         state.wizardData.ui_config.presentation.blind_gating = false;
@@ -2441,15 +2461,15 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
               <div class="flex items-center gap-4 pt-1">
                 <button
                   type="button"
-                  class="w-12 h-12 flex-shrink-0 rounded-full bg-zinc-900 text-white flex items-center justify-center shadow-sm cursor-default"
-                  title="Audio Playback Preview"
+                  class="btn-preview-audio-play w-12 h-12 flex-shrink-0 rounded-full bg-zinc-900 hover:bg-zinc-800 text-white flex items-center justify-center shadow-sm cursor-pointer transition active:scale-95"
+                  title="Play / Pause Audio Preview"
                 >
-                  <svg class="w-5 h-5 ml-0.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  <svg class="preview-play-icon w-5 h-5 ml-0.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                 </button>
 
                 <div class="flex-1 min-w-0 flex flex-col gap-1.5">
                   <div class="flex items-center justify-between text-[11px] text-zinc-500">
-                    <span class="font-medium text-xs font-mono">0.00s / 0.01.3</span>
+                    <span class="preview-audio-time font-medium text-xs font-mono">0.00s / 0:01.3</span>
                     <span class="hidden sm:inline text-zinc-400">Click & drag on waveform to tag defect region • ចុចអូសលើរលកសំឡេងដើម្បីសម្គាល់កំហុស</span>
                   </div>
                   <div class="waveform-canvas-box rounded-lg overflow-hidden h-[76px] relative bg-white border border-zinc-200">
@@ -2514,32 +2534,34 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
                 <div class="text-[11px] text-zinc-400 mt-0.5">Click to select this card and add rating questions in the right panel.</div>
               </div>
             `;
-          } else {
+          } else if (scaleMax <= 2) {
             const criteriaColsHtml = criteria.map(c => `
               <div class="p-2.5 bg-white border border-zinc-200 rounded-lg space-y-1.5">
                 <div class="flex items-baseline justify-between">
                   <div class="text-xs font-bold text-zinc-900">${escapeHtml(c.name)}</div>
-                  <span class="text-[9px] text-zinc-400">1 to ${scaleMax}</span>
+                  <span class="text-[9px] font-bold text-zinc-500 uppercase font-mono">Pass / Fail</span>
                 </div>
                 <div class="text-[10px] text-zinc-500 truncate" title="${escapeHtml(c.desc || "")}">${escapeHtml(c.desc || "")}</div>
-                <div class="flex gap-1 pt-1">
-                  ${Array.from({ length: scaleMax }, (_, i) => i + 1).map(num => `
-                    <div class="flex-1 h-7 rounded border ${num === 4 ? "bg-zinc-900 border-zinc-900 text-white" : "bg-zinc-50 border-zinc-200 text-zinc-700"} flex items-center justify-center text-xs font-semibold">
-                      ${num}
-                    </div>
-                  `).join("")}
+                <div class="flex gap-2 pt-1">
+                  <div class="flex-1 h-7 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-800 flex items-center justify-center text-xs font-bold shadow-2xs">
+                    Pass [1]
+                  </div>
+                  <div class="flex-1 h-7 rounded-lg bg-rose-50 border border-rose-300 text-rose-800 flex items-center justify-center text-xs font-bold shadow-2xs">
+                    Fail [0]
+                  </div>
                 </div>
               </div>
             `).join("");
 
             previewHtml = `
               <div class="mt-3 p-3 bg-zinc-50 border border-zinc-200/80 rounded-xl space-y-2">
-                <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Evaluator Rubric • លក្ខណៈវិនិច្ឆ័យ</div>
+                <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Evaluator Rubric • លក្ខណៈវិនិច្ឆ័យ (Pass / Fail)</div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   ${criteriaColsHtml}
                 </div>
               </div>
             `;
+          } else {
           }
         } else if (block.type === "transcription") {
           const showDiff = Boolean(block.show_diff);
@@ -2663,9 +2685,79 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       el.builderCanvas.querySelectorAll(".preview-waveform-canvas").forEach((canvas) => {
         drawPreviewWaveform(canvas);
       });
+
+      // Wire interactive audio playback in Step 3 Preview Card
+      el.builderCanvas.querySelectorAll(".btn-preview-audio-play").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const card = btn.closest(".builder-card");
+          const canvas = card ? card.querySelector(".preview-waveform-canvas") : null;
+          const timeLabel = card ? card.querySelector(".preview-audio-time") : null;
+
+          if (wizardPreviewAudio && !wizardPreviewAudio.paused) {
+            wizardPreviewAudio.pause();
+            if (wizardPreviewAnim) {
+              cancelAnimationFrame(wizardPreviewAnim);
+              wizardPreviewAnim = null;
+            }
+            btn.innerHTML = `<svg class="w-5 h-5 ml-0.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+            return;
+          }
+
+          const sampleItem = state.wizardData.items[0];
+          let audioSrc = sampleItem ? (sampleItem.audio_url || (sampleItem.base64 ? `data:audio/wav;base64,${sampleItem.base64}` : null)) : null;
+          if (!audioSrc) {
+            audioSrc = "/audio/openbmb-voxcpm2/run_20261022_225128/audio/KH01.wav";
+          }
+
+          if (!wizardPreviewAudio || wizardPreviewAudio.src !== audioSrc) {
+            if (wizardPreviewAudio) {
+              try { wizardPreviewAudio.pause(); } catch (err) {}
+            }
+            wizardPreviewAudio = new Audio(audioSrc);
+          }
+
+          btn.innerHTML = `<svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+
+          const updateProgress = () => {
+            if (!wizardPreviewAudio || wizardPreviewAudio.paused) return;
+            const cur = wizardPreviewAudio.currentTime;
+            const dur = wizardPreviewAudio.duration || 1.3;
+            if (timeLabel) {
+              const curSec = cur.toFixed(2);
+              const durSec = dur.toFixed(1);
+              timeLabel.textContent = `${curSec}s / 0:${durSec < 10 ? '0' : ''}${durSec}`;
+            }
+            if (canvas) {
+              drawPreviewWaveform(canvas, cur / dur);
+            }
+            wizardPreviewAnim = requestAnimationFrame(updateProgress);
+          };
+
+          wizardPreviewAudio.onended = () => {
+            if (wizardPreviewAnim) {
+              cancelAnimationFrame(wizardPreviewAnim);
+              wizardPreviewAnim = null;
+            }
+            btn.innerHTML = `<svg class="w-5 h-5 ml-0.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+            if (timeLabel) timeLabel.textContent = `0.00s / 0:${(wizardPreviewAudio.duration || 1.3).toFixed(1)}`;
+            if (canvas) drawPreviewWaveform(canvas, 0);
+          };
+
+          wizardPreviewAudio.play().then(() => {
+            wizardPreviewAnim = requestAnimationFrame(updateProgress);
+          }).catch(err => {
+            console.warn("Audio preview playback failed:", err);
+            btn.innerHTML = `<svg class="w-5 h-5 ml-0.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+          });
+        });
+      });
     }
 
-    function drawPreviewWaveform(canvas) {
+    let wizardPreviewAudio = null;
+    let wizardPreviewAnim = null;
+
+    function drawPreviewWaveform(canvas, progress = 0) {
       if (!canvas) return;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
@@ -2691,6 +2783,11 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       const unplayedGrad = ctx.createLinearGradient(0, midY - (maxBarHeight / 2), 0, midY + (maxBarHeight / 2));
       unplayedGrad.addColorStop(0, "#D4D4D8");
       unplayedGrad.addColorStop(1, "#E4E4E7");
+
+      // Played gradient matching audio_dsp.js
+      const playedGrad = ctx.createLinearGradient(0, midY - (maxBarHeight / 2), 0, midY + (maxBarHeight / 2));
+      playedGrad.addColorStop(0, "#09090B");
+      playedGrad.addColorStop(1, "#27272A");
 
       // Realistic speech waveform packet synthesis with 4 natural utterances separated by small pauses
       // Matching real eval.html waveform screenshot exactly
@@ -2725,7 +2822,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         const barH = Math.max(4, amp * maxBarHeight);
         const y = midY - (barH / 2);
 
-        ctx.fillStyle = unplayedGrad;
+        ctx.fillStyle = norm <= progress ? playedGrad : unplayedGrad;
         const radius = Math.min(barWidth / 2, barH / 2);
         ctx.beginPath();
         if (typeof ctx.roundRect === "function") {
@@ -2734,6 +2831,13 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           ctx.rect(x, y, barWidth, barH);
         }
         ctx.fill();
+      }
+
+      // Draw subtle playhead cursor if currently playing
+      if (progress > 0 && progress < 1) {
+        const playheadX = progress * width;
+        ctx.fillStyle = "#09090B";
+        ctx.fillRect(playheadX - 1, 4, 2, height - 8);
       }
 
       ctx.restore();
@@ -3025,6 +3129,12 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
             const panel = defectSection.querySelector("#insp-defect-settings-panel");
             if (panel) panel.classList.toggle("hidden", !checked);
             state.wizardData.ui_config.waveform_defect_tagging = checked;
+            if (!checked) {
+              state.wizardData.collectTranscription = false;
+            } else {
+              const trInput = panel?.querySelector("#insp-audio-transcription-toggle");
+              state.wizardData.collectTranscription = trInput ? trInput.checked : true;
+            }
           }
         });
         defectSection.appendChild(defectToggle);
@@ -3107,6 +3217,23 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           state.wizardData.defectTypes = allDefectCategories.filter(c => c.code === "C_DEL");
           updateDefectChips();
         });
+
+        // Sub-setting: Listener Perceived Hearing (Transcription)
+        const transcriptionSubSection = document.createElement("div");
+        transcriptionSubSection.className = "pt-3 border-t border-zinc-200/80 space-y-2";
+        const transcriptionToggle = createCustomSwitch({
+          id: "insp-audio-transcription-toggle",
+          checked: state.wizardData.collectTranscription !== false,
+          label: "Listener Perceived Hearing (Transcription)",
+          description: "Prompts listeners to type what they heard. Optional by default; becomes mandatory when a defect is flagged on the waveform.",
+          onChange: (checked) => {
+            state.wizardData.collectTranscription = checked;
+            selected.collect_transcription = checked;
+            saveWizardDraft();
+          }
+        });
+        transcriptionSubSection.appendChild(transcriptionToggle);
+        defectPanel.appendChild(transcriptionSubSection);
 
         defectSection.appendChild(defectPanel);
         container.appendChild(defectSection);
@@ -3196,7 +3323,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         const scaleOptions = [
           { value: "5", label: "1 to 5 Stars (Standard MOS)", desc: "ITU-T P.800 standard speech quality scale" },
           { value: "7", label: "1 to 7 Points (High Detail)", desc: "Fine-grained comparative scoring" },
-          { value: "2", label: "Pass / Fail", desc: "Binary acceptance threshold" }
+          { value: "2", label: "Pass / Fail (Binary)", desc: "Binary acceptance threshold (Pass / Fail)" }
         ];
         const scaleDropdown = createCustomDropdown({
           id: "insp-scoring-scale",
@@ -3373,14 +3500,26 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
     if (el.summaryStudyTranscription) {
       el.summaryStudyTranscription.textContent = state.wizardData.collectTranscription ? "Enabled" : "Disabled";
     }
-    el.summaryStudyScale.textContent = `1 to ${state.wizardData.scaleMax} Points`;
+    el.summaryStudyScale.textContent = state.wizardData.scaleMax <= 2 ? "Pass / Fail" : `1 to ${state.wizardData.scaleMax} Points`;
 
-    el.shareableLinkContainer.classList.add("hidden");
-    el.launchActionBox.classList.remove("hidden");
+    if (state.createdCampaignId && state.wizardPublished) {
+      const fullShareUrl = `${window.location.origin}/eval?id=${state.createdCampaignId}`;
+      el.shareLinkUrl.textContent = fullShareUrl;
+      el.btnOpenAsRater.href = fullShareUrl;
+      el.shareableLinkContainer.classList.remove("hidden");
+      el.launchActionBox.classList.add("hidden");
+    } else {
+      el.shareableLinkContainer.classList.add("hidden");
+      el.launchActionBox.classList.remove("hidden");
+    }
   }
 
   function setupLaunchAndShare() {
     el.btnLaunchStudy.addEventListener("click", async () => {
+      if (state.createdCampaignId && state.wizardPublished) {
+        showToast("This study has already been launched. Evaluators can access it with the shareable link.", "info");
+        return;
+      }
       try {
         el.btnLaunchStudy.disabled = true;
         el.btnLaunchStudy.textContent = "Launching Study...";
@@ -3438,14 +3577,15 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         }
 
         // 3. Create Rubric
+        const isBinary = state.wizardData.scaleMax <= 2;
         const rubricMetrics = state.wizardData.criteria.map(c => ({
           key: c.id,
           label_en: c.name,
           label_km: c.name,
           desc: c.desc,
-          type: c.type || (state.wizardData.scaleMax === 1 ? "binary_pass_fail" : "scale_1_5"),
-          scale_min: c.scale_min || 1,
-          scale_max: c.scale_max || state.wizardData.scaleMax || 5
+          type: isBinary ? "binary_pass_fail" : (c.type || "scale_1_5"),
+          scale_min: isBinary ? 0 : (c.scale_min || 1),
+          scale_max: isBinary ? 1 : (c.scale_max || state.wizardData.scaleMax || 5)
         }));
 
         const rubricResp = await adminFetch("/api/rubrics", {
@@ -3453,9 +3593,9 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: `${state.wizardData.name} Rubric`,
-            protocol_type: "ACR",
-            scale_min: 1,
-            scale_max: state.wizardData.scaleMax,
+            protocol_type: isBinary ? "Diagnostic" : "ACR",
+            scale_min: isBinary ? 0 : 1,
+            scale_max: isBinary ? 1 : state.wizardData.scaleMax,
             metrics: rubricMetrics
           })
         });
@@ -3549,6 +3689,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         if (!campaignResp.ok) throw new Error("Failed to create study campaign.");
         const campaignJson = await campaignResp.json();
         state.createdCampaignId = campaignJson.campaign_id;
+        state.wizardPublished = true;
         clearWizardDraft();
 
         // 5. Reveal Shareable Link Box
@@ -3795,8 +3936,36 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           el.analyticsMosTbody.appendChild(tr);
         });
 
-        const avgMos = allMeans.length > 0 ? (allMeans.reduce((a, b) => a + b, 0) / allMeans.length).toFixed(2) : "0.00";
-        el.statMeanMos.textContent = avgMos;
+        const isBinaryStudy = (activeCampaign && (activeCampaign.protocol_type === "binary" || activeCampaign.scale_max === 1)) ||
+                              modelsList.some(m => Object.values(m.summary || {}).some(s => s.is_binary));
+
+        if (isBinaryStudy) {
+          let totalPass = 0;
+          let totalTested = 0;
+          modelsList.forEach(m => {
+            Object.values(m.summary || {}).forEach(s => {
+              if (s.is_binary && s.n) {
+                totalPass += (s.pass_count || 0);
+                totalTested += s.n;
+              }
+            });
+          });
+          const overallPassRate = totalTested > 0 ? Math.round((totalPass / totalTested) * 100) : 0;
+          if (el.statMeanLabel) el.statMeanLabel.textContent = "Overall Pass Rate";
+          if (el.statMeanMos) el.statMeanMos.textContent = `${overallPassRate}%`;
+          if (el.chartMosTitle) el.chartMosTitle.textContent = "Model Accuracy Comparison";
+          if (el.chartMosSubtitle) el.chartMosSubtitle.textContent = "Percentage of correct pronunciations per model";
+          if (el.chartMosBadge) el.chartMosBadge.textContent = "Pass Rate (%)";
+          if (el.analyticsScorecardTitle) el.analyticsScorecardTitle.textContent = "Model Accuracy & Pass Rates";
+        } else {
+          const avgMos = allMeans.length > 0 ? (allMeans.reduce((a, b) => a + b, 0) / allMeans.length).toFixed(2) : "0.00";
+          if (el.statMeanLabel) el.statMeanLabel.textContent = "Average Score (1 to 5)";
+          if (el.statMeanMos) el.statMeanMos.textContent = avgMos;
+          if (el.chartMosTitle) el.chartMosTitle.textContent = "Model MOS Comparison (1–5)";
+          if (el.chartMosSubtitle) el.chartMosSubtitle.textContent = "Mean naturalness score with 95% confidence intervals";
+          if (el.chartMosBadge) el.chartMosBadge.textContent = "95% CI Error Ticks";
+          if (el.analyticsScorecardTitle) el.analyticsScorecardTitle.textContent = "Average Scores by Audio Model / Sample";
+        }
       }
 
       // Defect Breakdown Table
@@ -3852,8 +4021,880 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         }
       }
 
+      // Submissions Audit Log & Waveform Inspector Data
+      try {
+        const evResp = await adminFetch(`/api/evaluations?campaign_id=${encodeURIComponent(campaignId)}`);
+        const evData = await evResp.json();
+        state.auditData = {
+          campaignId: campaignId,
+          evaluations: evData.evaluations || [],
+          meanScore: data.overall_mean_mos || 0,
+          models: data.model_statistics || []
+        };
+        renderRatersLeaderboard();
+        setupAuditFilters();
+        renderAuditStudio();
+      } catch (e) {
+        console.warn("Audit evaluations load error:", e);
+      }
+
     } catch (err) {
       console.warn("Analytics load error:", err);
+    }
+  }
+
+  // --- Submissions Audit Studio, Filters & Waveform Inspector ---
+
+  let auditAudioCtx = null;
+  const auditAudioBuffers = {};
+  let currentActiveAuditAudio = null;
+
+  function getAuditAudioContext() {
+    if (!auditAudioCtx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) auditAudioCtx = new AudioCtx();
+    }
+    if (auditAudioCtx && auditAudioCtx.state === "suspended") {
+      auditAudioCtx.resume();
+    }
+    return auditAudioCtx;
+  }
+
+  function resolveEvaluationAudioUrl(ev) {
+    if (!ev) return "";
+    if (ev.audio_files_json) {
+      try {
+        const obj = typeof ev.audio_files_json === "string" ? JSON.parse(ev.audio_files_json) : ev.audio_files_json;
+        if (obj.url) return obj.url;
+        if (ev.model_id && obj[ev.model_id]) {
+          return obj[ev.model_id]?.url || obj[ev.model_id];
+        }
+        const firstKey = Object.keys(obj)[0];
+        if (firstKey) {
+          return obj[firstKey]?.url || obj[firstKey];
+        }
+      } catch (e) {}
+    }
+    return "";
+  }
+
+  function renderRatersLeaderboard() {
+    if (!el.analyticsRatersGrid || !state.auditData) return;
+    el.analyticsRatersGrid.innerHTML = "";
+    const evals = state.auditData.evaluations || [];
+    const ratersMap = {};
+
+    evals.forEach(ev => {
+      const rid = ev.rater_id || "anonymous";
+      if (!ratersMap[rid]) {
+        ratersMap[rid] = {
+          id: rid,
+          name: ev.rater_name || "Anonymous",
+          count: 0,
+          scores: [],
+          defectsCount: 0,
+          lastActive: ev.created_at || ""
+        };
+      }
+      ratersMap[rid].count++;
+      if (ev.scores) {
+        Object.values(ev.scores).forEach(s => {
+          if (typeof s === "number") ratersMap[rid].scores.push(s);
+        });
+      }
+      if (Array.isArray(ev.defect_tags)) {
+        ratersMap[rid].defectsCount += ev.defect_tags.length;
+      }
+      if (ev.created_at && (!ratersMap[rid].lastActive || ev.created_at > ratersMap[rid].lastActive)) {
+        ratersMap[rid].lastActive = ev.created_at;
+      }
+    });
+
+    const ratersList = Object.values(ratersMap);
+    if (el.auditRaterCountBadge) {
+      el.auditRaterCountBadge.textContent = `${ratersList.length} Evaluator${ratersList.length === 1 ? "" : "s"}`;
+    }
+
+    if (ratersList.length === 0) {
+      el.analyticsRatersGrid.innerHTML = `
+        <div class="col-span-full py-4 text-center text-xs text-zinc-400">
+          No evaluators recorded for this study yet.
+        </div>
+      `;
+      return;
+    }
+
+    const overallMean = state.auditData.meanScore || 0;
+
+    ratersList.sort((a, b) => b.count - a.count).forEach(r => {
+      const raterMean = r.scores.length > 0 ? (r.scores.reduce((acc, v) => acc + v, 0) / r.scores.length) : 0;
+      let tendencyBadge = "";
+      if (r.scores.length > 0 && overallMean > 0) {
+        const diff = raterMean - overallMean;
+        if (diff > 0.35) {
+          tendencyBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" title="Scores significantly higher than average">Lenient (+${diff.toFixed(1)})</span>`;
+        } else if (diff < -0.35) {
+          tendencyBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200" title="Scores significantly lower than average">Strict (${diff.toFixed(1)})</span>`;
+        } else {
+          tendencyBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-zinc-100 text-zinc-600 border border-zinc-200">Balanced</span>`;
+        }
+      }
+
+      const card = document.createElement("div");
+      card.className = "p-3 rounded-xl bg-white border border-zinc-200/80 hover:border-zinc-300 hover:shadow-xs transition cursor-pointer flex flex-col justify-between space-y-2.5";
+      card.title = `Click to filter submissions by ${r.name}`;
+      card.innerHTML = `
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-full bg-zinc-900 text-white font-bold text-xs flex items-center justify-center uppercase shrink-0">
+              ${escapeHtml(r.name.slice(0, 1))}
+            </div>
+            <div class="overflow-hidden">
+              <div class="font-bold text-xs text-zinc-900 truncate">${escapeHtml(r.name)}</div>
+              <div class="text-[10px] text-zinc-400 font-mono">${escapeHtml(r.lastActive.slice(0, 10))}</div>
+            </div>
+          </div>
+          ${tendencyBadge}
+        </div>
+        <div class="grid grid-cols-3 gap-1 pt-1 border-t border-zinc-100 text-center">
+          <div>
+            <div class="text-[10px] text-zinc-400 uppercase font-medium">Rated</div>
+            <div class="font-mono font-bold text-xs text-zinc-900">${r.count}</div>
+          </div>
+          <div>
+            <div class="text-[10px] text-zinc-400 uppercase font-medium">Avg</div>
+            <div class="font-mono font-bold text-xs ${raterMean >= 3.5 ? "text-emerald-700" : "text-zinc-800"}">${raterMean > 0 ? raterMean.toFixed(2) : "N/A"}</div>
+          </div>
+          <div>
+            <div class="text-[10px] text-zinc-400 uppercase font-medium">Defects</div>
+            <div class="font-mono font-bold text-xs ${r.defectsCount > 0 ? "text-red-700" : "text-zinc-500"}">${r.defectsCount}</div>
+          </div>
+        </div>
+      `;
+
+      card.addEventListener("click", () => {
+        if (el.auditFilterRater) {
+          el.auditFilterRater.value = r.id;
+          renderAuditStudio();
+          card.classList.add("ring-2", "ring-zinc-900");
+          setTimeout(() => card.classList.remove("ring-2", "ring-zinc-900"), 1200);
+        }
+      });
+
+      el.analyticsRatersGrid.appendChild(card);
+    });
+  }
+
+  let auditFiltersWired = false;
+  function setupAuditFilters() {
+    if (!state.auditData) return;
+    const evals = state.auditData.evaluations || [];
+
+    // Populate Raters Dropdown
+    if (el.auditFilterRater) {
+      const currentVal = el.auditFilterRater.value;
+      el.auditFilterRater.innerHTML = `<option value="all">All Evaluators</option>`;
+      const seenRaters = new Set();
+      evals.forEach(ev => {
+        const rid = ev.rater_id || "anonymous";
+        if (!seenRaters.has(rid)) {
+          seenRaters.add(rid);
+          const opt = document.createElement("option");
+          opt.value = rid;
+          opt.textContent = `${ev.rater_name || "Anonymous"}`;
+          el.auditFilterRater.appendChild(opt);
+        }
+      });
+      if (currentVal && seenRaters.has(currentVal)) {
+        el.auditFilterRater.value = currentVal;
+      }
+    }
+
+    // Populate Models Dropdown
+    if (el.auditFilterModel) {
+      const currentModelVal = el.auditFilterModel.value;
+      el.auditFilterModel.innerHTML = `<option value="all">All Models</option>`;
+      const seenModels = new Set();
+      evals.forEach(ev => {
+        const mid = ev.model_id;
+        if (mid && !seenModels.has(mid)) {
+          seenModels.add(mid);
+          const opt = document.createElement("option");
+          opt.value = mid;
+          opt.textContent = ev.model_name || mid;
+          el.auditFilterModel.appendChild(opt);
+        }
+      });
+      if (currentModelVal && seenModels.has(currentModelVal)) {
+        el.auditFilterModel.value = currentModelVal;
+      }
+    }
+
+    if (!auditFiltersWired) {
+      if (el.auditSearchInput) el.auditSearchInput.addEventListener("input", () => renderAuditStudio());
+      if (el.auditFilterRater) el.auditFilterRater.addEventListener("change", () => renderAuditStudio());
+      if (el.auditFilterModel) el.auditFilterModel.addEventListener("change", () => renderAuditStudio());
+      if (el.auditFilterDefect) el.auditFilterDefect.addEventListener("change", () => renderAuditStudio());
+      if (el.auditSortSelect) el.auditSortSelect.addEventListener("change", () => renderAuditStudio());
+      auditFiltersWired = true;
+    }
+  }
+
+  function renderAuditStudio() {
+    if (!el.analyticsAuditTbody || !state.auditData) return;
+    const allEvals = state.auditData.evaluations || [];
+
+    const searchQuery = (el.auditSearchInput ? el.auditSearchInput.value : "").trim().toLowerCase();
+    const raterFilter = el.auditFilterRater ? el.auditFilterRater.value : "all";
+    const modelFilter = el.auditFilterModel ? el.auditFilterModel.value : "all";
+    const defectFilter = el.auditFilterDefect ? el.auditFilterDefect.value : "all";
+    const sortMode = el.auditSortSelect ? el.auditSortSelect.value : "newest";
+
+    let filtered = allEvals.filter(ev => {
+      // 1. Search Query
+      if (searchQuery) {
+        const textMatch = (ev.item_text || "").toLowerCase().includes(searchQuery);
+        const keyMatch = (ev.item_key || "").toLowerCase().includes(searchQuery);
+        const raterMatch = (ev.rater_name || "").toLowerCase().includes(searchQuery);
+        const transcriptMatch = (ev.blind_transcript || "").toLowerCase().includes(searchQuery);
+        if (!textMatch && !keyMatch && !raterMatch && !transcriptMatch) return false;
+      }
+
+      // 2. Rater Filter
+      if (raterFilter !== "all" && ev.rater_id !== raterFilter) {
+        return false;
+      }
+
+      // 3. Model Filter
+      if (modelFilter !== "all" && ev.model_id !== modelFilter) {
+        return false;
+      }
+
+      // 4. Defect Filter
+      const hasDefects = Array.isArray(ev.defect_tags) && ev.defect_tags.length > 0;
+      const hasTrans = !!(ev.blind_transcript && ev.blind_transcript.trim());
+      if (defectFilter === "with_defects" && !hasDefects) return false;
+      if (defectFilter === "clean" && hasDefects) return false;
+      if (defectFilter === "with_transcription" && !hasTrans) return false;
+
+      return true;
+    });
+
+    // Sort
+    filtered.sort((a, b) => {
+      if (sortMode === "oldest") {
+        return (a.created_at || "").localeCompare(b.created_at || "");
+      }
+      if (sortMode === "duration") {
+        return (b.duration_seconds || 0) - (a.duration_seconds || 0);
+      }
+      if (sortMode === "lowest_score" || sortMode === "highest_score") {
+        const getAvg = (item) => {
+          if (!item.scores) return 0;
+          const vals = Object.values(item.scores).filter(v => typeof v === "number");
+          return vals.length > 0 ? (vals.reduce((s, v) => s + v, 0) / vals.length) : 0;
+        };
+        const avgA = getAvg(a);
+        const avgB = getAvg(b);
+        return sortMode === "lowest_score" ? avgA - avgB : avgB - avgA;
+      }
+      // default: newest
+      return (b.created_at || "").localeCompare(a.created_at || "");
+    });
+
+    if (el.auditCountBadge) {
+      el.auditCountBadge.textContent = `Showing ${filtered.length} of ${allEvals.length} evaluations`;
+    }
+
+    el.analyticsAuditTbody.innerHTML = "";
+
+    if (filtered.length === 0) {
+      el.analyticsAuditTbody.innerHTML = `
+        <tr>
+          <td colspan="7" class="py-10 text-center text-xs text-zinc-400 font-medium">
+            No evaluations match the selected filter criteria.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    filtered.forEach(ev => {
+      const tr = document.createElement("tr");
+      tr.className = "hover:bg-zinc-50/75 transition-colors group";
+      tr.dataset.evalId = ev.id;
+
+      const audioUrl = resolveEvaluationAudioUrl(ev);
+      const hasDefects = Array.isArray(ev.defect_tags) && ev.defect_tags.length > 0;
+      const hasTrans = !!(ev.blind_transcript && ev.blind_transcript.trim());
+
+      // Scores preview pills
+      let scoresHtml = "";
+      if (ev.scores && typeof ev.scores === "object") {
+        scoresHtml = Object.entries(ev.scores).map(([k, v]) => {
+          if (v === 1 && typeof v === "number" && Object.keys(ev.scores).length <= 2) {
+            return `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Pass</span>`;
+          } else if (v === 0 && typeof v === "number" && Object.keys(ev.scores).length <= 2) {
+            return `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Fail</span>`;
+          }
+          return `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-zinc-100 text-zinc-700 border border-zinc-200" title="${escapeHtml(k)}"><span class="text-zinc-400 font-normal">${escapeHtml(k.slice(0, 4))}:</span><strong>${v}</strong></span>`;
+        }).join(" ");
+      }
+
+      // Defects preview badges
+      let defectsHtml = "";
+      if (hasDefects) {
+        defectsHtml = ev.defect_tags.map(dt => `
+          <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-50 text-red-700 border border-red-200" title="${escapeHtml(dt.note || "")}">
+            <span>${escapeHtml(dt.error_code)}</span>
+            <span class="font-mono text-[9px] text-red-500">${((dt.time_start_ms || 0)/1000).toFixed(1)}s</span>
+          </span>
+        `).join(" ");
+      } else {
+        defectsHtml = `<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium text-zinc-400 bg-zinc-50 border border-zinc-200/60">Clean</span>`;
+      }
+
+      tr.innerHTML = `
+        <td class="p-3 text-center">
+          ${audioUrl ? `
+            <button type="button" class="btn-audio-play-quick w-7 h-7 rounded-full bg-zinc-100 hover:bg-zinc-900 hover:text-white text-zinc-700 flex items-center justify-center transition cursor-pointer mx-auto shadow-2xs" title="Play audio snippet">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            </button>
+          ` : `
+            <span class="w-7 h-7 rounded-full bg-zinc-50 text-zinc-300 flex items-center justify-center mx-auto text-xs">-</span>
+          `}
+        </td>
+        <td class="p-3 max-w-xs">
+          <div class="font-khmer font-bold text-zinc-900 text-xs truncate" title="${escapeHtml(ev.item_text || "")}">
+            ${escapeHtml(ev.item_text || "Audio Item")}
+          </div>
+          <div class="text-[10px] text-zinc-400 font-mono mt-0.5">${escapeHtml(ev.item_key || ev.item_id || "")}</div>
+          ${hasTrans ? `
+            <div class="mt-1 text-[10px] text-amber-800 bg-amber-50/70 border border-amber-200/60 rounded px-1.5 py-0.5 inline-block font-khmer">
+              Heard: "${escapeHtml(ev.blind_transcript)}"
+            </div>
+          ` : ""}
+        </td>
+        <td class="p-3">
+          <span class="px-2 py-0.5 rounded-md text-[11px] font-medium bg-zinc-100 text-zinc-800 border border-zinc-200">
+            ${escapeHtml(ev.model_name || ev.model_id || "Model")}
+          </span>
+        </td>
+        <td class="p-3">
+          <div class="font-semibold text-zinc-900 flex items-center gap-1.5">
+            <span>${escapeHtml(ev.rater_name || "Anonymous")}</span>
+            <button type="button" class="btn-rename-rater text-zinc-400 hover:text-zinc-700 p-0.5 rounded hover:bg-zinc-100 transition cursor-pointer" data-rater-id="${escapeHtml(ev.rater_id || "")}" data-rater-name="${escapeHtml(ev.rater_name || "")}" title="Rename evaluator">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            </button>
+          </div>
+          <div class="text-[10px] text-zinc-400 font-mono">${(ev.created_at || "").slice(0, 16)} • ${ev.duration_seconds ? ev.duration_seconds.toFixed(1) + "s" : ""}</div>
+        </td>
+        <td class="p-3">
+          <div class="flex flex-wrap gap-1">${scoresHtml}</div>
+        </td>
+        <td class="p-3">
+          <div class="flex flex-wrap gap-1">${defectsHtml}</div>
+        </td>
+        <td class="p-3 text-right">
+          <div class="flex items-center justify-end gap-1.5">
+            <button type="button" class="btn-toggle-inspector px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 transition cursor-pointer flex items-center gap-1" title="Inspect waveform and errors">
+              <span>Inspect</span>
+              <svg class="w-3 h-3 text-zinc-400 group-hover:text-zinc-600 transition-transform duration-200 btn-expand-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <button type="button" class="btn-delete-audit-eval w-7 h-7 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition cursor-pointer" title="Delete submission">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+          </div>
+        </td>
+      `;
+
+      // Quick audio play toggle
+      const btnPlay = tr.querySelector(".btn-audio-play-quick");
+      if (btnPlay && audioUrl) {
+        btnPlay.addEventListener("click", (e) => {
+          e.stopPropagation();
+          toggleQuickAudio(btnPlay, audioUrl);
+        });
+      }
+
+      // Rename evaluator inline
+      const btnRename = tr.querySelector(".btn-rename-rater");
+      if (btnRename) {
+        btnRename.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const rId = btnRename.dataset.raterId;
+          const current = btnRename.dataset.raterName;
+          const newName = prompt("Enter new name for this evaluator:", current || "");
+          if (newName && newName.trim()) {
+            try {
+              const r = await adminFetch("/api/admin/raters/rename", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ rater_id: rId, name: newName.trim() })
+              });
+              const d = await r.json();
+              if (r.ok && d.success) {
+                showToast("Evaluator renamed.", "success");
+                if (state.auditData && state.auditData.evaluations) {
+                  state.auditData.evaluations.forEach(evItem => {
+                    if (evItem.rater_id === rId) evItem.rater_name = newName.trim();
+                  });
+                }
+                renderAuditStudio();
+                renderRatersLeaderboard();
+              } else {
+                showToast(d.error || "Failed to rename evaluator", "error");
+              }
+            } catch (err) {
+              showToast("Network error: " + err.message, "error");
+            }
+          }
+        });
+      }
+
+      // Toggle Waveform Inspector
+      const btnInspect = tr.querySelector(".btn-toggle-inspector");
+      if (btnInspect) {
+        btnInspect.addEventListener("click", () => {
+          toggleAuditRowInspector(tr, ev, audioUrl);
+        });
+      }
+
+      // Delete evaluation
+      const btnDel = tr.querySelector(".btn-delete-audit-eval");
+      if (btnDel) {
+        btnDel.addEventListener("click", (e) => {
+          e.stopPropagation();
+          deleteAuditEvaluation(ev.id);
+        });
+      }
+
+      el.analyticsAuditTbody.appendChild(tr);
+    });
+  }
+
+  function toggleQuickAudio(btn, audioUrl) {
+    if (currentActiveAuditAudio && currentActiveAuditAudio.src.endsWith(audioUrl) && !currentActiveAuditAudio.paused) {
+      currentActiveAuditAudio.pause();
+      btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+      btn.classList.remove("bg-zinc-900", "text-white");
+      btn.classList.add("bg-zinc-100", "text-zinc-700");
+      return;
+    }
+
+    if (currentActiveAuditAudio) {
+      currentActiveAuditAudio.pause();
+      document.querySelectorAll(".btn-audio-play-quick").forEach(b => {
+        b.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+        b.classList.remove("bg-zinc-900", "text-white");
+        b.classList.add("bg-zinc-100", "text-zinc-700");
+      });
+    }
+
+    const audio = new Audio(audioUrl);
+    currentActiveAuditAudio = audio;
+    btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+    btn.classList.remove("bg-zinc-100", "text-zinc-700");
+    btn.classList.add("bg-zinc-900", "text-white");
+
+    audio.play().catch(e => {
+      console.warn("Audio play error:", e);
+      btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+    });
+
+    audio.onended = () => {
+      btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+      btn.classList.remove("bg-zinc-900", "text-white");
+      btn.classList.add("bg-zinc-100", "text-zinc-700");
+    };
+  }
+
+  function toggleAuditRowInspector(parentTr, ev, audioUrl) {
+    const nextEl = parentTr.nextElementSibling;
+    const arrow = parentTr.querySelector(".btn-expand-arrow");
+
+    if (nextEl && nextEl.classList.contains("audit-inspector-row")) {
+      nextEl.remove();
+      if (arrow) arrow.style.transform = "rotate(0deg)";
+      return;
+    }
+
+    if (arrow) arrow.style.transform = "rotate(180deg)";
+
+    const inspectorTr = document.createElement("tr");
+    inspectorTr.className = "audit-inspector-row bg-zinc-50/50 border-y border-zinc-200/80";
+
+    const hasDefects = Array.isArray(ev.defect_tags) && ev.defect_tags.length > 0;
+    const defectTags = ev.defect_tags || [];
+
+    inspectorTr.innerHTML = `
+      <td colspan="7" class="p-4 bg-zinc-50/40">
+        <div class="max-w-4xl mx-auto space-y-3.5 p-5 bg-white rounded-2xl border border-zinc-200 shadow-2xs">
+          <!-- Top Header: Prompt, Model, Item Key -->
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-zinc-100 pb-3">
+            <div>
+              <div class="font-khmer font-bold text-zinc-900 text-lg leading-snug">
+                ${escapeHtml(ev.item_text || "Audio Clip")}
+              </div>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-zinc-100 text-zinc-700 font-semibold border border-zinc-200/70">${escapeHtml(ev.item_key || "")}</span>
+                <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-zinc-100 text-zinc-800 border border-zinc-200">${escapeHtml(ev.model_name || ev.model_id || "Model")}</span>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs font-semibold text-zinc-900">${escapeHtml(ev.rater_name || "Evaluator")}</div>
+              <div class="text-[10px] text-zinc-400 font-mono mt-0.5">${(ev.created_at || "").slice(0, 16)} • ${ev.duration_seconds ? ev.duration_seconds.toFixed(1) + "s" : ""}</div>
+            </div>
+          </div>
+
+          <!-- Waveform Audio Player Capsule (Matches Rater Studio) -->
+          <div class="flex items-center gap-3 p-3 bg-zinc-50/80 border border-zinc-200/90 rounded-xl">
+            <!-- Main Play Button -->
+            <button type="button" class="btn-inspector-play-full w-10 h-10 rounded-full bg-zinc-900 hover:bg-zinc-800 text-white flex items-center justify-center transition shadow-2xs shrink-0 cursor-pointer" title="Play recording">
+              <svg class="w-4 h-4 fill-current ml-0.5 inspector-play-icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            </button>
+
+            <!-- White Rounded Pill Waveform Canvas Capsule -->
+            <div class="relative flex-1 h-[68px] bg-white rounded-lg border border-zinc-200/90 overflow-hidden px-2 flex items-center">
+              <canvas class="audit-waveform-canvas w-full h-[64px] block"></canvas>
+              <div class="waveform-loading-overlay absolute inset-0 flex items-center justify-center bg-white/90 text-zinc-400 text-xs font-medium">
+                Loading waveform...
+              </div>
+            </div>
+
+            <!-- Time Label -->
+            <div class="text-[11px] font-mono text-zinc-500 shrink-0 w-12 text-right inspector-time-label">0.0s</div>
+
+            <!-- Play First Defect Slice Shortcut -->
+            ${hasDefects ? `
+              <button type="button" class="btn-inspector-play-slice px-3 py-2 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white transition cursor-pointer flex items-center gap-1.5 shadow-2xs shrink-0">
+                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                <span>Play Error (${((defectTags[0].time_start_ms || 0)/1000).toFixed(1)}s - ${((defectTags[0].time_end_ms || 0)/1000).toFixed(1)}s)</span>
+              </button>
+            ` : ""}
+          </div>
+
+          <!-- Flagged Defect Regions & Evaluator Feedback Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1 text-xs">
+            <!-- Flagged Errors -->
+            <div class="space-y-1.5">
+              <div class="text-[11px] font-semibold text-zinc-600">Flagged Errors (${defectTags.length})</div>
+              ${hasDefects ? `
+                <div class="space-y-1.5">
+                  ${defectTags.map((dt, idx) => `
+                    <div class="p-2.5 rounded-lg bg-red-50/70 border border-red-200 flex items-center justify-between text-xs">
+                      <div>
+                        <span class="font-bold text-red-900">${escapeHtml(dt.error_code)}</span>
+                        <span class="text-red-700 ml-1.5 font-mono text-[11px]">${((dt.time_start_ms || 0)/1000).toFixed(2)}s - ${((dt.time_end_ms || 0)/1000).toFixed(2)}s</span>
+                        ${dt.note ? `<div class="text-[11px] text-red-800 italic mt-0.5">"${escapeHtml(dt.note)}"</div>` : ""}
+                      </div>
+                      <button type="button" class="btn-play-individual-slice px-2.5 py-1 text-[11px] font-semibold bg-white border border-red-200 hover:bg-red-100 rounded-md text-red-800 transition cursor-pointer flex items-center gap-1 shrink-0" data-idx="${idx}">
+                        <svg class="w-2.5 h-2.5 fill-current" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                        <span>Listen</span>
+                      </button>
+                    </div>
+                  `).join("")}
+                </div>
+              ` : `
+                <div class="p-3 rounded-lg bg-zinc-50 border border-zinc-200/60 text-zinc-500 text-xs">
+                  No errors were flagged by the evaluator for this clip. Graded clean.
+                </div>
+              `}
+            </div>
+
+            <!-- Evaluator Notes -->
+            <div class="space-y-1.5">
+              <div class="text-[11px] font-semibold text-zinc-600">Evaluator Notes & Feedback</div>
+              <div class="p-3 rounded-lg bg-zinc-50 border border-zinc-200/80 space-y-1.5 text-xs">
+                ${ev.comments ? `
+                  <div><span class="text-zinc-500 font-medium">Comments:</span> <span class="italic text-zinc-700">"${escapeHtml(ev.comments)}"</span></div>
+                ` : `<div class="text-zinc-400 italic">No additional comments provided.</div>`}
+                ${ev.blind_transcript ? `
+                  <div class="pt-1 border-t border-zinc-200/60">
+                    <span class="text-zinc-500 font-medium">What Evaluator Heard:</span>
+                    <span class="font-khmer font-bold text-zinc-900 ml-1 text-sm">${escapeHtml(ev.blind_transcript)}</span>
+                  </div>
+                ` : ""}
+              </div>
+            </div>
+          </div>
+        </div>
+      </td>
+    `;
+
+    parentTr.parentNode.insertBefore(inspectorTr, parentTr.nextSibling);
+
+    const canvas = inspectorTr.querySelector(".audit-waveform-canvas");
+    const loadingOverlay = inspectorTr.querySelector(".waveform-loading-overlay");
+    const btnPlayFull = inspectorTr.querySelector(".btn-inspector-play-full");
+    const btnPlaySlice = inspectorTr.querySelector(".btn-inspector-play-slice");
+    const timeLabel = inspectorTr.querySelector(".inspector-time-label");
+
+    if (canvas && audioUrl) {
+      loadAndRenderInspectorWaveform(canvas, loadingOverlay, audioUrl, defectTags);
+    } else if (loadingOverlay) {
+      loadingOverlay.textContent = "No audio asset linked for this sample";
+    }
+
+    if (btnPlayFull && audioUrl) {
+      btnPlayFull.addEventListener("click", () => {
+        playInspectorAudio(audioUrl, canvas, null, btnPlayFull, timeLabel);
+      });
+    }
+
+    if (btnPlaySlice && audioUrl && hasDefects) {
+      btnPlaySlice.addEventListener("click", () => {
+        const d0 = defectTags[0];
+        const s = (d0.time_start_ms || 0) / 1000;
+        const e = (d0.time_end_ms || 0) / 1000;
+        playInspectorAudio(audioUrl, canvas, { startSec: s, endSec: e }, btnPlayFull, timeLabel);
+      });
+    }
+
+    inspectorTr.querySelectorAll(".btn-play-individual-slice").forEach(b => {
+      b.addEventListener("click", () => {
+        const idx = parseInt(b.dataset.idx, 10);
+        const dt = defectTags[idx];
+        if (dt) {
+          const s = (dt.time_start_ms || 0) / 1000;
+          const e = (dt.time_end_ms || 0) / 1000;
+          playInspectorAudio(audioUrl, canvas, { startSec: s, endSec: e }, btnPlayFull, timeLabel);
+        }
+      });
+    });
+  }
+
+  async function loadAndRenderInspectorWaveform(canvas, loadingOverlay, audioUrl, defectTags) {
+    try {
+      canvas.__defectTags = defectTags || [];
+      let buffer = auditAudioBuffers[audioUrl];
+      if (!buffer) {
+        const ctx = getAuditAudioContext();
+        if (!ctx) return;
+        const resp = await fetch(audioUrl);
+        const arr = await resp.arrayBuffer();
+        buffer = await ctx.decodeAudioData(arr);
+        auditAudioBuffers[audioUrl] = buffer;
+      }
+
+      if (loadingOverlay) loadingOverlay.style.display = "none";
+      drawWaveformWithDefects(canvas, buffer, defectTags, 0);
+    } catch (err) {
+      console.warn("Waveform load error:", err);
+      if (loadingOverlay) loadingOverlay.textContent = "Could not decode audio waveform";
+    }
+  }
+
+  function drawWaveformWithDefects(canvas, buffer, defectTags, playheadProgress = 0) {
+    if (!canvas || !buffer) return;
+    const ctx = canvas.getContext("2d");
+    const dpr = window.devicePixelRatio || 1;
+    const width = canvas.clientWidth || 600;
+    const height = canvas.clientHeight || 64;
+
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    ctx.scale(dpr, dpr);
+
+    // Clean white background
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, width, height);
+
+    const data = buffer.getChannelData(0);
+    const duration = buffer.duration || 1.0;
+    const barWidth = 2.5;
+    const barGap = 1.5;
+    const numBars = Math.floor(width / (barWidth + barGap));
+    const step = Math.max(1, Math.floor(data.length / numBars));
+    const midY = height / 2;
+    const maxBarHeight = height - 12;
+
+    const playheadX = playheadProgress * width;
+
+    // Played vs unplayed gradients (Fish Audio aesthetic)
+    const playedGrad = ctx.createLinearGradient(0, midY - (maxBarHeight / 2), 0, midY + (maxBarHeight / 2));
+    playedGrad.addColorStop(0, "#09090B");
+    playedGrad.addColorStop(1, "#27272A");
+
+    const unplayedGrad = ctx.createLinearGradient(0, midY - (maxBarHeight / 2), 0, midY + (maxBarHeight / 2));
+    unplayedGrad.addColorStop(0, "#CBD5E1");
+    unplayedGrad.addColorStop(1, "#E2E8F0");
+
+    // Draw rounded pill bars
+    for (let i = 0; i < numBars; i++) {
+      let min = 1.0;
+      let max = -1.0;
+      for (let j = 0; j < step; j++) {
+        const datum = data[(i * step) + j] || 0;
+        if (datum < min) min = datum;
+        if (datum > max) max = datum;
+      }
+      const peak = Math.max(Math.abs(min), Math.abs(max));
+      const barHeight = Math.max(3, peak * maxBarHeight);
+      const x = i * (barWidth + barGap);
+      const y = midY - (barHeight / 2);
+
+      const isPlayed = (x + barWidth) <= playheadX;
+      ctx.fillStyle = isPlayed ? playedGrad : unplayedGrad;
+
+      const radius = Math.min(barWidth / 2, barHeight / 2);
+      ctx.beginPath();
+      if (typeof ctx.roundRect === "function") {
+        ctx.roundRect(x, y, barWidth, barHeight, radius);
+      } else {
+        ctx.rect(x, y, barWidth, barHeight);
+      }
+      ctx.fill();
+    }
+
+    // Overlay Defect Regions
+    const tags = (Array.isArray(defectTags) && defectTags.length > 0) ? defectTags : (canvas.__defectTags || []);
+    if (tags.length > 0 && duration > 0) {
+      tags.forEach(dt => {
+        const startSec = (dt.time_start_ms || 0) / 1000;
+        const endSec = (dt.time_end_ms || 0) / 1000;
+        if (endSec > startSec) {
+          const x1 = (startSec / duration) * width;
+          const x2 = (endSec / duration) * width;
+          const w = Math.max(6, x2 - x1);
+
+          // Translucent red highlight fill
+          ctx.fillStyle = "rgba(239, 68, 68, 0.20)";
+          ctx.fillRect(x1, 0, w, height);
+
+          // Top red indicator
+          ctx.fillStyle = "#EF4444";
+          ctx.fillRect(x1, 0, w, 3);
+
+          // Left/right borders
+          ctx.strokeStyle = "rgba(239, 68, 68, 0.5)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x1, 0);
+          ctx.lineTo(x1, height);
+          ctx.moveTo(x1 + w, 0);
+          ctx.lineTo(x1 + w, height);
+          ctx.stroke();
+
+          // Defect label pill
+          const label = dt.error_code || "ERROR";
+          ctx.font = "bold 9px -apple-system, sans-serif";
+          ctx.fillStyle = "#991B1B";
+          ctx.fillText(label, x1 + 3, height - 4);
+        }
+      });
+    }
+
+    // Playhead line with Fish Audio pill handle
+    if (playheadProgress > 0 && playheadProgress <= 1) {
+      ctx.fillStyle = "#09090B";
+      ctx.fillRect(Math.max(0, playheadX - 1), 2, 2, height - 4);
+
+      ctx.beginPath();
+      if (typeof ctx.roundRect === "function") {
+        ctx.roundRect(playheadX - 3, 1, 6, 8, 3);
+      } else {
+        ctx.arc(playheadX, 4, 3, 0, Math.PI * 2);
+      }
+      ctx.fill();
+    }
+  }
+
+  let activeInspectorSource = null;
+  let activeInspectorAnim = null;
+
+  function playInspectorAudio(audioUrl, canvas, slice, btnPlay, timeLabel) {
+    const ctx = getAuditAudioContext();
+    if (!ctx) return;
+    const buffer = auditAudioBuffers[audioUrl];
+    if (!buffer) return;
+
+    if (activeInspectorSource) {
+      try { activeInspectorSource.stop(); } catch (e) {}
+      activeInspectorSource = null;
+    }
+    if (activeInspectorAnim) {
+      cancelAnimationFrame(activeInspectorAnim);
+      activeInspectorAnim = null;
+    }
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    activeInspectorSource = source;
+
+    const duration = buffer.duration;
+    const startSec = slice ? slice.startSec : 0;
+    const playDuration = slice ? (slice.endSec - slice.startSec) : (duration - startSec);
+    const startTime = ctx.currentTime;
+
+    source.start(0, startSec, playDuration);
+
+    if (btnPlay) {
+      btnPlay.innerHTML = `<svg class="w-4 h-4 fill-current ml-0.5" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+    }
+
+    const defectTags = canvas.__defectTags || [];
+    function updatePlayhead() {
+      const elapsed = ctx.currentTime - startTime;
+      if (elapsed >= playDuration) {
+        drawWaveformWithDefects(canvas, buffer, defectTags, 0);
+        if (btnPlay) {
+          btnPlay.innerHTML = `<svg class="w-4 h-4 fill-current ml-0.5" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+        }
+        if (timeLabel) timeLabel.textContent = "0.0s";
+        return;
+      }
+      const currentPosSec = startSec + elapsed;
+      const progress = currentPosSec / duration;
+      if (timeLabel) timeLabel.textContent = currentPosSec.toFixed(1) + "s";
+      drawWaveformWithDefects(canvas, buffer, defectTags, progress);
+      activeInspectorAnim = requestAnimationFrame(updatePlayhead);
+    }
+    activeInspectorAnim = requestAnimationFrame(updatePlayhead);
+
+    source.onended = () => {
+      if (activeInspectorAnim) {
+        cancelAnimationFrame(activeInspectorAnim);
+        activeInspectorAnim = null;
+      }
+      drawWaveformWithDefects(canvas, buffer, defectTags, 0);
+      if (btnPlay) {
+        btnPlay.innerHTML = `<svg class="w-4 h-4 fill-current ml-0.5" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+      }
+      if (timeLabel) timeLabel.textContent = "0.0s";
+    };
+  }
+
+  async function deleteAuditEvaluation(evalId) {
+    if (!confirm("Are you sure you want to delete this evaluation?\n\nThis will permanently remove the submission and its flagged defect tags, and recalculate consensus metrics.")) {
+      return;
+    }
+
+    try {
+      const resp = await adminFetch(`/api/evaluations?id=${encodeURIComponent(evalId)}`, {
+        method: "DELETE"
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.success) {
+        throw new Error(data.error || "Failed to delete evaluation");
+      }
+
+      showToast("Evaluation deleted successfully.", "success");
+      if (state.auditData) {
+        state.auditData.evaluations = state.auditData.evaluations.filter(e => e.id !== evalId);
+      }
+      renderRatersLeaderboard();
+      setupAuditFilters();
+      renderAuditStudio();
+
+      // Refresh overall summary metrics in background
+      if (el.analyticsCampaignSelect && el.analyticsCampaignSelect.value) {
+        loadAnalyticsSummary();
+      }
+    } catch (err) {
+      console.warn("Delete error:", err);
+      showToast(`Error deleting evaluation: ${err.message}`, "error");
     }
   }
 
@@ -3913,7 +4954,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
 
     // Bars and CI ticks
     modelsList.forEach((m, idx) => {
-      const name = m.model_name || "Sample";
+      const name = m.model_name || m.name || m.candidate_code || m.code || "Model";
       const summary = m.summary || {};
       const primaryStat = summary[firstMetricKey] || summary.naturalness || summary[Object.keys(summary)[0]] || {};
 
@@ -3962,9 +5003,9 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
       }
 
       // Model label on bottom
-      const truncName = name.length > 12 ? name.slice(0, 10) + "…" : name;
+      const truncName = name.length > 15 ? name.slice(0, 13) + "…" : name;
       svg += `
-        <text x="${centerX}" y="${chartHeight - 12}" text-anchor="middle" font-size="10" font-weight="500" fill="#3F3F46">${escapeHtml(truncName)}</text>
+        <text x="${centerX}" y="${chartHeight - 12}" text-anchor="middle" font-size="10" font-weight="600" fill="#27272A">${escapeHtml(truncName)}</text>
       `;
     });
 
@@ -4211,7 +5252,7 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           </div>
           <div>
             <div class="text-[10px] text-zinc-500 font-medium">Rubric Scale</div>
-            <div class="font-bold text-zinc-900">1 - ${camp.scale_max || 5} ${escapeHtml(camp.protocol_type || "ACR")}</div>
+            <div class="font-bold text-zinc-900">${(camp.scale_max <= 2 || (camp.protocol_type || '').toLowerCase() === 'diagnostic') ? 'Pass / Fail' : `1 - ${camp.scale_max || 5} ${escapeHtml(camp.protocol_type || "ACR")}`}</div>
           </div>
         </div>
 
@@ -4225,7 +5266,6 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
           <div class="flex flex-wrap items-center gap-2">
             <button type="button" class="btn-ghost text-xs btn-copy-card-link" data-url="${shareUrl}">Copy Link</button>
             <a href="${shareUrl}" target="_blank" class="btn-ghost text-xs">Evaluate</a>
-            <button type="button" class="btn-carbon text-xs btn-view-card-results" data-id="${camp.id}">Results & MOS</button>
             <button type="button" class="px-2.5 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg font-medium cursor-pointer transition btn-delete-card" data-id="${camp.id}" data-name="${escapeHtml(camp.name)}">
               Delete
             </button>
@@ -4243,13 +5283,6 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         } catch (err) {
           showToast(`Study URL: ${shareUrl}`, "info");
         }
-      });
-
-      // View Results
-      card.querySelector(".btn-view-card-results").addEventListener("click", () => {
-        el.tabBtnResults.click();
-        el.analyticsCampaignSelect.value = camp.id;
-        loadAnalyticsData();
       });
 
       // Toggle Status
