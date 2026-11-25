@@ -1093,6 +1093,75 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Participating Listeners (Raters) Table Card -->
+        <div class="studio-card p-0 overflow-hidden">
+          <div class="px-5 py-3 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
+            <div>
+              <div class="text-xs font-semibold text-zinc-800">Participating Listeners (Raters)</div>
+              <div class="text-[11px] text-zinc-500">Breakdown of evaluator throughput, average session speed, defect sensitivity, and data moderation.</div>
+            </div>
+          </div>
+          <table class="w-full text-left text-xs">
+            <thead class="bg-zinc-50/50 border-b border-zinc-200 text-zinc-600 font-semibold">
+              <tr>
+                <th class="p-3">Rater Name</th>
+                <th class="p-3">Role</th>
+                <th class="p-3">Evaluations Completed</th>
+                <th class="p-3">Average Time</th>
+                <th class="p-3">Mean Score</th>
+                <th class="p-3">Speech Defects Flagged</th>
+                <th class="p-3">Last Submitted</th>
+                <th class="p-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="analytics-raters-tbody" class="divide-y divide-zinc-100">
+              <tr>
+                <td colspan="8" class="p-4 text-center text-zinc-500 font-medium">No evaluators found for this study.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- All Submitted Evaluations Table Card -->
+        <div class="studio-card p-0 overflow-hidden">
+          <div class="px-5 py-3 border-b border-zinc-200 bg-zinc-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold text-zinc-800">All Submitted Evaluations</span>
+                <span id="evaluations-count-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-zinc-200 text-zinc-700">0</span>
+              </div>
+              <div class="text-[11px] text-zinc-500">Inspect full audio recordings, waveforms, tagged speech defects, and score breakdowns.</div>
+            </div>
+            <div class="w-full sm:w-72">
+              <input
+                type="text"
+                id="evaluations-search-input"
+                placeholder="Search item, rater, model, comments..."
+                class="w-full px-3 py-1.5 text-xs bg-white border border-zinc-200 rounded-lg text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+              />
+            </div>
+          </div>
+          <table class="w-full text-left text-xs">
+            <thead class="bg-zinc-50/50 border-b border-zinc-200 text-zinc-600 font-semibold">
+              <tr>
+                <th class="p-3">Item / Sample</th>
+                <th class="p-3">Model</th>
+                <th class="p-3">Evaluator</th>
+                <th class="p-3">Primary Score</th>
+                <th class="p-3">Defects</th>
+                <th class="p-3">Time</th>
+                <th class="p-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="analytics-evaluations-tbody" class="divide-y divide-zinc-100">
+              <tr>
+                <td colspan="7" class="p-4 text-center text-zinc-500 font-medium">No evaluations submitted yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
       </div>
     </section>
 
@@ -1186,6 +1255,122 @@
         <div class="flex justify-end gap-2 pt-2">
           <button type="button" id="btn-cancel-delete" class="btn-ghost text-xs cursor-pointer">Cancel</button>
           <button type="button" id="btn-confirm-delete" disabled class="px-4 py-2 text-xs font-semibold rounded-lg bg-red-600 text-white cursor-not-allowed opacity-40 transition">Delete Permanently</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Evaluation Inspector Modal -->
+    <div id="modal-inspect-evaluation" class="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+      <div class="bg-white rounded-2xl border border-zinc-200 p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl space-y-5">
+        <!-- Header -->
+        <div class="flex items-start justify-between gap-4 border-b border-zinc-100 pb-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 id="inspect-eval-modal-title" class="text-sm font-bold text-zinc-900">Evaluation Inspector</h3>
+              <span id="inspect-eval-model-badge" class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200"></span>
+            </div>
+            <div class="flex items-center gap-3 text-xs text-zinc-500 mt-1">
+              <span>Evaluator: <strong id="inspect-eval-rater-name" class="text-zinc-800 font-medium">—</strong></span>
+              <span>&bull;</span>
+              <span>Duration: <strong id="inspect-eval-duration" class="font-mono text-zinc-800">—</strong></span>
+              <span>&bull;</span>
+              <span id="inspect-eval-timestamp" class="font-mono text-zinc-400">—</span>
+            </div>
+          </div>
+          <button type="button" id="btn-inspect-close-x" class="text-zinc-400 hover:text-zinc-800 p-1 rounded-lg text-lg leading-none cursor-pointer">&times;</button>
+        </div>
+
+        <!-- Audio Player Deck -->
+        <div class="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2">
+          <div class="flex items-center justify-between text-[11px] text-zinc-600 font-medium">
+            <span>Audio Sample Playback:</span>
+            <span id="inspect-eval-audio-url" class="font-mono text-[10px] text-zinc-400 truncate max-w-xs"></span>
+          </div>
+          <audio id="inspect-eval-audio" controls class="w-full"></audio>
+        </div>
+
+        <!-- Scores Grid -->
+        <div class="space-y-1.5">
+          <div class="text-[11px] font-semibold text-zinc-700 uppercase tracking-wider">Score Breakdown</div>
+          <div id="inspect-eval-scores" class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            <!-- Badges injected dynamically -->
+          </div>
+        </div>
+
+        <!-- ASR Adjudication Badge Container -->
+        <div id="inspect-eval-asr-container" class="space-y-1.5 hidden">
+          <div class="text-[11px] font-semibold text-zinc-700 uppercase tracking-wider">ASR Adjudication</div>
+          <div id="inspect-eval-asr" class="p-2.5 rounded-lg border">
+            <!-- ASR status injected dynamically -->
+          </div>
+        </div>
+
+        <!-- Tagged Defects & Highlights Container -->
+        <div class="space-y-1.5">
+          <div class="text-[11px] font-semibold text-zinc-700 uppercase tracking-wider">Tagged Speech Defects &amp; Region Flags</div>
+          <div id="inspect-eval-defects" class="space-y-1.5">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- Expected Prompt vs Listener Transcription -->
+        <div class="space-y-2 pt-2 border-t border-zinc-100 text-xs">
+          <div>
+            <div class="text-[11px] font-semibold text-zinc-500">Expected Prompt:</div>
+            <div id="inspect-eval-prompt" class="font-khmer text-zinc-800 mt-0.5 p-2 bg-zinc-50 rounded border border-zinc-100"></div>
+          </div>
+          <div>
+            <div class="text-[11px] font-semibold text-zinc-500">Listener Transcription (What Evaluator Heard):</div>
+            <div id="inspect-eval-transcript" class="font-khmer font-medium text-zinc-900 mt-0.5 p-2 bg-amber-50/60 rounded border border-amber-200/60"></div>
+          </div>
+          <div>
+            <div class="text-[11px] font-semibold text-zinc-500">Evaluator Comments &amp; Notes:</div>
+            <div id="inspect-eval-comments" class="text-zinc-700 italic mt-0.5 p-2 bg-zinc-50 rounded border border-zinc-100"></div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex items-center justify-between pt-3 border-t border-zinc-100">
+          <button type="button" id="btn-inspect-delete-eval" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white cursor-pointer transition">
+            Delete Evaluation
+          </button>
+          <button type="button" id="btn-inspect-close" class="btn-carbon text-xs cursor-pointer">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rater Deletion / Moderation Confirmation Modal -->
+    <div id="modal-delete-rater" class="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+      <div class="bg-white rounded-2xl border border-zinc-200 p-6 max-w-md w-full shadow-xl space-y-4">
+        <div class="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center font-bold text-sm">
+          !
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-zinc-900">Manage Rater Submissions</h3>
+          <p class="text-xs text-zinc-600 mt-1 leading-relaxed">
+            Choose how you would like to handle data submitted by <strong id="delete-rater-modal-name" class="text-zinc-900"></strong>:
+          </p>
+          <div class="mt-3 space-y-2 text-xs">
+            <div class="p-2.5 bg-zinc-50 border border-zinc-200 rounded-lg">
+              <span class="font-semibold text-zinc-900">Clear from This Study:</span>
+              <p class="text-zinc-500 text-[11px] mt-0.5 leading-snug">Deletes only evaluations this rater submitted to the currently active study. Retains their profile and evaluations in other studies.</p>
+            </div>
+            <div class="p-2.5 bg-red-50/60 border border-red-200/60 rounded-lg">
+              <span class="font-semibold text-red-800">Delete Rater Globally:</span>
+              <p class="text-red-700 text-[11px] mt-0.5 leading-snug">Permanently deletes the evaluator profile and cascades removal of all evaluations submitted across all studies.</p>
+            </div>
+          </div>
+        </div>
+        <div class="flex flex-col-reverse sm:flex-row sm:items-center justify-end gap-2 pt-2 border-t border-zinc-100">
+          <button type="button" id="btn-cancel-delete-rater" class="btn-ghost text-xs cursor-pointer">Cancel</button>
+          <button type="button" id="btn-confirm-clear-study-rater" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-600 hover:bg-amber-700 text-white cursor-pointer transition">
+            Clear from This Study
+          </button>
+          <button type="button" id="btn-confirm-delete-global-rater" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white cursor-pointer transition">
+            Delete Rater Globally
+          </button>
         </div>
       </div>
     </div>

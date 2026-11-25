@@ -1449,6 +1449,34 @@ class StudioServerTestCase(unittest.TestCase):
         # autoSaveCurrentItem is removed/no longer in code
         self.assertNotIn("autoSaveCurrentItem", js_content)
 
+    def test_admin_inspector_and_rater_moderation_wiring(self):
+        """Verify admin inspector modal and rater moderation elements and wiring exist in admin.html and admin_app.js."""
+        admin_html_path = os.path.join(TOOL_DIR, "public", "admin.html")
+        admin_js_path = os.path.join(TOOL_DIR, "public", "js", "admin_app.js")
+
+        with open(admin_html_path, "r", encoding="utf-8") as f:
+            html = f.read()
+
+        # HTML elements verification
+        self.assertIn('id="analytics-raters-tbody"', html)
+        self.assertIn('id="analytics-evaluations-tbody"', html)
+        self.assertIn('id="modal-inspect-evaluation"', html)
+        self.assertIn('id="inspect-eval-audio"', html)
+        self.assertIn('id="modal-delete-rater"', html)
+        self.assertIn('id="btn-inspect-delete-eval"', html)
+
+        with open(admin_js_path, "r", encoding="utf-8") as f:
+            js = f.read()
+
+        # JS wiring verification
+        self.assertIn("analyticsRatersTbody", js)
+        self.assertIn("analyticsEvaluationsTbody", js)
+        self.assertIn("modalInspectEvaluation", js)
+        self.assertIn("inspectEvalAudio", js)
+        self.assertIn("modalDeleteRater", js)
+        self.assertIn("btnInspectDeleteEval", js)
+
+
 
 if __name__ == "__main__":
 

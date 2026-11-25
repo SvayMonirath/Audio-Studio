@@ -424,6 +424,37 @@
     analyticsMosTbody: document.getElementById("analytics-mos-tbody"),
     analyticsDefectsTbody: document.getElementById("analytics-defects-tbody"),
     analyticsTranscriptionsTbody: document.getElementById("analytics-transcriptions-tbody"),
+    analyticsRatersTbody: document.getElementById("analytics-raters-tbody"),
+    analyticsEvaluationsTbody: document.getElementById("analytics-evaluations-tbody"),
+    evaluationsSearchInput: document.getElementById("evaluations-search-input"),
+    evaluationsCountBadge: document.getElementById("evaluations-count-badge"),
+
+    // Evaluation Inspector Modal
+    modalInspectEvaluation: document.getElementById("modal-inspect-evaluation"),
+    inspectEvalModalTitle: document.getElementById("inspect-eval-modal-title"),
+    inspectEvalModelBadge: document.getElementById("inspect-eval-model-badge"),
+    inspectEvalRaterName: document.getElementById("inspect-eval-rater-name"),
+    inspectEvalDuration: document.getElementById("inspect-eval-duration"),
+    inspectEvalTimestamp: document.getElementById("inspect-eval-timestamp"),
+    btnInspectCloseX: document.getElementById("btn-inspect-close-x"),
+    inspectEvalAudioUrl: document.getElementById("inspect-eval-audio-url"),
+    inspectEvalAudio: document.getElementById("inspect-eval-audio"),
+    inspectEvalScores: document.getElementById("inspect-eval-scores"),
+    inspectEvalAsrContainer: document.getElementById("inspect-eval-asr-container"),
+    inspectEvalAsr: document.getElementById("inspect-eval-asr"),
+    inspectEvalDefects: document.getElementById("inspect-eval-defects"),
+    inspectEvalPrompt: document.getElementById("inspect-eval-prompt"),
+    inspectEvalTranscript: document.getElementById("inspect-eval-transcript"),
+    inspectEvalComments: document.getElementById("inspect-eval-comments"),
+    btnInspectDeleteEval: document.getElementById("btn-inspect-delete-eval"),
+    btnInspectClose: document.getElementById("btn-inspect-close"),
+
+    // Rater Moderation Modal
+    modalDeleteRater: document.getElementById("modal-delete-rater"),
+    deleteRaterModalName: document.getElementById("delete-rater-modal-name"),
+    btnCancelDeleteRater: document.getElementById("btn-cancel-delete-rater"),
+    btnConfirmClearStudyRater: document.getElementById("btn-confirm-clear-study-rater"),
+    btnConfirmDeleteGlobalRater: document.getElementById("btn-confirm-delete-global-rater"),
 
     // Studies & Backup
     btnExportBackup: document.getElementById("btn-export-backup"),
@@ -3686,6 +3717,94 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         }
       }
     });
+
+    // Wire Real-time search filter for evaluations table
+    if (el.evaluationsSearchInput) {
+      el.evaluationsSearchInput.addEventListener("input", () => {
+        renderEvaluationsTable();
+      });
+    }
+
+    // Wire Evaluation Inspector Modal close buttons
+    const closeInspector = () => {
+      if (el.modalInspectEvaluation) el.modalInspectEvaluation.classList.add("hidden");
+      if (el.inspectEvalAudio) {
+        el.inspectEvalAudio.pause();
+        el.inspectEvalAudio.removeAttribute("src");
+        el.inspectEvalAudio.load();
+      }
+      state.inspectingEvaluation = null;
+    };
+    if (el.btnInspectClose) el.btnInspectClose.addEventListener("click", closeInspector);
+    if (el.btnInspectCloseX) el.btnInspectCloseX.addEventListener("click", closeInspector);
+
+    // Wire Evaluation Inspector Delete Button
+    if (el.btnInspectDeleteEval) {
+      el.btnInspectDeleteEval.addEventListener("click", async () => {
+        const ev = state.inspectingEvaluation;
+        if (!ev || !ev.id) return;
+        if (!confirm(`Permanently delete evaluation for item "${ev.item_key || ev.item_id}"?`)) return;
+
+        try {
+          const resp = await adminFetch(`/api/evaluations?id=${encodeURIComponent(ev.id)}`, {
+            method: "DELETE"
+          });
+          if (!resp.ok) throw new Error("Failed to delete evaluation");
+          showToast("Evaluation deleted successfully", "success");
+          closeInspector();
+          loadAnalyticsData();
+        } catch (err) {
+          showToast("Error deleting evaluation: " + err.message, "error");
+        }
+      });
+    }
+
+    // Wire Rater Deletion / Moderation Modal buttons
+    const closeDeleteRaterModal = () => {
+      if (el.modalDeleteRater) el.modalDeleteRater.classList.add("hidden");
+      state.moderatingRater = null;
+    };
+    if (el.btnCancelDeleteRater) el.btnCancelDeleteRater.addEventListener("click", closeDeleteRaterModal);
+
+    if (el.btnConfirmClearStudyRater) {
+      el.btnConfirmClearStudyRater.addEventListener("click", async () => {
+        const rater = state.moderatingRater;
+        const campaignId = el.analyticsCampaignSelect.value;
+        if (!rater || !rater.rater_id || !campaignId) return;
+
+        try {
+          const resp = await adminFetch(`/api/raters?id=${encodeURIComponent(rater.rater_id)}&campaign_id=${encodeURIComponent(campaignId)}`, {
+            method: "DELETE"
+          });
+          if (!resp.ok) throw new Error("Failed to clear rater evaluations");
+          const res = await resp.json();
+          showToast(`Cleared ${res.deleted_evaluations || 0} evaluations for ${rater.rater_name || rater.rater_id}`, "success");
+          closeDeleteRaterModal();
+          loadAnalyticsData();
+        } catch (err) {
+          showToast("Error: " + err.message, "error");
+        }
+      });
+    }
+
+    if (el.btnConfirmDeleteGlobalRater) {
+      el.btnConfirmDeleteGlobalRater.addEventListener("click", async () => {
+        const rater = state.moderatingRater;
+        if (!rater || !rater.rater_id) return;
+
+        try {
+          const resp = await adminFetch(`/api/raters?id=${encodeURIComponent(rater.rater_id)}`, {
+            method: "DELETE"
+          });
+          if (!resp.ok) throw new Error("Failed to delete rater globally");
+          showToast(`Rater ${rater.rater_name || rater.rater_id} deleted globally`, "success");
+          closeDeleteRaterModal();
+          loadAnalyticsData();
+        } catch (err) {
+          showToast("Error: " + err.message, "error");
+        }
+      });
+    }
   }
 
   async function refreshCampaignsList() {
@@ -4030,9 +4149,357 @@ If these files exist elsewhere or need to be synthesized, locate them or run the
         }
       }
 
+      // Render Participating Listeners (Raters) Table
+      if (el.analyticsRatersTbody) {
+        el.analyticsRatersTbody.innerHTML = "";
+        const ratersList = data.rater_statistics || [];
+        if (ratersList.length === 0) {
+          el.analyticsRatersTbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-zinc-400">No evaluators found for this study.</td></tr>`;
+        } else {
+          ratersList.forEach(r => {
+            const tr = document.createElement("tr");
+            const raterName = escapeHtml(r.rater_name || r.name || r.rater_id || "Anonymous");
+            const role = escapeHtml(r.role || "Listener");
+            const evalCount = `${r.eval_count || 0} items`;
+            const avgTime = `${r.avg_duration_sec !== undefined ? r.avg_duration_sec : 0}s`;
+            const meanScore = r.mean_score !== undefined ? Number(r.mean_score).toFixed(2) : "0.00";
+            const defectCount = `${r.defect_count || 0} defects`;
+            const lastSubmitted = r.last_submitted_at ? String(r.last_submitted_at).slice(0, 16) : "—";
+
+            tr.innerHTML = `
+              <td class="p-3 font-semibold text-zinc-900">${raterName}</td>
+              <td class="p-3 text-zinc-600">${role}</td>
+              <td class="p-3 font-mono font-medium text-zinc-900">${evalCount}</td>
+              <td class="p-3 font-mono text-zinc-600">${avgTime}</td>
+              <td class="p-3 font-mono font-bold text-zinc-900">${meanScore}</td>
+              <td class="p-3 text-red-600 font-mono font-medium">${defectCount}</td>
+              <td class="p-3 text-zinc-500 font-mono text-[11px]">${lastSubmitted}</td>
+              <td class="p-3 text-right">
+                <div class="flex items-center justify-end gap-1.5">
+                  <button type="button" class="btn-filter-rater-stats px-2 py-1 text-[11px] font-medium bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded transition cursor-pointer">
+                    Filter
+                  </button>
+                  <button type="button" class="btn-clear-rater-study px-2 py-1 text-[11px] font-medium bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded transition cursor-pointer">
+                    Clear Study
+                  </button>
+                  <button type="button" class="btn-delete-rater-global px-2 py-1 text-[11px] font-medium bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded transition cursor-pointer">
+                    Delete Rater
+                  </button>
+                </div>
+              </td>
+            `;
+
+            // Wire action buttons
+            const btnFilter = tr.querySelector(".btn-filter-rater-stats");
+            if (btnFilter) {
+              btnFilter.addEventListener("click", () => {
+                if (el.analyticsRaterFilter) {
+                  el.analyticsRaterFilter.value = r.rater_id;
+                  loadAnalyticsData();
+                }
+              });
+            }
+
+            const btnClear = tr.querySelector(".btn-clear-rater-study");
+            if (btnClear) {
+              btnClear.addEventListener("click", () => {
+                openDeleteRaterModal(r);
+              });
+            }
+
+            const btnDelete = tr.querySelector(".btn-delete-rater-global");
+            if (btnDelete) {
+              btnDelete.addEventListener("click", () => {
+                openDeleteRaterModal(r);
+              });
+            }
+
+            el.analyticsRatersTbody.appendChild(tr);
+          });
+        }
+      }
+
+      // Fetch all evaluations for the current study/filters
+      try {
+        let evUrl = `/api/evaluations?campaign_id=${encodeURIComponent(campaignId)}`;
+        if (modelId) evUrl += `&model_id=${encodeURIComponent(modelId)}`;
+        if (raterId) evUrl += `&rater_id=${encodeURIComponent(raterId)}`;
+        const evResp = await adminFetch(evUrl);
+        if (evResp.ok) {
+          const evData = await evResp.json();
+          state.evaluationsList = evData.evaluations || [];
+        } else {
+          state.evaluationsList = [];
+        }
+      } catch (e) {
+        console.warn("Could not fetch evaluations:", e);
+        state.evaluationsList = [];
+      }
+
+      // Render All Submitted Evaluations Table
+      renderEvaluationsTable();
+
     } catch (err) {
       console.warn("Analytics load error:", err);
     }
+  }
+
+  function renderEvaluationsTable() {
+    if (!el.analyticsEvaluationsTbody) return;
+    el.analyticsEvaluationsTbody.innerHTML = "";
+
+    const allEvals = state.evaluationsList || [];
+    const query = (el.evaluationsSearchInput ? el.evaluationsSearchInput.value : "").trim().toLowerCase();
+
+    let filtered = allEvals;
+    if (query) {
+      filtered = allEvals.filter(ev => {
+        const itemKey = String(ev.item_key || ev.item_id || "").toLowerCase();
+        const itemText = String(ev.item_text || "").toLowerCase();
+        const raterName = String(ev.rater_name || ev.rater_id || "").toLowerCase();
+        const modelName = String(ev.model_name || ev.model_id || "").toLowerCase();
+        const comments = String(ev.comments || "").toLowerCase();
+        const blindTranscript = String(ev.blind_transcript || "").toLowerCase();
+        return (
+          itemKey.includes(query) ||
+          itemText.includes(query) ||
+          raterName.includes(query) ||
+          modelName.includes(query) ||
+          comments.includes(query) ||
+          blindTranscript.includes(query)
+        );
+      });
+    }
+
+    if (el.evaluationsCountBadge) {
+      el.evaluationsCountBadge.textContent = filtered.length;
+    }
+
+    if (filtered.length === 0) {
+      el.analyticsEvaluationsTbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-zinc-400">No matching evaluations found.</td></tr>`;
+      return;
+    }
+
+    filtered.forEach(ev => {
+      const tr = document.createElement("tr");
+
+      // Resolve primary score display
+      let primaryScoreText = "—";
+      if (ev.scores && typeof ev.scores === "object") {
+        const firstKey = Object.keys(ev.scores)[0];
+        if (firstKey !== undefined) {
+          primaryScoreText = `${ev.scores[firstKey]} (${firstKey})`;
+        }
+      }
+
+      const defectCount = (ev.defect_tags && ev.defect_tags.length) || 0;
+      const durationText = ev.duration_seconds ? `${Number(ev.duration_seconds).toFixed(1)}s` : "—";
+      const itemKey = escapeHtml(ev.item_key || ev.item_id || "Sample");
+      const modelName = escapeHtml(ev.model_name || ev.model_id || "Audio");
+      const raterName = escapeHtml(ev.rater_name || ev.rater_id || "Listener");
+
+      tr.innerHTML = `
+        <td class="p-3">
+          <div class="font-bold text-zinc-900">${itemKey}</div>
+          ${ev.item_text ? `<div class="text-[11px] text-zinc-500 font-khmer truncate max-w-xs" title="${escapeHtml(ev.item_text)}">${escapeHtml(ev.item_text)}</div>` : ""}
+        </td>
+        <td class="p-3 text-zinc-700">${modelName}</td>
+        <td class="p-3 text-zinc-600">${raterName}</td>
+        <td class="p-3 font-mono font-bold text-zinc-900">${primaryScoreText}</td>
+        <td class="p-3 font-mono ${defectCount > 0 ? "text-red-600 font-bold" : "text-zinc-400"}">${defectCount}</td>
+        <td class="p-3 font-mono text-zinc-500">${durationText}</td>
+        <td class="p-3 text-right">
+          <div class="flex items-center justify-end gap-1.5">
+            <button type="button" class="btn-inspect-eval px-2.5 py-1 text-[11px] font-semibold bg-zinc-900 hover:bg-zinc-800 text-white rounded transition cursor-pointer">
+              Inspect
+            </button>
+            <button type="button" class="btn-delete-eval-row px-2 py-1 text-[11px] font-medium bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded transition cursor-pointer">
+              Delete
+            </button>
+          </div>
+        </td>
+      `;
+
+      // Wire action buttons
+      const btnInspect = tr.querySelector(".btn-inspect-eval");
+      if (btnInspect) {
+        btnInspect.addEventListener("click", () => {
+          openInspectEvaluationModal(ev);
+        });
+      }
+
+      const btnDelete = tr.querySelector(".btn-delete-eval-row");
+      if (btnDelete) {
+        btnDelete.addEventListener("click", async () => {
+          if (!confirm(`Delete evaluation for item "${ev.item_key || ev.item_id}" by ${ev.rater_name || "rater"}?`)) return;
+          try {
+            const resp = await adminFetch(`/api/evaluations?id=${encodeURIComponent(ev.id)}`, {
+              method: "DELETE"
+            });
+            if (!resp.ok) throw new Error("Failed to delete evaluation");
+            showToast("Evaluation deleted successfully", "success");
+            loadAnalyticsData();
+          } catch (err) {
+            showToast("Error deleting evaluation: " + err.message, "error");
+          }
+        });
+      }
+
+      el.analyticsEvaluationsTbody.appendChild(tr);
+    });
+  }
+
+  function openInspectEvaluationModal(ev) {
+    if (!el.modalInspectEvaluation || !ev) return;
+    state.inspectingEvaluation = ev;
+
+    // Header info
+    if (el.inspectEvalModalTitle) {
+      el.inspectEvalModalTitle.textContent = `Evaluation Inspector — ${ev.item_key || ev.item_id || "Sample"}`;
+    }
+    if (el.inspectEvalModelBadge) {
+      el.inspectEvalModelBadge.textContent = ev.model_name || ev.model_id || "Model";
+    }
+    if (el.inspectEvalRaterName) {
+      el.inspectEvalRaterName.textContent = ev.rater_name || ev.rater_id || "Anonymous";
+    }
+    if (el.inspectEvalDuration) {
+      el.inspectEvalDuration.textContent = ev.duration_seconds ? `${Number(ev.duration_seconds).toFixed(1)}s` : "0.0s";
+    }
+    if (el.inspectEvalTimestamp) {
+      el.inspectEvalTimestamp.textContent = ev.created_at ? String(ev.created_at).slice(0, 19).replace("T", " ") : "—";
+    }
+
+    // Resolve audio URL: ev.audio_url or audio_files_json
+    let audioUrl = ev.audio_url || "";
+    if (!audioUrl && ev.audio_files_json) {
+      try {
+        const af = JSON.parse(ev.audio_files_json);
+        if (typeof af === "object") {
+          audioUrl = af[ev.model_id] || Object.values(af)[0] || "";
+        }
+      } catch (e) {}
+    }
+    if (el.inspectEvalAudioUrl) {
+      el.inspectEvalAudioUrl.textContent = audioUrl || "No direct audio link";
+    }
+    if (el.inspectEvalAudio) {
+      if (audioUrl) {
+        el.inspectEvalAudio.src = audioUrl;
+        el.inspectEvalAudio.classList.remove("hidden");
+      } else {
+        el.inspectEvalAudio.removeAttribute("src");
+        el.inspectEvalAudio.classList.add("hidden");
+      }
+    }
+
+    // Render metric scores as badges in #inspect-eval-scores
+    if (el.inspectEvalScores) {
+      el.inspectEvalScores.innerHTML = "";
+      const scores = ev.scores || {};
+      const scoreKeys = Object.keys(scores);
+      if (scoreKeys.length === 0) {
+        el.inspectEvalScores.innerHTML = `<div class="text-xs text-zinc-400 font-medium">No metric scores recorded.</div>`;
+      } else {
+        scoreKeys.forEach(k => {
+          const badge = document.createElement("div");
+          badge.className = "p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl space-y-0.5";
+          badge.innerHTML = `
+            <div class="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">${escapeHtml(k)}</div>
+            <div class="text-lg font-bold font-mono text-zinc-900">${scores[k]}</div>
+          `;
+          el.inspectEvalScores.appendChild(badge);
+        });
+      }
+    }
+
+    // ASR Adjudication container
+    if (el.inspectEvalAsrContainer && el.inspectEvalAsr) {
+      if (ev.asr_adjudication) {
+        el.inspectEvalAsrContainer.classList.remove("hidden");
+        if (ev.asr_adjudication === "acceptable_variation") {
+          el.inspectEvalAsr.className = "p-2.5 rounded-lg border bg-emerald-50 border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2";
+          el.inspectEvalAsr.innerHTML = `
+            <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+            <span>Acceptable Variation (Dialect / Natural Speech)</span>
+          `;
+        } else {
+          el.inspectEvalAsr.className = "p-2.5 rounded-lg border bg-rose-50 border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2";
+          el.inspectEvalAsr.innerHTML = `
+            <span class="w-2 h-2 rounded-full bg-rose-600"></span>
+            <span>True Recognition Error</span>
+          `;
+        }
+      } else {
+        el.inspectEvalAsrContainer.classList.add("hidden");
+      }
+    }
+
+    // Tagged defects & highlights
+    if (el.inspectEvalDefects) {
+      el.inspectEvalDefects.innerHTML = "";
+      const defects = ev.defect_tags || [];
+      if (defects.length === 0) {
+        el.inspectEvalDefects.innerHTML = `<div class="text-xs text-zinc-400 italic">No defects or tagged regions recorded for this item.</div>`;
+      } else {
+        defects.forEach(d => {
+          const itemDiv = document.createElement("div");
+          itemDiv.className = "p-2 rounded-lg bg-zinc-50 border border-zinc-200 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs";
+          const errCode = escapeHtml(d.error_code || "DEFECT");
+          const note = d.note ? `<span class="text-zinc-600 italic">"${escapeHtml(d.note)}"</span>` : "";
+
+          if (d.start_time !== undefined && d.end_time !== undefined) {
+            itemDiv.innerHTML = `
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-red-100 text-red-800 border border-red-200">${errCode}</span>
+                <span class="font-mono text-zinc-700">${Number(d.start_time).toFixed(2)}s – ${Number(d.end_time).toFixed(2)}s</span>
+              </div>
+              <div>${note}</div>
+            `;
+          } else if (d.word_index !== undefined || d.word_text) {
+            const wordTxt = escapeHtml(d.word_text || `Word #${d.word_index}`);
+            itemDiv.innerHTML = `
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-100 text-amber-800 border border-amber-200">${errCode}</span>
+                <span class="font-khmer font-semibold text-zinc-900">${wordTxt}</span>
+              </div>
+              <div>${note}</div>
+            `;
+          } else {
+            itemDiv.innerHTML = `
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-zinc-100 text-zinc-800 border border-zinc-200">${errCode}</span>
+              </div>
+              <div>${note}</div>
+            `;
+          }
+          el.inspectEvalDefects.appendChild(itemDiv);
+        });
+      }
+    }
+
+    // Expected Prompt, Listener Transcription & Comments
+    if (el.inspectEvalPrompt) {
+      el.inspectEvalPrompt.textContent = ev.item_text || "—";
+    }
+    if (el.inspectEvalTranscript) {
+      el.inspectEvalTranscript.textContent = ev.blind_transcript || "—";
+    }
+    if (el.inspectEvalComments) {
+      el.inspectEvalComments.textContent = ev.comments || "No comments entered.";
+    }
+
+    el.modalInspectEvaluation.classList.remove("hidden");
+  }
+
+  function openDeleteRaterModal(rater) {
+    if (!el.modalDeleteRater || !rater) return;
+    state.moderatingRater = rater;
+
+    if (el.deleteRaterModalName) {
+      el.deleteRaterModalName.textContent = rater.rater_name || rater.name || rater.rater_id || "Evaluator";
+    }
+    el.modalDeleteRater.classList.remove("hidden");
   }
 
   function renderMosComparisonChart(modelsList, selectedMetricKey, studyMeta) {
