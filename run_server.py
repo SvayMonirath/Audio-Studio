@@ -372,6 +372,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                 campaign_id = query.get("campaign_id", [None])[0]
                 rater_id = query.get("rater_id", [None])[0]
                 item_id = query.get("item_id", [None])[0]
+                model_id = query.get("model_id", [None])[0]
 
                 clauses = []
                 params = []
@@ -384,11 +385,14 @@ class StudioHandler(BaseHTTPRequestHandler):
                 if item_id:
                     clauses.append("e.item_id = ?")
                     params.append(item_id)
+                if model_id:
+                    clauses.append("e.model_id = ?")
+                    params.append(model_id)
 
                 where_sql = ("WHERE " + " AND ".join(clauses)) if clauses else ""
                 sql = f"""
                 SELECT e.*, r.name as rater_name, m.name as model_name, m.repo_id,
-                       i.item_key, i.text as item_text
+                       i.item_key, i.text as item_text, i.audio_url, i.audio_files_json
                 FROM evaluations e
                 JOIN raters r ON e.rater_id = r.id
                 JOIN models m ON e.model_id = m.id
@@ -418,8 +422,55 @@ class StudioHandler(BaseHTTPRequestHandler):
                     return
                 # Compute statistical aggregates across real evaluations
                 campaign_id = query.get("campaign_id", [None])[0]
-                where_clause = "WHERE e.campaign_id = ?" if campaign_id else ""
-                params = [campaign_id] if campaign_id else []
+                model_id = query.get("model_id", [None])[0]
+                rater_id = query.get("rater_id", [None])[0]
+
+                clauses = []
+                params = []
+                if campaign_id:
+                    clauses.append("e.campaign_id = ?")
+                    params.append(campaign_id)
+                if model_id:
+                    clauses.append("e.model_id = ?")
+                    params.append(model_id)
+                if rater_id:
+                    clauses.append("e.rater_id = ?")
+                    params.append(rater_id)
+
+                where_clause = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+
+                # Query study_meta if campaign_id is provided
+                study_meta = None
+                scale_min = 1
+                scale_max = 5
+                if campaign_id:
+                    camp_meta_sql = """
+                    SELECT c.id as campaign_id, c.name as campaign_name, c.modality,
+                           r.protocol_type, r.scale_min, r.scale_max, r.metrics_json,
+                           (SELECT count(*) FROM test_items ti WHERE ti.suite_id = c.suite_id) as total_items
+                    FROM campaigns c
+                    JOIN rubrics r ON c.rubric_id = r.id
+                    WHERE c.id = ?
+                    """
+                    meta_row = cur.execute(camp_meta_sql, (campaign_id,)).fetchone()
+                    if meta_row:
+                        metrics_parsed = []
+                        try:
+                            metrics_parsed = json.loads(meta_row["metrics_json"]) if meta_row["metrics_json"] else []
+                        except Exception:
+                            metrics_parsed = []
+                        scale_min = meta_row["scale_min"] if meta_row["scale_min"] is not None else 1
+                        scale_max = meta_row["scale_max"] if meta_row["scale_max"] is not None else 5
+                        study_meta = {
+                            "campaign_id": meta_row["campaign_id"],
+                            "campaign_name": meta_row["campaign_name"],
+                            "modality": meta_row["modality"] or "TTS",
+                            "protocol_type": meta_row["protocol_type"],
+                            "scale_min": scale_min,
+                            "scale_max": scale_max,
+                            "metrics": metrics_parsed,
+                            "total_items": meta_row["total_items"]
+                        }
 
                 # Total counts
                 total_evals = cur.execute(f"SELECT count(*) FROM evaluations e {where_clause}", params).fetchone()[0]
@@ -441,6 +492,7 @@ class StudioHandler(BaseHTTPRequestHandler):
                         model_stats[mid] = {
                             "model_id": mid,
                             "name": row["model_name"],
+                            "model_name": row["model_name"],
                             "code": row["candidate_code"],
                             "eval_count": 0,
                             "metrics": {}
@@ -458,6 +510,8 @@ class StudioHandler(BaseHTTPRequestHandler):
 
                 # Calculate Mean, Standard Deviation, 95% Confidence Intervals, and Binary Pass Rates
                 import math
+                study_scale_max = float(scale_max)
+                study_scale_min = float(scale_min)
                 for mid, mdata in model_stats.items():
                     mdata["summary"] = {}
                     for m_key, values in mdata["metrics"].items():
@@ -474,13 +528,79 @@ class StudioHandler(BaseHTTPRequestHandler):
                                 "n": n,
                                 "mean": round(mean_val, 2),
                                 "std_dev": round(std_dev, 2),
-                                "ci_lower": round(max(0.0, mean_val - margin_of_error), 2),
-                                "ci_upper": round(min(5.0, mean_val + margin_of_error), 2),
+                                "ci_lower": round(max(study_scale_min if not is_binary else 0.0, mean_val - margin_of_error), 2),
+                                "ci_upper": round(min(study_scale_max if not is_binary else 1.0, mean_val + margin_of_error), 2),
                                 "is_binary": is_binary,
                                 "pass_count": pass_count,
                                 "fail_count": n - pass_count,
                                 "pass_rate": pass_rate
                             }
+
+                # Compute rater_statistics
+                sql_rater_evals = f"""
+                SELECT e.id as eval_id, e.rater_id, r.name as rater_name, r.role,
+                       e.duration_seconds, e.scores_json, e.created_at
+                FROM evaluations e
+                JOIN raters r ON e.rater_id = r.id
+                {where_clause}
+                ORDER BY e.created_at ASC
+                """
+                rater_eval_rows = cur.execute(sql_rater_evals, params).fetchall()
+
+                # Get defect tag counts per evaluation matching where_clause
+                sql_defects_count = f"""
+                SELECT dt.evaluation_id, count(*) as defect_cnt
+                FROM defect_tags dt
+                JOIN evaluations e ON dt.evaluation_id = e.id
+                {where_clause}
+                GROUP BY dt.evaluation_id
+                """
+                defect_counts_by_eval = {r["evaluation_id"]: r["defect_cnt"] for r in cur.execute(sql_defects_count, params).fetchall()}
+
+                rater_map = {}
+                for rev in rater_eval_rows:
+                    rid = rev["rater_id"]
+                    if rid not in rater_map:
+                        rater_map[rid] = {
+                            "rater_id": rid,
+                            "rater_name": rev["rater_name"],
+                            "role": rev["role"] or "Evaluator",
+                            "eval_count": 0,
+                            "durations": [],
+                            "all_scores": [],
+                            "defect_count": 0,
+                            "last_submitted_at": rev["created_at"]
+                        }
+                    entry = rater_map[rid]
+                    entry["eval_count"] += 1
+                    if rev["duration_seconds"] is not None:
+                        entry["durations"].append(float(rev["duration_seconds"]))
+                    if rev["created_at"] and (not entry["last_submitted_at"] or rev["created_at"] > entry["last_submitted_at"]):
+                        entry["last_submitted_at"] = rev["created_at"]
+                    entry["defect_count"] += defect_counts_by_eval.get(rev["eval_id"], 0)
+                    try:
+                        sc = json.loads(rev["scores_json"])
+                        for v in sc.values():
+                            if isinstance(v, (int, float)):
+                                entry["all_scores"].append(float(v))
+                    except Exception:
+                        pass
+
+                rater_statistics = []
+                for entry in rater_map.values():
+                    avg_dur = round(sum(entry["durations"]) / len(entry["durations"]), 1) if entry["durations"] else 0.0
+                    mean_score = round(sum(entry["all_scores"]) / len(entry["all_scores"]), 2) if entry["all_scores"] else 0.0
+                    rater_statistics.append({
+                        "rater_id": entry["rater_id"],
+                        "rater_name": entry["rater_name"],
+                        "role": entry["role"],
+                        "eval_count": entry["eval_count"],
+                        "avg_duration_sec": avg_dur,
+                        "mean_score": mean_score,
+                        "defect_count": entry["defect_count"],
+                        "last_submitted_at": entry["last_submitted_at"]
+                    })
+                rater_statistics.sort(key=lambda x: x["eval_count"], reverse=True)
 
                 # Defect tag frequency breakdown
                 sql_defects = f"""
@@ -546,50 +666,113 @@ class StudioHandler(BaseHTTPRequestHandler):
                     "breakdown": {r["asr_adjudication"]: r["count"] for r in asr_rows}
                 }
 
-                self.send_json_response({
+                resp_payload = {
                     "total_evaluations": total_evals,
                     "total_raters": total_raters,
                     "model_statistics": list(model_stats.values()),
+                    "rater_statistics": rater_statistics,
                     "defects_summary": defects_summary,
                     "word_defect_heatmap": word_defect_heatmap,
                     "transcriptions_summary": transcriptions_summary,
                     "asr_summary": asr_summary
-                })
+                }
+                if study_meta is not None:
+                    resp_payload["study_meta"] = study_meta
+
+                self.send_json_response(resp_payload)
                 return
 
             if path == "/api/admin/export.csv":
                 if not self.is_authenticated_admin():
                     self.send_json_response({"error": "Admin authentication required. Please provide X-Admin-PIN header."}, status=401)
                     return
+
+                campaign_id = query.get("campaign_id", [None])[0]
+                model_id = query.get("model_id", [None])[0]
+                rater_id = query.get("rater_id", [None])[0]
+
+                clauses = []
+                params = []
+                if campaign_id:
+                    clauses.append("e.campaign_id = ?")
+                    params.append(campaign_id)
+                if model_id:
+                    clauses.append("e.model_id = ?")
+                    params.append(model_id)
+                if rater_id:
+                    clauses.append("e.rater_id = ?")
+                    params.append(rater_id)
+
+                where_sql = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+
                 # Export clean CSV matching scoring_sheet_v2.csv format
-                sql = """
-                SELECT e.id as trial_id, i.item_key as item_id, i.category as category_name,
+                sql = f"""
+                SELECT e.id as trial_id, e.campaign_id, c.name as campaign_name,
+                       i.item_key as item_id, i.category as category_name,
                        i.text as khmer_text, i.target_ipa_standard, i.target_ipa_colloquial,
                        m.repo_id as model_id, r.name as evaluator_id, e.scores_json,
+                       e.asr_adjudication, e.duration_seconds,
                        e.blind_transcript, e.comments, e.created_at
                 FROM evaluations e
+                LEFT JOIN campaigns c ON e.campaign_id = c.id
                 JOIN test_items i ON e.item_id = i.id
                 JOIN models m ON e.model_id = m.id
                 JOIN raters r ON e.rater_id = r.id
+                {where_sql}
                 ORDER BY i.item_key ASC, e.created_at ASC
                 """
-                rows = cur.execute(sql).fetchall()
+                rows = cur.execute(sql, params).fetchall()
+
+                # Pre-fetch defect tags for all returned evaluations
+                eval_ids = [r["trial_id"] for r in rows]
+                tags_by_eval = {}
+                if eval_ids:
+                    # SQLite limit friendly batch or direct query
+                    placeholders = ",".join("?" * len(eval_ids))
+                    tag_sql = f"SELECT * FROM defect_tags WHERE evaluation_id IN ({placeholders}) ORDER BY word_index ASC"
+                    tag_rows = cur.execute(tag_sql, eval_ids).fetchall()
+                    for tr in tag_rows:
+                        eid = tr["evaluation_id"]
+                        if eid not in tags_by_eval:
+                            tags_by_eval[eid] = []
+                        tags_by_eval[eid].append({
+                            "word_index": tr["word_index"],
+                            "word_text": tr["word_text"],
+                            "error_code": tr["error_code"],
+                            "note": tr["note"] or ""
+                        })
 
                 import csv
                 import io
                 output = io.StringIO()
                 writer = csv.writer(output)
                 writer.writerow([
-                    "trial_id", "item_id", "category_name", "khmer_text",
+                    "trial_id", "campaign_id", "campaign_name", "item_id", "category_name", "khmer_text",
                     "target_ipa_standard", "target_ipa_colloquial", "model_id",
-                    "evaluator_id", "scores_json", "blind_transcript", "comments", "created_at"
+                    "evaluator_id", "scores_json", "asr_adjudication", "defect_tags_json",
+                    "duration_seconds", "blind_transcript", "comments", "created_at"
                 ])
                 for row in rows:
+                    trial_id = row["trial_id"]
+                    defect_tags_json = json.dumps(tags_by_eval.get(trial_id, []), ensure_ascii=False)
                     writer.writerow([
-                        row["trial_id"], row["item_id"], row["category_name"], row["khmer_text"],
-                        row["target_ipa_standard"] or "", row["target_ipa_colloquial"] or "",
-                        row["model_id"], row["evaluator_id"], row["scores_json"],
-                        row["blind_transcript"] or "", row["comments"] or "", row["created_at"]
+                        trial_id,
+                        row["campaign_id"] or "",
+                        row["campaign_name"] or "",
+                        row["item_id"],
+                        row["category_name"] or "",
+                        row["khmer_text"],
+                        row["target_ipa_standard"] or "",
+                        row["target_ipa_colloquial"] or "",
+                        row["model_id"],
+                        row["evaluator_id"],
+                        row["scores_json"],
+                        row["asr_adjudication"] or "",
+                        defect_tags_json,
+                        row["duration_seconds"] if row["duration_seconds"] is not None else "",
+                        row["blind_transcript"] or "",
+                        row["comments"] or "",
+                        row["created_at"]
                     ])
 
                 csv_data = output.getvalue().encode("utf-8-sig")

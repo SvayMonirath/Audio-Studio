@@ -213,7 +213,7 @@ class StudioServerTestCase(unittest.TestCase):
             content = res.read().decode("utf-8-sig")
             lines = content.strip().split("\n")
             self.assertGreaterEqual(len(lines), 2)
-            self.assertTrue(lines[0].startswith("trial_id,item_id,category_name"))
+            self.assertTrue(lines[0].startswith("trial_id,campaign_id,campaign_name,item_id") or lines[0].startswith("trial_id,item_id,category_name"))
 
     def test_07_dynamic_model_suite_and_campaign_setup(self):
         """Verify dynamic setup of new candidate model, custom prompt suite, and campaign."""
@@ -1127,6 +1127,168 @@ class StudioServerTestCase(unittest.TestCase):
             self.assertEqual(tel_stat.get("pass_count"), 0)
             self.assertEqual(tel_stat.get("fail_count"), 1)
             self.assertEqual(tel_stat.get("pass_rate"), 0.0)
+
+    def test_admin_summary_dynamic_scale_rater_stats_and_scoped_csv(self):
+        """Verify dynamic scale bounds, rater_statistics, and scoped CSV export with defect_tags_json."""
+        # 1. Create a custom rubric with scale_min=1, scale_max=7
+        rubric_payload = {
+            "name": "7-Point Quality Scale",
+            "protocol_type": "ACR",
+            "scale_min": 1,
+            "scale_max": 7,
+            "metrics": [
+                {"key": "overall_quality", "label_en": "Overall Quality", "min": 1, "max": 7}
+            ]
+        }
+        req_rubric = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/rubrics",
+            data=json.dumps(rubric_payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(req_rubric) as resp:
+            self.assertEqual(resp.status, 201)
+            rubric_res = json.loads(resp.read().decode("utf-8"))
+            rubric_id = rubric_res["rubric_id"]
+
+        # 2. Create custom suite & campaign
+        suite_payload = {
+            "name": "Dynamic Scale Test Suite",
+            "description": "Suite for testing dynamic scale admin telemetry",
+            "items": ["ប្រយោគតេស្តខ្នាតទីមួយ"]
+        }
+        req_suite = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/suites",
+            data=json.dumps(suite_payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(req_suite) as resp:
+            suite_res = json.loads(resp.read().decode("utf-8"))
+            suite_id = suite_res["suite_id"]
+
+        camp_payload = {
+            "name": "Dynamic Scale Campaign 7pt",
+            "suite_id": suite_id,
+            "rubric_id": rubric_id,
+            "modality": "TTS"
+        }
+        req_camp = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/campaigns",
+            data=json.dumps(camp_payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", "X-Admin-PIN": "2026"}
+        )
+        with urlopen(req_camp) as resp:
+            camp_res = json.loads(resp.read().decode("utf-8"))
+            camp_id = camp_res["campaign_id"]
+
+        # Get test item id
+        with urlopen(f"http://127.0.0.1:{TEST_PORT}/api/items?suite_id={suite_id}") as resp:
+            items_data = json.loads(resp.read().decode("utf-8"))
+            item_id = items_data["items"][0]["id"]
+
+        # 3. Register rater and submit evaluations with high score (6 and 7)
+        rater_payload = {"name": "ScaleRaterSeven"}
+        req_rater = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/raters",
+            data=json.dumps(rater_payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        with urlopen(req_rater) as resp:
+            rater_res = json.loads(resp.read().decode("utf-8"))
+            rater_id = rater_res["rater"]["id"]
+
+        eval_payload = {
+            "campaign_id": camp_id,
+            "rater_id": rater_id,
+            "item_id": item_id,
+            "model_id": "model-voxcpm2",
+            "scores": {"overall_quality": 7},
+            "defect_tags": [
+                {"word_index": 0, "word_text": "ប្រយោគ", "error_code": "MISPRONUNCIATION"}
+            ],
+            "duration_seconds": 12.4
+        }
+        req_eval = Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/evaluations",
+            data=json.dumps(eval_payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        with urlopen(req_eval) as resp:
+            self.assertEqual(resp.status, 201)
+
+        # 4. Check /api/evaluations includes audio_url, audio_files_json and filters by model_id
+        evals_url = f"http://127.0.0.1:{TEST_PORT}/api/evaluations?campaign_id={camp_id}&model_id=model-voxcpm2"
+        with urlopen(evals_url) as resp:
+            self.assertEqual(resp.status, 200)
+            evals_data = json.loads(resp.read().decode("utf-8"))
+            self.assertEqual(len(evals_data["evaluations"]), 1)
+            ev0 = evals_data["evaluations"][0]
+            self.assertIn("audio_url", ev0)
+            self.assertIn("audio_files_json", ev0)
+            self.assertEqual(ev0["model_id"], "model-voxcpm2")
+
+        # Non-matching model filter should return empty
+        with urlopen(f"http://127.0.0.1:{TEST_PORT}/api/evaluations?campaign_id={camp_id}&model_id=nonexistent") as resp:
+            empty_evals = json.loads(resp.read().decode("utf-8"))
+            self.assertEqual(len(empty_evals["evaluations"]), 0)
+
+        # 5. Check /api/admin/summary with campaign_id
+        summary_url = f"http://127.0.0.1:{TEST_PORT}/api/admin/summary?campaign_id={camp_id}"
+        req_sum = Request(summary_url, headers={"X-Admin-PIN": "2026"})
+        with urlopen(req_sum) as resp:
+            self.assertEqual(resp.status, 200)
+            sdata = json.loads(resp.read().decode("utf-8"))
+            
+            # study_meta presence and dynamic bounds
+            self.assertIn("study_meta", sdata)
+            self.assertEqual(sdata["study_meta"]["scale_max"], 7)
+            self.assertEqual(sdata["study_meta"]["scale_min"], 1)
+            self.assertEqual(sdata["study_meta"]["total_items"], 1)
+
+            # model_stats has model_name and name
+            self.assertTrue(len(sdata["model_statistics"]) > 0)
+            m0 = sdata["model_statistics"][0]
+            self.assertIn("name", m0)
+            self.assertIn("model_name", m0)
+            self.assertEqual(m0["name"], m0["model_name"])
+
+            # rater_statistics telemetry
+            self.assertIn("rater_statistics", sdata)
+            self.assertEqual(len(sdata["rater_statistics"]), 1)
+            r0 = sdata["rater_statistics"][0]
+            self.assertEqual(r0["rater_id"], rater_id)
+            self.assertEqual(r0["rater_name"], "ScaleRaterSeven")
+            self.assertEqual(r0["eval_count"], 1)
+            self.assertEqual(r0["avg_duration_sec"], 12.4)
+            self.assertEqual(r0["mean_score"], 7.0)
+            self.assertEqual(r0["defect_count"], 1)
+            self.assertIsNotNone(r0["last_submitted_at"])
+
+            # Check ci_upper allowed above 5.0 when scale_max is 7
+            # With mean 7.0, single score margin is 0, but mean is 7.0 > 5.0
+            stat_summary = m0["summary"]["overall_quality"]
+            self.assertGreater(stat_summary["mean"], 5.0)
+            self.assertGreater(stat_summary["ci_upper"], 5.0)
+            self.assertLessEqual(stat_summary["ci_upper"], 7.0)
+
+        # 6. Verify scoped CSV export with defect_tags_json and new columns
+        csv_url = f"http://127.0.0.1:{TEST_PORT}/api/admin/export.csv?campaign_id={camp_id}"
+        req_csv = Request(csv_url, headers={"X-Admin-PIN": "2026"})
+        with urlopen(req_csv) as resp:
+            self.assertEqual(resp.status, 200)
+            content = resp.read().decode("utf-8-sig")
+            lines = content.strip().split("\n")
+            header = lines[0]
+            self.assertIn("campaign_id", header)
+            self.assertIn("campaign_name", header)
+            self.assertIn("defect_tags_json", header)
+            self.assertIn("duration_seconds", header)
+            self.assertIn("asr_adjudication", header)
+            
+            # Row check
+            self.assertEqual(len(lines), 2)
+            row_data = lines[1]
+            self.assertIn(camp_id, row_data)
+            self.assertIn("MISPRONUNCIATION", row_data)
 
 
 if __name__ == "__main__":
