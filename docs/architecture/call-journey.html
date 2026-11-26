@@ -238,6 +238,35 @@
           </div>
         </section>
 
+        <!-- Journey 4: Admin DSP Waveform Inspection & Moderation -->
+        <section id="journey-admin-inspection" style="margin-top: 40px;">
+          <h2>Journey 4: Admin DSP Waveform Inspection &amp; Moderation Flow</h2>
+          <p class="prose">
+            Triggers in <code>admin.html</code> under the Results &amp; Scores hub when an administrator investigates an individual rating record or audits rater coverage.
+          </p>
+          <div class="grid2">
+            <div class="box">
+              <h3>Interactive Waveform Modal Inspection</h3>
+              <p class="prose"><strong>Component:</strong> <code>#modal-inspect-evaluation</code> in <code>public/js/admin_app.js</code></p>
+              <ul>
+                <li><strong>Dynamic Buffer Decoding:</strong> Fetches the evaluated sample WAV via HTTP 206 range streaming and decodes into an AudioBuffer.</li>
+                <li><strong>Interactive Defect Slices:</strong> Parses tagged defect regions and renders them as colored time intervals over <code>#inspect-waveform-canvas</code>.</li>
+                <li><strong>Click-to-Seek &amp; Speed Controls:</strong> Clicking any defect badge seeks playback directly to that slice; supports 1.0x and 0.8x acoustic scrutiny speeds.</li>
+                <li><strong>Single-Item Deletion:</strong> Issues <code>DELETE /api/evaluations?id={id}</code> to remove outlier or spam ratings, cascading through defect tags.</li>
+              </ul>
+            </div>
+            <div class="box">
+              <h3>Rater Moderation &amp; Coverage Tracking</h3>
+              <p class="prose"><strong>Component:</strong> <code>#modal-rater-coverage</code> and Raters &amp; Progress table</p>
+              <ul>
+                <li><strong>Coverage Checklist:</strong> Opens per-rater item audit showing completed vs unrated test items with direct model filters.</li>
+                <li><strong>Inline Evaluator Rename:</strong> Sends <code>POST /api/admin/raters/rename</code> to update evaluator pseudonyms across historical ledger rows without orphan records.</li>
+                <li><strong>Scoped vs Global Removal:</strong> <code>DELETE /api/raters</code> purges evaluations for a specific study without losing evaluator profiles from other studies.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
         <footer class="site-footer">
           <p>Audio Studio Technical Documentation · CADT Year 3 Capstone</p>
         </footer>

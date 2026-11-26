@@ -233,25 +233,67 @@
               <span class="method method-get">GET</span>
               <code class="endpoint-path">/api/admin/summary?campaign_id={id}</code>
               <span class="pill">Admin PIN</span>
-              <span class="endpoint-desc">Computes consensus scores, MOS with 95% CI, and defect statistics</span>
+              <span class="endpoint-desc">Computes consensus scores, MOS with 95% CI, ASR stats, and defect heatmaps</span>
             </div>
             <div class="endpoint-body">
               <p class="prose"><strong>Source:</strong> <code>run_server.py:412</code></p>
-              <p class="prose">Calculates statistical metrics across all rater evaluations: Mean Opinion Score, standard deviation, 95% Student's t-distribution confidence intervals, and defect frequency counts.</p>
+              <p class="prose">Calculates statistical metrics across evaluations: Mean Opinion Score (MOS) with 95% Student's t-distribution confidence intervals, dynamic metric comparisons across rating scales, evaluator completion progress (<code>rater_statistics</code>), ASR accuracy/WER metrics (<code>asr_summary</code>), and tokenized prompt defect frequencies (<code>word_defect_heatmap</code>).</p>
             </div>
           </article>
 
           <!-- GET /api/admin/export.csv -->
-          <article class="endpoint-card">
+          <article class="endpoint-card" style="margin-bottom: 24px;">
             <div class="endpoint-header">
               <span class="method method-get">GET</span>
-              <code class="endpoint-path">/api/admin/export.csv?campaign_id={id}</code>
+              <code class="endpoint-path">/api/admin/export.csv?campaign_id={id}&amp;model_id={m}&amp;rater_id={r}</code>
               <span class="pill">Admin PIN</span>
-              <span class="endpoint-desc">Exports raw evaluation audit ledger as downloadable CSV</span>
+              <span class="endpoint-desc">Exports filtered evaluation audit ledger as downloadable CSV</span>
             </div>
             <div class="endpoint-body">
               <p class="prose"><strong>Source:</strong> <code>run_server.py:550</code></p>
-              <p class="prose">Streams full tabular evaluation data including item keys, model IDs, rater names, individual rubric scores, timestamps, and acoustic defect tags for thesis paper analysis.</p>
+              <p class="prose">Streams tabular evaluation data supporting optional filtering by campaign, model, or evaluator. Output includes item keys, model IDs, rater names, individual rubric scores, timestamps, and acoustic defect tags with millisecond spans.</p>
+            </div>
+          </article>
+
+          <!-- POST /api/admin/raters/rename -->
+          <article class="endpoint-card" style="margin-bottom: 24px;">
+            <div class="endpoint-header">
+              <span class="method method-post">POST</span>
+              <code class="endpoint-path">/api/admin/raters/rename</code>
+              <span class="pill">Admin PIN</span>
+              <span class="endpoint-desc">Renames an evaluator display name across all historical evaluations</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Source:</strong> <code>run_server.py</code></p>
+              <p class="prose">Accepts <code>{ "rater_id": "...", "new_name": "..." }</code>. Updates the master <code>raters</code> record and updates historical submissions to maintain attribution consistency.</p>
+            </div>
+          </article>
+
+          <!-- DELETE /api/raters -->
+          <article class="endpoint-card" style="margin-bottom: 24px;">
+            <div class="endpoint-header">
+              <span class="method method-post" style="background:var(--crit,#dc2626);">DELETE</span>
+              <code class="endpoint-path">/api/raters?id={id}&amp;campaign_id={cid}</code>
+              <span class="pill">Admin PIN</span>
+              <span class="endpoint-desc">Removes rater evaluations scoped to a study, or deletes rater globally</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Source:</strong> <code>run_server.py</code></p>
+              <p class="prose">When <code>campaign_id</code> is provided, purges only that rater's evaluation records and defect tags for the specified campaign. When omitted, deletes the rater profile and all historical records.</p>
+            </div>
+          </article>
+
+          <!-- DELETE /api/evaluations -->
+          <article class="endpoint-card">
+            <div class="endpoint-header">
+              <span class="method method-post" style="background:var(--crit,#dc2626);">DELETE</span>
+              <code class="endpoint-path">/api/evaluations?id={id}</code>
+              <span class="pill">Admin PIN</span>
+              <span class="endpoint-desc">Permanently deletes a single evaluation record with cascading defects</span>
+            </div>
+            <div class="endpoint-body">
+              <p class="prose"><strong>Source:</strong> <code>run_server.py</code></p>
+              <p class="prose">Deletes an individual submission row from <code>evaluations</code>; SQLite cascading foreign keys automatically purge associated <code>defect_tags</code>.</p>
             </div>
           </article>
         </section>

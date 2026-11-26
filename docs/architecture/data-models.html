@@ -221,7 +221,7 @@ PRAGMA journal_mode = WAL;</code></pre>
                   <td><span class="type-tag">TEXT</span></td>
                   <td><span class="schema-badge col-pk">PK</span></td>
                   <td><span class="col-req">NOT NULL</span></td>
-                  <td>Unique defect tag identifier.</td>
+                  <td>Unique defect tag identifier formatted as <code>dt-{ts}-{idx}-{uuid4}</code> to prevent primary key collisions on batch submission (REV-001).</td>
                 </tr>
                 <tr>
                   <td><code>evaluation_id</code></td>

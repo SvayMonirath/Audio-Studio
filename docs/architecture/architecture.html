@@ -180,12 +180,14 @@
             <div class="box">
               <h3>Tier 1: Client Applications &amp; DSP</h3>
               <p class="prose">
-                The frontend runs completely in the user's browser without external CDNs. It uses the Web Audio API to create a sound processing graph:
+                The frontend runs completely in the user's browser without external CDNs. It uses the Web Audio API and HTML5 Canvas to create rich audio inspection interfaces:
               </p>
               <ul>
                 <li><strong>Buffer Decoding:</strong> Audio files are fetched and decoded into 32-bit floating point audio buffers in memory.</li>
                 <li><strong>Telephone Simulation:</strong> When toggled on, audio routes through a Biquad bandpass filter (highpass at 300 Hz, lowpass at 3400 Hz) to simulate telephony call center acoustics.</li>
-                <li><strong>Dynamic Waveform:</strong> HTML5 Canvas renders vertical peak bars, active playheads, and defect highlight overlays at 60 frames per second.</li>
+                <li><strong>Rater Waveform Deck:</strong> 76px canvas rendering vertical peak bars, active playheads, and real-time drag-to-tag defect highlight overlays at 60 frames per second. Features local draft caching per study/rater with explicit reset.</li>
+                <li><strong>Admin DSP Waveform Inspector:</strong> Dedicated modal (<code>#modal-inspect-evaluation</code>) with interactive defect span click-to-seek, 1.0x / 0.8x playback speed toggling, and synchronized audio playback.</li>
+                <li><strong>Rater Coverage Modal:</strong> Per-evaluator item checklist (<code>#modal-rater-coverage</code>) filtering by All, Evaluated, and Not Evaluated items.</li>
               </ul>
             </div>
             <div class="box">

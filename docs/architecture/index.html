@@ -49,17 +49,17 @@
               <ul>
                 <li><strong>Study Creator:</strong> A 4-step wizard to upload WAV audio files, match transcripts via CSV, assemble modular test components on an interactive canvas, and launch evaluation campaigns.</li>
                 <li><strong>Active Studies:</strong> Manage live evaluation studies, inspect evaluator completion rates, toggle study status, or delete campaigns.</li>
-                <li><strong>Results & Analytics:</strong> Compute Mean Opinion Scores (MOS) with 95% confidence intervals, rater consensus agreements, and export full CSV audit ledgers.</li>
+                <li><strong>Results & Scores Hub:</strong> 4 specialized sub-tabs: <em>Overview</em> (MOS stats, dynamic scales, WER/CER, word defect heatmaps), <em>All Evaluations</em> (searchable ledger with DSP waveform modal inspector and deletion), <em>Raters & Progress</em> (rater leaderboard, inline rename, coverage modal, scoped/global rater deletion), and <em>Defects & Transcripts</em> (defect catalog).</li>
               </ul>
             </div>
             <div class="box">
               <h3>Rater & Evaluator Portal</h3>
               <p class="prose"><strong>Path:</strong> <code>public/eval.html</code></p>
               <ul>
-                <li><strong>Frictionless Registration:</strong> Evaluators enter their name or pseudonym; no account or password creation required.</li>
+                <li><strong>Transparent Identity Confirmation:</strong> Returning raters confirm or switch their name via <code>#onboard-continue-box</code>; persistent top-bar identity badge.</li>
                 <li><strong>Audio Waveform Deck:</strong> Interactive 76px waveform canvas with playback scrubbing, speed controls (0.8x, 1.0x, 1.2x), and telephone call audio simulation (8 kHz bandpass filter).</li>
                 <li><strong>Hold-and-Drag Defect Tagging:</strong> Listeners drag across the waveform or click Khmer word pills to flag mispronunciations, awkward pauses, and robotic buzzes.</li>
-                <li><strong>Listening Verification:</strong> Evaluators type what they actually heard to generate real-time visual text diffs against expected transcripts.</li>
+                <li><strong>Draft Resilience & Mandatory Transcription:</strong> In-progress evaluations are persisted per study/rater in <code>localStorage</code> with a manual reset button, and listener transcription is enforced when defects are flagged.</li>
               </ul>
             </div>
           </div>
@@ -188,7 +188,7 @@
                 <tr>
                   <td><strong>Automated Test Suite</strong></td>
                   <td><span class="tag ok">Enforced</span></td>
-                  <td>24 automated tests run in under 2 seconds via <code>python3 -m unittest discover -s tests -v</code>.</td>
+                  <td>41 automated tests run in under 12 seconds via <code>python3 -m unittest discover -s tests -v</code>.</td>
                 </tr>
                 <tr>
                   <td><strong>Admin PIN Boundaries</strong></td>
