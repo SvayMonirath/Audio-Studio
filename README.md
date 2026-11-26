@@ -47,10 +47,14 @@ Real people need to listen to the audio to judge naturalness, pronunciation, and
 ## Key Features
 
 - **Zero External Dependencies**: Built entirely with Python's built-in standard library (`http.server` and `sqlite3`). You do not need to install complex web frameworks or package managers.
-- **Simple for Listeners**: Raters do not need an account, PIN, or password. They click the study link, enter their name or nickname, and start listening.
-- **Waveform Defect Tagging**: Listeners can drag directly across any part of the audio waveform to flag specific issues (such as mispronunciations, robotic buzz, awkward pauses, or background noise).
-- **Admin Security**: Study creation and consensus analytics are protected behind an admin PIN (default PIN: `2026`, easily customized with the `ADMIN_PINS` environment variable).
-- **Instant Consensus & Export**: Automatically calculates mean opinion scores, consensus agreement, and exports complete response tables to CSV.
+- **Transparent Rater Identity & Draft Resilience**: Listeners confirm or change their display identity upon returning, with automatic local draft saving per study/rater and a dedicated draft reset action.
+- **Waveform Defect Tagging & Interactive Inspector**: Listeners drag directly across the audio waveform to flag specific acoustic and pronunciation defects. Administrators can inspect evaluations in an interactive DSP canvas with click-to-seek defect spans and variable playback speeds (1.0x, 0.8x).
+- **Comprehensive Results & Moderation Dashboard**: Admin Results & Scores provides 4 dedicated views:
+  1. **Overview**: Executive MOS metrics, dynamic cross-scale score cards, ASR WER/CER stats, and word-level defect heatmap.
+  2. **All Evaluations**: Filterable ledger with modal DSP waveform inspection and single-evaluation deletion.
+  3. **Raters & Progress**: Evaluator leaderboard, page coverage modal (All / Evaluated / Remaining), inline rater rename, and scoped/global deletion.
+  4. **Defects & Transcripts**: Acoustic defect catalog and rater transcription analysis.
+- **Admin Security & Scoped Export**: Study administration, rater moderation, and consensus analytics are protected behind an admin PIN. Filtered CSV exports can be scoped by campaign, model, or evaluator.
 - **Pre-Loaded Sample Benchmark**: Includes an out-of-the-box benchmark comparing 4 speech synthesis models across conversational test sentences so you can test the studio immediately after cloning.
 
 ---
@@ -99,8 +103,30 @@ ADMIN_PINS="2026,5588,mysecretpin" python3 run_server.py
 | URL Route | Purpose | Access |
 |---|---|---|
 | `http://localhost:8000/` | Main studio workspace and model inspector | Open |
-| `http://localhost:8000/eval.html` | Listening portal for human evaluators | Open (No PIN needed) |
-| `http://localhost:8000/admin.html` | Study creation wizard, active tests, and live consensus results | Protected (Admin PIN) |
+| `http://localhost:8000/eval.html` | Listening portal for human evaluators (draft persistence, sequence navigation) | Open (No PIN needed) |
+| `http://localhost:8000/admin.html` | Study creation wizard, rater moderation, DSP waveform inspector, and analytics | Protected (Admin PIN) |
+
+---
+
+## REST API Overview
+
+All API endpoints are hosted by `run_server.py` using Python standard library:
+
+### Evaluator Endpoints (Unauthenticated)
+- `GET /api/campaigns` — List active evaluation campaigns/studies.
+- `GET /api/campaigns?id=<id>` — Fetch campaign details, items, rubrics, and model list.
+- `POST /api/raters` — Register or identify an evaluator (`{ name, campaign_id }`).
+- `POST /api/evaluations` — Submit an evaluation record with score breakdown and timestamped defect tags (`dt-{ts}-{idx}-{uuid}`).
+
+### Admin Endpoints (Require Admin PIN via `X-Admin-PIN` header)
+- `GET /api/admin/summary?campaign_id=<id>` — Comprehensive metrics: study metadata, score distributions, ASR accuracy, word defect heatmap, and rater progress.
+- `GET /api/evaluations?campaign_id=<id>` — Retrieve full evaluation ledger for audit and inspection.
+- `DELETE /api/evaluations?id=<id>` — Delete a specific evaluation record.
+- `GET /api/admin/export.csv?campaign_id=<id>&model_id=<m>&rater_id=<r>` — Scoped CSV export of response records and tagged defect spans.
+- `POST /api/admin/raters/rename` — Rename a rater display name globally across evaluations (`{ rater_id, new_name }`).
+- `DELETE /api/raters?id=<id>&campaign_id=<cid>` — Remove a rater's evaluations from a study (scoped) or delete the rater record entirely (global).
+- `POST /api/campaigns` — Create a new study campaign with custom rubrics and audio items.
+- `DELETE /api/campaigns?id=<id>` — Delete a study campaign and its associated evaluation records.
 
 ---
 

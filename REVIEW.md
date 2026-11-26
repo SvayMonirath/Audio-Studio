@@ -71,7 +71,9 @@ Use tags to select relevant entries. Keep this index current. Do not copy the en
 
 | ID | Status | Severity | Tags / affected area | Short prevention rule | Enforcement |
 |---|---|---|---|---|---|
-| *(No project-specific lessons recorded yet.)* | | | | | |
+| REV-001 | Automated | High | `database`, `api`, `concurrency` | Defect tag IDs must incorporate random UUIDs and array index offsets to prevent primary key collision on batch inserts. | Automated test in `tests/test_server.py` |
+| REV-002 | Automated | High | `security`, `frontend`, `api` | Dynamic metric keys and values rendered into tables and modal dialogs must be strictly escaped via HTML entity escaping. | `escapeHtml()` utility + syntax checks |
+| REV-003 | Validated | Medium | `frontend`, `rater-ux`, `privacy` | Never silently evaluate under a cached rater ID without explicit user confirmation when loading a study URL. | Re-entry modal `#onboard-continue-box` + badge |
 
 Suggested tags: `architecture`, `api`, `database`, `migration`, `security`, `privacy`, `frontend`, `accessibility`, `mobile`, `backend`, `concurrency`, `performance`, `reliability`, `testing`, `dependency`, `build`, `deployment`, `documentation`, `agent-workflow`.
 
@@ -111,7 +113,7 @@ For each candidate, answer:
 Copy into the ledger only after deciding that the lesson is worth retaining. Use a unique ID such as `REV-001`.
 
 ```markdown
-### REV-001 — Short, behavior-focused title
+### REV-XXX — Short, behavior-focused title
 
 - Status: Candidate | Validated | Active | Automated | Retired
 - Severity: Critical | High | Medium | Low | Informational
@@ -142,6 +144,127 @@ Copy into the ledger only after deciding that the lesson is worth retaining. Use
 
 **Retirement/supersession note** (if applicable)
 ```
+
+## Recorded lessons
+
+### REV-001 — Multi-region waveform defect timestamp primary key collisions
+
+- Status: Automated
+- Severity: High
+- Tags: database, api, concurrency
+- First occurrence: 2026-11-25
+- Most recent occurrence: 2026-11-25
+- Recurrence count: 1
+- Affected files/components: `run_server.py`, `database.py`, `public/js/eval_app.js`
+- Related issue/ADR/test/control: `tests/test_server.py:test_submit_evaluation_multiple_defects`
+
+**What happened**
+When an evaluator flagged multiple speech defect regions within a single audio evaluation submission, the backend attempted to insert records into `evaluation_defects` using generated IDs based on timestamp seconds or milliseconds alone (`dt-{ts}`). Because all defects in the payload were processed in the same microsecond during request handling, identical IDs were generated, triggering a SQLite `UNIQUE constraint failed: evaluation_defects.id` and rejecting legitimate ratings.
+
+**Evidence / reproduction**
+Sending a `POST /api/evaluations` payload containing `defect_tags: [{defect_type: "V_DEL_INS", start_time: 1.0, end_time: 2.0}, {defect_type: "P_REP", start_time: 2.5, end_time: 3.0}]` failed with HTTP 500 when IDs lacked high-entropy uniqueness.
+
+**Impact**
+Evaluations containing multiple acoustic defect regions failed to save, resulting in lost rater effort and unrecorded defect metrics.
+
+**Root cause** (Confirmed)
+ID generation in `run_server.py` and client-side payload construction relied on millisecond-level timestamps without indexing or cryptographic entropy, guaranteeing collision across multiple items inserted within the same iteration loop.
+
+**Why existing safeguards failed**
+Previous unit tests only evaluated submissions with zero or one defect tag, missing batch-insert concurrency scenarios.
+
+**Required invariant / prevention rule**
+All synthetic primary keys for sub-entity collections must combine unix timestamp, array iteration index offset, and high-entropy UUID suffix: `f"dt-{now_ts}-{idx}-{uuid.uuid4().hex[:8]}"`.
+
+**Preventive action** (code / test)
+1. Updated `run_server.py` to format unique IDs as `dt-{ts}-{idx}-{uuid4}`.
+2. Added unit test `test_submit_evaluation_multiple_defects` asserting that multiple defect regions save cleanly without constraint violations.
+
+**Verification**
+`python3 -m unittest tests.test_server.TestServer.test_submit_evaluation_multiple_defects -v` exited 0.
+
+**Automation status and owner**
+Automated in unit test suite.
+
+---
+
+### REV-002 — Stored cross-site scripting via dynamic crowdsourced rubric metric keys
+
+- Status: Automated
+- Severity: High
+- Tags: security, frontend, api
+- First occurrence: 2026-11-25
+- Most recent occurrence: 2026-11-25
+- Recurrence count: 1
+- Affected files/components: `public/js/admin_app.js`
+- Related issue/ADR/test/control: `scripts/validate_package.py`, code review finding
+
+**What happened**
+In the Admin Results & Scores view, dynamic metric breakdowns and custom evaluation rubrics were rendered into HTML table cells and modal cards via template string interpolation without escaping the metric key or rater note strings (`<td>${key}</td>`). A malicious study creator or compromised evaluator payload could inject arbitrary HTML/JavaScript into the admin console session.
+
+**Evidence / reproduction**
+Supplying a metric key containing `<script>` or `<img onerror=...>` in a study configuration caused the tag to render unescaped in the Evaluation Inspector and score cards.
+
+**Impact**
+Stored XSS vulnerability in the admin interface, potentially allowing session hijacking or unauthorized admin actions.
+
+**Root cause** (Confirmed)
+Dynamic JSON keys from SQLite `evaluations.scores_json` were directly concatenated into innerHTML strings without passing through entity sanitization.
+
+**Why existing safeguards failed**
+Previous frontend reviews only tested standard predefined metrics (`naturalness`, `pronunciation`) and lacked adversarial string injection checks.
+
+**Required invariant / prevention rule**
+All user-supplied or dynamic keys, notes, and rater names must be sanitized via `escapeHtml()` before insertion into DOM templates or innerHTML strings.
+
+**Preventive action** (code)
+Implemented reusable `escapeHtml(str)` in `public/js/admin_app.js` and wrapped all dynamic metric keys, rater comments, and model labels.
+
+**Verification**
+Verified syntax and manual DOM checks; verified clean escaping in `public/js/admin_app.js`.
+
+**Automation status and owner**
+Automated frontend security practice.
+
+---
+
+### REV-003 — Silent rater identity caching in localStorage causing anonymous attribution drift
+
+- Status: Validated
+- Severity: Medium
+- Tags: frontend, rater-ux, privacy
+- First occurrence: 2026-11-25
+- Most recent occurrence: 2026-11-25
+- Recurrence count: 1
+- Affected files/components: `public/js/eval_app.js`, `public/eval.html`
+- Related issue/ADR/test/control: Rater onboarding workflow
+
+**What happened**
+When an evaluator previously rated samples on a browser and later returned to a study link (or when another rater used the same machine/browser), `eval_app.js` silently reused the cached `rater_id` and `rater_name` from `localStorage` without presenting a confirmation screen. As a result, subsequent ratings were mistakenly attributed to the prior user.
+
+**Evidence / reproduction**
+Rater "Monirath" visited an evaluation URL previously used by "Sorphea Tepy" and ratings were silently recorded under "Sorphea Tepy" because onboarding was bypassed when `localStorage.getItem("audio_studio_rater_name")` was truthy.
+
+**Impact**
+Data contamination in crowdsourced studies; raters unknowingly submitted feedback under previous users' names with no way to identify or switch identity.
+
+**Root cause** (Confirmed)
+The application assumed one physical user per browser profile and automatically skipped the identity step whenever local storage was non-empty.
+
+**Why existing safeguards failed**
+Testing was conducted in single-session private windows rather than persistent multi-user shared browser scenarios.
+
+**Required invariant / prevention rule**
+Returning raters with cached credentials must be shown an explicit identity confirmation modal (`Rating as: [Name]`) with options to continue or switch to a new rater profile before rating begins. A persistent top-bar badge must display the active identity with a "Switch" button.
+
+**Preventive action** (code / UI)
+Added `#onboard-continue-box` in `public/eval.html` prompting "Welcome back, [Name]! Continue as [Name] or Switch rater", and placed an active identity pill in the top header.
+
+**Verification**
+Manual verification of the rater reentry flow and automated syntax checking.
+
+**Automation status and owner**
+Interactive UI gate.
 
 ## Maintenance and deduplication
 
