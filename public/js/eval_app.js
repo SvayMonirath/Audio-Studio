@@ -151,7 +151,10 @@
     tryoutAsrHypText: document.getElementById("tryout-asr-hyp-text"),
     tryoutAsrDiffContent: document.getElementById("tryout-asr-diff-content"),
 
-    // Instructions Modal
+    // Instructions Banner & Modal
+    studyInstructionsBanner: document.getElementById("study-instructions-banner"),
+    studyInstructionsText: document.getElementById("study-instructions-text"),
+    btnDismissStudyBanner: document.getElementById("btn-dismiss-study-banner"),
     phoneFilterWrapper: document.getElementById("phone-filter-wrapper"),
     phoneFilterActiveBanner: document.getElementById("phone-filter-active-banner"),
     btnPhoneFilterToggle: document.getElementById("btn-phone-filter-toggle"),
@@ -395,7 +398,12 @@
       });
     }
 
-    // Instructions Modal
+    // Instructions Banner & Modal
+    if (el.btnDismissStudyBanner) {
+      el.btnDismissStudyBanner.addEventListener("click", () => {
+        if (el.studyInstructionsBanner) el.studyInstructionsBanner.classList.add("hidden");
+      });
+    }
     if (el.btnShowInstructions) {
       el.btnShowInstructions.addEventListener("click", () => {
         if (el.modalInstructions) el.modalInstructions.classList.remove("hidden");
@@ -517,6 +525,7 @@
           el.heardTranscriptInput.value = expected;
           updateHeardDiff();
           el.heardTranscriptInput.focus();
+          showToast("Auto-filled expected prompt. Edit any differences.", "info");
         }
       });
     }
@@ -750,10 +759,13 @@
       }
 
       if (state.campaign.instructions) {
+        if (el.studyInstructionsBanner) el.studyInstructionsBanner.classList.remove("hidden");
+        if (el.studyInstructionsText) el.studyInstructionsText.textContent = state.campaign.instructions;
         if (el.modalStudyInstructionsBox) el.modalStudyInstructionsBox.classList.remove("hidden");
         if (el.modalStudyInstructionsText) el.modalStudyInstructionsText.textContent = state.campaign.instructions;
         if (el.onboardCampaignDesc) el.onboardCampaignDesc.textContent = state.campaign.instructions;
       } else {
+        if (el.studyInstructionsBanner) el.studyInstructionsBanner.classList.add("hidden");
         if (el.modalStudyInstructionsBox) el.modalStudyInstructionsBox.classList.add("hidden");
       }
 
@@ -1316,7 +1328,7 @@
       }
     } else {
       el.heardTranscriptInput.classList.remove("ring-2", "ring-rose-500", "border-rose-500", "border-amber-400");
-      el.heardTranscriptInput.placeholder = "Click 'Copy Prompt' to start with the prompt text, or type what you heard...";
+      el.heardTranscriptInput.placeholder = "Click 'Auto-Fill Prompt' to start with the expected text, or type what you heard...";
       if (el.heardIndicatorBadge) {
         if (heardText) {
           el.heardIndicatorBadge.textContent = "Edited";
@@ -1877,28 +1889,28 @@
     const defectTypes = (state.campaign?.defect_types && state.campaign.defect_types.length > 0)
       ? state.campaign.defect_types
       : [
-          { code: "C_DEL", label: "Dropped Consonant", category: "pronunciation", desc: "Skipped consonant sound" },
-          { code: "C_SUB", label: "Wrong Consonant", category: "pronunciation", desc: "Substituted wrong consonant" },
-          { code: "V_DEL_INS", label: "Dropped/Wrong Vowel", category: "pronunciation", desc: "Missed or altered vowel (e.g. ឲ្យ)" },
-          { code: "SUB_FAIL", label: "Slurred Subscript", category: "pronunciation", desc: "Subscript cluster (ជើងអក្សរ) slurred" },
-          { code: "REG_FAIL", label: "Wrong Vowel Register", category: "pronunciation", desc: "Swapped First/Second-series vowel tone" },
-          { code: "NASAL_FAIL", label: "Nasal Sound Error", category: "pronunciation", desc: "Distorted nasal sound" },
-          { code: "LEX_SUB", label: "Wrong Word", category: "pronunciation", desc: "Spoke different word entirely" },
-          { code: "DIALECT", label: "Non-Standard Accent", category: "pronunciation", desc: "Differs from Phnom Penh accent" },
+          { code: "C_DEL", label: "Missing Consonant Sound", category: "pronunciation", desc: "Skipped consonant sound" },
+          { code: "C_SUB", label: "Wrong Consonant Sound", category: "pronunciation", desc: "Said the wrong consonant letter" },
+          { code: "V_DEL_INS", label: "Wrong Vowel Sound", category: "pronunciation", desc: "Vowel was mispronounced or swapped" },
+          { code: "SUB_FAIL", label: "Muffled Subscript (ជើងអក្សរ)", category: "pronunciation", desc: "Khmer subscript cluster (ជើងអក្សរ) slurred or missed" },
+          { code: "REG_FAIL", label: "Wrong Tone Register (អ vs អ៊)", category: "pronunciation", desc: "Swapped First/Second-series vowel tone" },
+          { code: "NASAL_FAIL", label: "Nasal Sound Error", category: "pronunciation", desc: "Distorted or omitted nasal sound" },
+          { code: "LEX_SUB", label: "Completely Wrong Word", category: "pronunciation", desc: "Spoke different word entirely" },
+          { code: "DIALECT", label: "Unfamiliar Accent", category: "pronunciation", desc: "Differs from standard accent" },
 
-          { code: "GLITCH", label: "Robotic Buzz / Pop", category: "glitch", desc: "Digital pop, buzz, or static click" },
-          { code: "PROM", label: "Sudden Loud Burst", category: "glitch", desc: "Unnaturally loud syllable" },
-          { code: "INCONSIST", label: "Voice Tone Drift", category: "glitch", desc: "Pitch or speaker timbre shifted abruptly" },
+          { code: "GLITCH", label: "Robotic Buzz / Static Pop", category: "glitch", desc: "Digital pop, buzz, or static click" },
+          { code: "PROM", label: "Sudden Volume Spike", category: "glitch", desc: "Unnaturally loud syllable or shout" },
+          { code: "INCONSIST", label: "Voice Pitch Shift", category: "glitch", desc: "Pitch or speaker timbre shifted abruptly" },
 
-          { code: "PROS", label: "Rushed / Bad Rhythm", category: "pacing", desc: "Rushed or unnatural cadence" },
-          { code: "ELONG", label: "Dragged Syllable", category: "pacing", desc: "Unnaturally slow or dragged out" },
-          { code: "SEG", label: "Awkward Pause", category: "pacing", desc: "Robotic gap inside a word" },
-          { code: "REPETITION", label: "Stutter / Repeat", category: "pacing", desc: "Repeated sound or word" },
+          { code: "PROS", label: "Unnatural Flow / Robotic Rhythm", category: "pacing", desc: "Monotone or robotic cadence" },
+          { code: "ELONG", label: "Drawn-Out Syllable", category: "pacing", desc: "Unnaturally slow or dragged out sound" },
+          { code: "SEG", label: "Awkward Mid-Word Pause", category: "pacing", desc: "Robotic gap inside a word" },
+          { code: "REPETITION", label: "Stutter / Repeated Sound", category: "pacing", desc: "Repeated sound or word" },
 
-          { code: "CLIP_TRUNC", label: "Cut-off Ending", category: "missing", desc: "Cut off before word finished" },
-          { code: "CODE", label: "English Word Failed", category: "missing", desc: "Silent or static on English loanword" },
-          { code: "SILENCE", label: "Dead Silence Gap", category: "missing", desc: "Unexpected silence mid-turn" },
-          { code: "NONE", label: "Clean Audio", category: "clean", desc: "Clear, natural pronunciation" }
+          { code: "CLIP_TRUNC", label: "Cut Off Early", category: "missing", desc: "Cut off before word finished" },
+          { code: "CODE", label: "Foreign / English Word Mute", category: "missing", desc: "Silent or static on English loanword" },
+          { code: "SILENCE", label: "Empty Dead Silence", category: "missing", desc: "Unexpected silence mid-turn" },
+          { code: "NONE", label: "Clean Audio (No Defects)", category: "clean", desc: "Clear, natural pronunciation" }
         ];
 
     const catLabels = {
@@ -1914,7 +1926,21 @@
     // Group defect types by category
     const grouped = {};
     defectTypes.forEach(dt => {
-      const cat = (dt.category || "pronunciation").toLowerCase();
+      let cat = (dt.category || "").toLowerCase();
+      if (!cat) {
+        const code = (dt.code || "").toUpperCase();
+        if (code === "NOISE" || code === "ROBOTIC" || code === "PITCH" || code === "GLITCH" || code === "PROM" || code === "INCONSIST" || code === "OTHER") {
+          cat = "glitch";
+        } else if (code === "UNNAT_PAUSE" || code === "PROS" || code === "ELONG" || code === "SEG" || code === "REPETITION") {
+          cat = "pacing";
+        } else if (code === "CLIP_TRUNC" || code === "CODE" || code === "SILENCE") {
+          cat = "missing";
+        } else if (code === "NONE" || code === "CLEAN") {
+          cat = "clean";
+        } else {
+          cat = "pronunciation";
+        }
+      }
       if (!grouped[cat]) grouped[cat] = [];
       grouped[cat].push(dt);
     });
@@ -1922,7 +1948,7 @@
     let firstChip = null;
     for (const [cat, chips] of Object.entries(grouped)) {
       const catHeader = document.createElement("div");
-      catHeader.className = "w-full text-[10px] font-bold text-zinc-600 uppercase tracking-wider pt-2 pb-1 border-b border-zinc-100 flex items-center justify-between";
+      catHeader.className = "w-full text-[10px] font-bold text-zinc-500 uppercase tracking-wider pt-2 pb-1 border-b border-zinc-100 flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-xs z-10";
       catHeader.textContent = catLabels[cat] || cat.toUpperCase();
       el.popoverChipGroup.appendChild(catHeader);
 
@@ -1941,8 +1967,9 @@
 
         const labelEn = dt.label || dt.name || dt.code;
         const desc = dt.desc || dt.description || "";
+        const color = dt.badge_color || dt.dot || "#EF4444";
         chip.title = desc ? `${labelEn}: ${desc}` : labelEn;
-        chip.innerHTML = `<span class="font-medium text-xs">${escapeHtml(labelEn)}</span> <span class="text-[10px] text-zinc-500 font-mono">(${escapeHtml(dt.code)})</span>`;
+        chip.innerHTML = `<span class="w-1.5 h-1.5 rounded-full shrink-0 inline-block" style="background-color: ${color}"></span><span class="font-medium text-xs leading-none">${escapeHtml(labelEn)}</span><span class="text-[10px] text-zinc-400 font-mono leading-none">(${escapeHtml(dt.code)})</span>`;
 
         chip.addEventListener("click", () => {
           el.popoverChipGroup.querySelectorAll(".defect-chip").forEach(c => c.classList.remove("selected"));
@@ -1978,7 +2005,7 @@
     }
 
     el.regionTagPopover.classList.remove("hidden");
-    const popoverWidth = 320;
+    const popoverWidth = 350;
     const canvasRect = el.waveformBox.getBoundingClientRect();
 
     const left = Math.max(10, Math.min(canvasRect.width - popoverWidth - 10, (selection.clientX || 100) - canvasRect.left - (popoverWidth / 2)));

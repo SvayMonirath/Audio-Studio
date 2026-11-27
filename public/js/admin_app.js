@@ -12,27 +12,31 @@
 (function () {
   "use strict";
 
-  // 19 Standardized Clinical Speech Error Taxonomies (Clear, self-explanatory English definitions)
+  // 19 Standardized Speech Error Taxonomies (Plain-English definitions & clear categories)
   const CLINICAL_ERROR_CODES_19 = [
-    { code: "C_DEL", label: "Consonant Deletion", desc: "A consonant sound was dropped or skipped entirely", category: "Phonetic", dot: "#EF4444" },
-    { code: "C_SUB", label: "Consonant Substitution", desc: "A consonant was pronounced as a different letter", category: "Phonetic", dot: "#F97316" },
-    { code: "V_DEL_INS", label: "Vowel Sound Error", desc: "A vowel was altered, substituted, or misspoken", category: "Phonetic", dot: "#DC2626" },
-    { code: "CLIP_TRUNC", label: "Word Cut Off (Truncation)", desc: "The word was cut short or faded out abruptly", category: "Acoustic", dot: "#EA580C" },
-    { code: "CODE", label: "Foreign Word Failure", desc: "English/foreign borrowed word failed to pronounce", category: "Language", dot: "#B91C1C" },
-    { code: "GLITCH", label: "Digital Glitch / Static", desc: "Robotic buzz, clicks, pops, or digital noise burst", category: "Acoustic", dot: "#E11D48" },
-    { code: "ELONG", label: "Syllable Drawn Out", desc: "A syllable is unnaturally stretched or held too long", category: "Rhythm", dot: "#F59E0B" },
-    { code: "PROM", label: "Sudden Volume Spike", desc: "Volume jumps unnaturally loud or soft mid-word", category: "Acoustic", dot: "#D97706" },
-    { code: "PROS", label: "Unnatural Voice Rhythm", desc: "Robotic cadence, monotone melody, or flat delivery", category: "Intonation", dot: "#84CC16" },
-    { code: "SILENCE", label: "Dead Silence Gap", desc: "Unnatural empty gap of dead silence mid-sentence", category: "Acoustic", dot: "#64748B" },
-    { code: "SEG", label: "Awkward Pause Gap", desc: "Hesitation or pause where speech should flow smoothly", category: "Rhythm", dot: "#06B6D4" },
-    { code: "INCONSIST", label: "Voice Tone Shift", desc: "Speaker pitch or voice character changes mid-sentence", category: "Voice", dot: "#8B5CF6" },
-    { code: "LEX_SUB", label: "Wrong Word Spoken", desc: "A completely different dictionary word was spoken", category: "Lexical", dot: "#A855F7" },
-    { code: "REPETITION", label: "Stutter / Repetition", desc: "A syllable or word stuttered or repeated itself", category: "Fluency", dot: "#EC4899" },
-    { code: "REG_FAIL", label: "Khmer Register Error", desc: "First-series (a-series) vs second-series (o-series) mistake", category: "Khmer Specific", dot: "#6366F1" },
-    { code: "SUB_FAIL", label: "Subscript Consonant Error", desc: "Khmer subscript (cherng) was omitted or mispronounced", category: "Khmer Specific", dot: "#3B82F6" },
-    { code: "NASAL_FAIL", label: "Nasal Sound Error", desc: "Nasal marker (nikahit / bantoc) mispronounced", category: "Khmer Specific", dot: "#0EA5E9" },
-    { code: "DIALECT", label: "Unusual Accent / Dialect", desc: "Pronunciation has an unfamiliar regional accent", category: "Accent", dot: "#10B981" },
-    { code: "NONE", label: "Clean Speech Sample", desc: "Zero defects detected in this audio sample", category: "Quality", dot: "#059669" }
+    { code: "C_DEL", label: "Missing Consonant Sound", desc: "A consonant sound was skipped or left out (e.g. dropped /t/ or /k/)", category: "Pronunciation", dot: "#EF4444" },
+    { code: "C_SUB", label: "Wrong Consonant Sound", desc: "Spoke the wrong consonant letter (e.g. said /t/ instead of /d/)", category: "Pronunciation", dot: "#F97316" },
+    { code: "V_DEL_INS", label: "Wrong Vowel Sound", desc: "Vowel was mispronounced, swapped, or missed", category: "Pronunciation", dot: "#DC2626" },
+    { code: "SUB_FAIL", label: "Muffled Subscript (ជើងអក្សរ)", desc: "Khmer subscript (ជើងអក្សរ) was slurred, garbled, or missed", category: "Pronunciation", dot: "#3B82F6" },
+    { code: "REG_FAIL", label: "Wrong Tone Register (អ vs អ៊)", desc: "First-series (អ) and second-series (អ៊) vowel sounds were swapped", category: "Pronunciation", dot: "#6366F1" },
+    { code: "NASAL_FAIL", label: "Nasal Sound Error", desc: "Nasal ending or marker (និគ្គហិត/បន្តក់) was omitted or distorted", category: "Pronunciation", dot: "#0EA5E9" },
+    { code: "LEX_SUB", label: "Completely Wrong Word", desc: "Model spoke an entirely different word than what was written", category: "Pronunciation", dot: "#A855F7" },
+    { code: "DIALECT", label: "Unfamiliar Accent", desc: "Pronunciation has an unusual regional or non-standard accent", category: "Pronunciation", dot: "#10B981" },
+
+    { code: "GLITCH", label: "Robotic Buzz / Static Pop", desc: "Robotic click, audio pop, mechanical buzz, or burst of static", category: "Audio Noise", dot: "#E11D48" },
+    { code: "PROM", label: "Sudden Volume Spike", desc: "Voice suddenly shouted or jumped unnaturally loud on a syllable", category: "Audio Noise", dot: "#D97706" },
+    { code: "INCONSIST", label: "Voice Pitch Shift", desc: "Voice pitch or speaker tone suddenly changed mid-sentence", category: "Audio Noise", dot: "#8B5CF6" },
+
+    { code: "PROS", label: "Unnatural Flow / Robotic Rhythm", desc: "Monotone delivery, robotic rhythm, or unnatural pacing", category: "Speed & Rhythm", dot: "#84CC16" },
+    { code: "ELONG", label: "Drawn-Out Syllable", desc: "A sound or syllable was stretched out unnaturally long", category: "Speed & Rhythm", dot: "#F59E0B" },
+    { code: "SEG", label: "Awkward Mid-Word Pause", desc: "Robotic pause or gap stuck in the middle of a single word", category: "Speed & Rhythm", dot: "#06B6D4" },
+    { code: "REPETITION", label: "Stutter / Repeated Sound", desc: "Syllable, word, or sound stuttered or repeated itself", category: "Speed & Rhythm", dot: "#EC4899" },
+
+    { code: "CLIP_TRUNC", label: "Cut Off Early", desc: "Audio was cut short or abruptly silenced before the word finished", category: "Cut-Off & Missing", dot: "#EA580C" },
+    { code: "CODE", label: "Foreign / English Word Mute", desc: "Model went mute, glitched, or babbled on English loanword", category: "Cut-Off & Missing", dot: "#B91C1C" },
+    { code: "SILENCE", label: "Empty Dead Silence", desc: "Unnatural gap of dead silence where speech should be playing", category: "Cut-Off & Missing", dot: "#64748B" },
+
+    { code: "NONE", label: "Clean Audio (No Defects)", desc: "Zero defects detected; clear and natural speech", category: "Clean", dot: "#059669" }
   ];
 
   // State
@@ -139,6 +143,7 @@
       if (el.wizStudyName && state.wizardData.name) el.wizStudyName.value = state.wizardData.name;
       if (el.wizStudyDesc && state.wizardData.desc) el.wizStudyDesc.value = state.wizardData.desc;
       if (el.wizStudyInstructions && state.wizardData.instructions) el.wizStudyInstructions.value = state.wizardData.instructions;
+      if (el.wizStep3Instructions && state.wizardData.instructions) el.wizStep3Instructions.value = state.wizardData.instructions;
 
       // Modality selector DOM sync
       if (el.wizModalityRadios) {
@@ -359,6 +364,7 @@
     wizBtnStep2Next: document.getElementById("wiz-btn-step2-next"),
 
     // Step 3 (Modular Canvas & Customize Drawer)
+    wizStep3Instructions: document.getElementById("wiz-step3-instructions"),
     btnKitMos: document.getElementById("btn-kit-mos"),
     btnKitVocab: document.getElementById("btn-kit-vocab"),
     btnKitArena: document.getElementById("btn-kit-arena"),
@@ -942,6 +948,9 @@
         renderItemsTable();
         renderModelsChips();
       } else if (stepNumber === 3) {
+        if (el.wizStep3Instructions) {
+          el.wizStep3Instructions.value = state.wizardData.instructions || "";
+        }
         renderCanvas();
         renderInspector();
         updateSmartGuide();
@@ -969,6 +978,18 @@
     if (el.wizStudyInstructions) {
       el.wizStudyInstructions.addEventListener("input", (e) => {
         state.wizardData.instructions = e.target.value.trim();
+        if (el.wizStep3Instructions) {
+          el.wizStep3Instructions.value = state.wizardData.instructions;
+        }
+        saveWizardDraft();
+      });
+    }
+    if (el.wizStep3Instructions) {
+      el.wizStep3Instructions.addEventListener("input", (e) => {
+        state.wizardData.instructions = e.target.value.trim();
+        if (el.wizStudyInstructions) {
+          el.wizStudyInstructions.value = state.wizardData.instructions;
+        }
         saveWizardDraft();
       });
     }
@@ -1017,6 +1038,10 @@
     // Step 3 Nav
     el.wizBtnStep3Prev.addEventListener("click", () => goToStep(2));
     el.wizBtnStep3Next.addEventListener("click", () => {
+      if (el.wizStep3Instructions) {
+        state.wizardData.instructions = el.wizStep3Instructions.value.trim();
+        saveWizardDraft();
+      }
       const blocks = state.wizardData.ui_config.blocks || [];
       const activeAudio = blocks.filter(b => b.type === "audio_player");
       const activeScoring = blocks.filter(b => b.type === "scoring_questions");
@@ -1100,6 +1125,7 @@
     if (el.wizStudyName) el.wizStudyName.value = "";
     if (el.wizStudyDesc) el.wizStudyDesc.value = "";
     if (el.wizStudyInstructions) el.wizStudyInstructions.value = "";
+    if (el.wizStep3Instructions) el.wizStep3Instructions.value = "";
 
     if (el.shareableLinkContainer) el.shareableLinkContainer.classList.add("hidden");
     if (el.launchActionBox) el.launchActionBox.classList.remove("hidden");

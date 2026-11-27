@@ -314,33 +314,33 @@ def seed_project_khmer_speech(db_path=None):
     # 3. 19 Clinical Error Taxonomies (Organized into 4 Plain-Language Categories)
     clinical_taxonomies = [
         # Category: Pronunciation Mistakes
-        ("C_DEL", "Dropped Consonant", "បាត់ព្យញ្ជនៈ (Dropped Consonant)", "pronunciation", "A consonant sound was completely skipped (e.g. dropped /t/ or /k/).", "#EF4444"),
-        ("C_SUB", "Wrong Consonant", "ជំនួសព្យញ្ជនៈខុស (Wrong Consonant)", "pronunciation", "Wrong consonant spoken (e.g. said /t/ instead of /d/).", "#F97316"),
-        ("V_DEL_INS", "Dropped/Wrong Vowel", "បាត់ ឬថែមស្រៈ (Vowel Error)", "pronunciation", "A vowel was missed or changed (e.g. dropped polite word 'ឲ្យ').", "#DC2626"),
-        ("SUB_FAIL", "Slurred Subscript Cluster", "បញ្ចេញជើងអក្សរមិនច្បាស់ (Subscript Slur)", "pronunciation", "Subscript consonant (ជើងអក្សរ) was slurred, garbled, or missed.", "#3B82F6"),
-        ("REG_FAIL", "Wrong Vowel Register", "ច្រឡំសំឡេងពួក អ និង អ៊ (Register Error)", "pronunciation", "First-series (អ) and second-series (អ៊) vowel sounds were swapped.", "#6366F1"),
-        ("NASAL_FAIL", "Nasal Sound Error", "បញ្ចេញសំឡេងច្រមុះមិនច្បាស់ (Nasal Error)", "pronunciation", "Nasal consonant sound (/ŋ/, /ɲ/) was omitted or distorted.", "#0EA5E9"),
-        ("LEX_SUB", "Entirely Wrong Word", "អានខុសពាក្យទាំងស្រុង (Wrong Word)", "pronunciation", "Model spoke a completely different word than written on screen.", "#A855F7"),
-        ("DIALECT", "Non-Standard Accent", "សំឡេងបញ្ចេញបែបតំបន់ (Dialect Accent)", "pronunciation", "Pronunciation differs noticeably from everyday Phnom Penh speech.", "#10B981"),
+        ("C_DEL", "Missing Consonant Sound", "បាត់ព្យញ្ជនៈ (Dropped Consonant)", "pronunciation", "A consonant sound was skipped or left out (e.g. didn't say the 't' or 'k' sound).", "#EF4444"),
+        ("C_SUB", "Wrong Consonant Sound", "អានព្យញ្ជនៈខុស (Wrong Consonant)", "pronunciation", "Spoke the wrong consonant letter (e.g. said 't' instead of 'd', or 's' instead of 'ch').", "#F97316"),
+        ("V_DEL_INS", "Wrong Vowel Sound", "អានស្រៈខុស (Wrong Vowel)", "pronunciation", "Vowel was mispronounced, swapped, or missed (e.g. said short vowel instead of long).", "#DC2626"),
+        ("SUB_FAIL", "Muffled Subscript (ជើងអក្សរ)", "បញ្ចេញជើងអក្សរមិនច្បាស់ (Subscript Slur)", "pronunciation", "Khmer subscript consonant (ជើងអក្សរ) was slurred, garbled, or skipped.", "#3B82F6"),
+        ("REG_FAIL", "Wrong Tone Register (អ vs អ៊)", "ច្រឡំសំឡេងពួក អ និង អ៊ (Register Error)", "pronunciation", "First-series (អ) and second-series (អ៊) vowel sounds were swapped.", "#6366F1"),
+        ("NASAL_FAIL", "Nasal Sound Error", "បញ្ចេញសំឡេងច្រមុះមិនច្បាស់ (Nasal Error)", "pronunciation", "Nasal ending or marker (និគ្គហិត ឬ បន្តក់) was omitted or distorted.", "#0EA5E9"),
+        ("LEX_SUB", "Completely Wrong Word", "អានខុសពាក្យទាំងស្រុង (Wrong Word)", "pronunciation", "Model spoke an entirely different word than what was written on screen.", "#A855F7"),
+        ("DIALECT", "Unfamiliar Accent", "សំឡេងបញ្ចេញបែបតំបន់ (Regional Accent)", "pronunciation", "Pronunciation has an unusual regional or non-standard accent.", "#10B981"),
 
         # Category: Audio Glitches & Noise
-        ("GLITCH", "Robotic Buzz / Digital Pop", "សំឡេងទាក់ ឬផ្ទុះ (Audio Glitch)", "glitch", "Digital click, audio pop, mechanical buzzing, or burst of static.", "#E11D48"),
-        ("PROM", "Sudden Loud Burst", "សំឡេងស្រែក ឬឮខ្លាំងពេក (Loud Burst)", "glitch", "Voice spoke unnaturally loud or shouted on a syllable.", "#D97706"),
-        ("INCONSIST", "Voice Pitch / Tone Drift", "សំឡេងប្រែប្រួលមិនថេរ (Voice Drift)", "glitch", "Voice suddenly changed pitch or sounded like two different speakers.", "#8B5CF6"),
+        ("GLITCH", "Robotic Buzz / Static Pop", "សំឡេងទាក់ ឬផ្ទុះ (Audio Glitch)", "glitch", "Robotic click, audio pop, mechanical buzz, or burst of static noise.", "#E11D48"),
+        ("PROM", "Sudden Volume Spike", "សំឡេងស្រែក ឬឮខ្លាំងភ្លាមៗ (Loud Spike)", "glitch", "Voice suddenly shouted or jumped unnaturally loud on a syllable.", "#D97706"),
+        ("INCONSIST", "Voice Pitch Shift", "សំឡេងប្រែប្រួលខុសប្រក្រតី (Voice Shift)", "glitch", "Voice pitch or speaker tone suddenly changed mid-sentence.", "#8B5CF6"),
 
         # Category: Speed & Rhythm
-        ("PROS", "Rushed / Unnatural Rhythm", "ចង្វាក់មិនត្រូវ ឬលឿនពេក (Bad Rhythm)", "pacing", "Rushed cadence without natural conversational breathing pauses.", "#84CC16"),
-        ("ELONG", "Dragged-Out Syllable", "អូសសំឡេងវែងខុសប្រក្រតី (Dragged Syllable)", "pacing", "Syllable drawn out unnaturally slow or lingering.", "#F59E0B"),
-        ("SEG", "Awkward Syllable Gap", "ផ្អាកខុសកន្លែង (Awkward Pause)", "pacing", "Unnatural robotic gap between syllables inside a single word.", "#06B6D4"),
-        ("REPETITION", "Stutter / Repetition", "និយាយត្រដិត ឬផ្ទួនៗ (Stutter)", "pacing", "Model repeated a syllable, word, or sound multiple times.", "#EC4899"),
+        ("PROS", "Unnatural Flow / Robotic Rhythm", "ចង្វាក់រឹង ឬមិនធម្មជាតិ (Robotic Flow)", "pacing", "Monotone delivery, robotic rhythm, or unnatural pacing.", "#84CC16"),
+        ("ELONG", "Drawn-Out Syllable", "អូសសំឡេងវែងពេក (Dragged Syllable)", "pacing", "A sound or syllable was stretched out unnaturally long.", "#F59E0B"),
+        ("SEG", "Awkward Mid-Word Pause", "ផ្អាកខុសកន្លែងកណ្តាលពាក្យ (Awkward Pause)", "pacing", "Robotic pause or gap stuck in the middle of a single word.", "#06B6D4"),
+        ("REPETITION", "Stutter / Repeated Sound", "និយាយត្រដិត ឬផ្ទួនៗ (Stutter)", "pacing", "Syllable, word, or sound stuttered or repeated itself.", "#EC4899"),
 
         # Category: Cut-off & Missing Audio
-        ("CLIP_TRUNC", "Cut-off Word Ending", "កាត់ដាច់ចុងពាក្យ (Cut-off Ending)", "missing", "Audio or syllable cut off abruptly before the word finished.", "#EA580C"),
-        ("CODE", "English Loanword Failed", "បញ្ចេញពាក្យបរទេសមិនចេញ (Code-Switch)", "missing", "Model went silent, made static, or babbled on English word (e.g. 'Iced Latte').", "#B91C1C"),
-        ("SILENCE", "Dead Silence Gap", "ស្ងាត់បាត់សំឡេង (Dead Silence)", "missing", "Unintended silence inside an active utterance where audio should play.", "#64748B"),
+        ("CLIP_TRUNC", "Cut Off Early", "កាត់ដាច់ចុងពាក្យ (Cut Off)", "missing", "Audio was cut short or abruptly silenced before the word finished.", "#EA580C"),
+        ("CODE", "Foreign / English Word Mute", "អានពាក្យបរទេសមិនចេញ (Foreign Word)", "missing", "Model went mute, glitched, or babbled on an English or foreign borrowed word.", "#B91C1C"),
+        ("SILENCE", "Empty Dead Silence", "ស្ងាត់បាត់សំឡេង (Dead Silence)", "missing", "Unnatural gap of dead silence where speech should be playing.", "#64748B"),
 
         # Category: Clean Audio
-        ("NONE", "Clean Audio (No Defects)", "សំឡេងល្អឥតខ្ចោះ (Clean Audio)", "clean", "No defects heard; clear, natural pronunciation.", "#059669")
+        ("NONE", "Clean Audio (No Defects)", "សំឡេងល្អឥតខ្ចោះ (Clean Audio)", "clean", "Zero defects heard; clear, natural pronunciation.", "#059669")
     ]
     
     for code, en, km, cat, desc, col in clinical_taxonomies:
@@ -349,6 +349,11 @@ def seed_project_khmer_speech(db_path=None):
         INSERT OR REPLACE INTO taxonomies (id, project_id, code, name_en, name_km, category, description, badge_color)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (tax_id, project_id, code, en, km, cat, desc, col))
+        cur.execute("""
+        UPDATE taxonomies
+        SET name_en = ?, name_km = ?, category = ?, description = ?, badge_color = ?
+        WHERE code = ?
+        """, (en, km, cat, desc, col, code))
 
     # 4. Models & Physical Telemetry
     data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public", "data")
@@ -491,14 +496,7 @@ def seed_project_khmer_speech(db_path=None):
                 ))
 
     # 7. Only One Clean Production Study: 23 Dialogue Sentences (4 Models)
-    default_defects = [
-        {"code": "MISPRON", "label": "Mispronunciation", "label_km": "បញ្ចេញសំឡេងខុស"},
-        {"code": "NOISE", "label": "Noise / Click", "label_km": "សំឡេងរំខាន / ផ្ទុះ"},
-        {"code": "UNNAT_PAUSE", "label": "Awkward Pause", "label_km": "ការផ្អាកខុសធម្មជាតិ"},
-        {"code": "ROBOTIC", "label": "Robotic Buzz", "label_km": "សំឡេងរ៉ូបូត / រំញ័រ"},
-        {"code": "PITCH", "label": "Unnatural Pitch", "label_km": "កម្ពស់សំឡេងមិនធម្មជាតិ"},
-        {"code": "OTHER", "label": "Other Defect", "label_km": "បញ្ហាផ្សេងទៀត"}
-    ]
+    # Uses None for defect_types_json so it inherits all 19 standardized project taxonomies
     cur.execute("""
     INSERT INTO campaigns (id, project_id, name, suite_id, rubric_id, instructions, defect_types_json, collect_transcription, is_active)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
@@ -509,9 +507,15 @@ def seed_project_khmer_speech(db_path=None):
         suite_dev23_id,
         rubric_id_acr,
         "Please listen to each speech audio sample and rate its pronunciation, intelligibility, naturalness, and voice quality on the 1-5 scale. You can also drag across any defect on the waveform to flag it.",
-        json.dumps(default_defects),
+        None,
         1
     ))
+    # Clear legacy uncategorized defects from existing database
+    cur.execute("""
+    UPDATE campaigns
+    SET defect_types_json = NULL
+    WHERE id = 'camp-dev23-4models'
+    """)
 
     # 9. Default Raters (From team roles)
     raters = [

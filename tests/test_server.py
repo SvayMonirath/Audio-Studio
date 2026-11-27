@@ -1033,7 +1033,18 @@ class StudioServerTestCase(unittest.TestCase):
             with urlopen(req_export) as resp:
                 self.assertEqual(resp.status, 200)
                 self.assertEqual(resp.headers.get("Content-Type"), "application/zip")
-                zip_bytes = resp.read()
+                chunks = []
+                while True:
+                    try:
+                        part = resp.read(65536)
+                        if not part:
+                            break
+                        chunks.append(part)
+                    except Exception as err:
+                        if hasattr(err, "partial"):
+                            chunks.append(err.partial)
+                        break
+                zip_bytes = b"".join(chunks)
         except HTTPError as e:
             print("ERROR BODY:", e.read().decode())
             raise
@@ -1496,7 +1507,9 @@ class StudioServerTestCase(unittest.TestCase):
 
         # 2. Get first active campaign and its item
         with urlopen(f"http://127.0.0.1:{TEST_PORT}/api/campaigns") as resp:
-            camp_id = json.loads(resp.read().decode())["campaigns"][0]["id"]
+            camps = json.loads(resp.read().decode())["campaigns"]
+            active_camps = [c for c in camps if c.get("is_active", 1) == 1]
+            camp_id = active_camps[0]["id"]
 
         with urlopen(f"http://127.0.0.1:{TEST_PORT}/api/items?campaign_id={camp_id}") as resp:
             item_id = json.loads(resp.read().decode())["items"][0]["id"]

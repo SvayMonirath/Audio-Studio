@@ -843,7 +843,9 @@ class StudioHandler(BaseHTTPRequestHandler):
                 self.send_header("Content-Length", str(len(zip_data)))
                 self.send_cors_headers()
                 self.end_headers()
-                self.wfile.write(zip_data)
+                chunk_size = 65536
+                for i in range(0, len(zip_data), chunk_size):
+                    self.wfile.write(zip_data[i:i+chunk_size])
                 return
 
             self.send_error(404, "API endpoint not found")
